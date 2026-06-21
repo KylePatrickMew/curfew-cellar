@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
+// import { useCallback } from "react"; // might need later
 import {
   Plus, ClipboardList, BookOpen, Beer, Sparkles, Check, CheckCircle2,
   AlertTriangle, Clock, X, ArrowRight, Trash2, Search, Loader2, Bell, Calendar, History, ChevronDown, Database, Download, Upload, Copy, QrCode, Camera, FileText, Package, MoreHorizontal, BarChart3,
@@ -10,6 +11,7 @@ const C = {
   stone: "#E8E7E2", surface: "#FCFBF9", line: "#DBD8D0", cream: "#F3EFE6",
 };
 const STORE_KEY = "curfew-cellar:data:v1";
+const MODEL = "claude-sonnet-4-6";
 const store = (typeof window !== "undefined" && window.localStorage) ? {
   get: async (k) => { const v = localStorage.getItem(k); return v == null ? null : { key: k, value: v }; },
   set: async (k, v) => { localStorage.setItem(k, v); return { key: k, value: v }; },
@@ -35,6 +37,7 @@ const STATUS_STYLE = {
   off: "bg-zinc-100 text-zinc-500 border-zinc-200",
 };
 
+// TODO: add bottles + cans as a 4th type
 const DRINK_TYPES = [
   { key: "cask", label: "Cask ale" },
   { key: "keg", label: "Keg" },
@@ -64,6 +67,15 @@ const uid = () => Math.random().toString(36).slice(2, 9);
 const DAY = 86400000;
 const isoDaysAgo = (n, hour = 9) => { const d = new Date(Date.now() - n * DAY); d.setHours(hour, 0, 0, 0); return d.toISOString(); };
 const dateInDays = (n) => new Date(Date.now() + n * DAY).toISOString().slice(0, 10);
+// best-before comes off labels in all sorts of formats, normalise to YYYY-MM-DD (UK day/month order)
+const toISO = (s) => {
+  if (!s) return "";
+  const t = String(s).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
+  const m = t.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+  if (m) { let [, d, mo, y] = m; if (y.length === 2) y = "20" + y; return `${y}-${mo.padStart(2, "0")}-${d.padStart(2, "0")}`; }
+  return "";
+};
 const fmt = (iso) => {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -75,7 +87,7 @@ const dayDiff = (aIso, bIso) => { const a = new Date(aIso); a.setHours(0, 0, 0, 
 const daysUntil = (dateStr) => { if (!dateStr) return null; const a = new Date(); a.setHours(0, 0, 0, 0); const b = new Date(dateStr + "T00:00:00"); return Math.round((b - a) / DAY); };
 const daysOn = (line) => { if (!line.dates.on) return null; return dayDiff(line.dates.on, line.dates.off || new Date().toISOString()); };
 
-// freshness only matters for cask conditioning; reworded to "check quality", never "sell today"
+// quality nudge for cask only, never a hard "bin it"
 const freshness = (line) => {
   if (line.drinkType !== "cask") return null;
   const d = daysOn(line);
@@ -127,7 +139,7 @@ const aiDraft = (name) => {
   return { ...d, allergensVerified: false };
 };
 
-// ---------- Seed (illustrative data; details made up to avoid wrong real claims) ----------
+// ---------- Demo data ----------
 const seedLibrary = [
   { id: "b1", brewery: "Tweedside Brewing", location: "Berwick-upon-Tweed", name: "Border Reiver IPA", style: "IPA", abv: "5.4", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Wheat (gluten)"], notes: "Big hazy IPA, mango and pine with a soft bitter finish.", allergensVerified: true, category: "IPA", history: [{ date: isoDaysAgo(120), abv: "5.2", price: "4.10" }, { date: isoDaysAgo(45), abv: "5.4", price: "4.20" }, { date: isoDaysAgo(2), abv: "5.4", price: "4.40" }] },
   { id: "b2", brewery: "Cheviot Hills Brewery", location: "Wooler", name: "Curfew Bell Pale", style: "Pale Ale", abv: "4.0", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Crisp golden pale, grapefruit and a clean dry finish.", allergensVerified: true, category: "Pale", history: [{ date: isoDaysAgo(200), abv: "3.9", price: "3.50" }, { date: isoDaysAgo(60), abv: "4.0", price: "3.70" }, { date: isoDaysAgo(4), abv: "4.0", price: "3.80" }] },
@@ -150,6 +162,8 @@ const seedLines = [
   { id: "l9", beerId: "b1", drinkType: "cask", size: "Firkin (9g)", price: "4.40", status: "off", caskOwner: "Tweedside Brewing", collected: false, bestBefore: dateInDays(-2), dates: { ordered: isoDaysAgo(12), delivered: isoDaysAgo(10), vented: isoDaysAgo(9), tapped: isoDaysAgo(8), on: isoDaysAgo(8), off: isoDaysAgo(3) } },
   { id: "l10", beerId: "b3", drinkType: "cask", size: "Firkin (9g)", price: "3.70", status: "off", caskOwner: "Borders Beer Distribution", collected: false, bestBefore: dateInDays(-4), dates: { ordered: isoDaysAgo(14), delivered: isoDaysAgo(11), vented: isoDaysAgo(10), tapped: isoDaysAgo(9), on: isoDaysAgo(9), off: isoDaysAgo(2) } },
 ];
+
+const seedDistributors = ["HB Clark & Co", "6B", "LWC"];
 
 const emptyForm = {
   drinkType: "cask", brewery: "", location: "", name: "", style: "", abv: "",
@@ -228,6 +242,9 @@ export default function TheCurfewCellar() {
   const [scanError, setScanError] = useState(null);
   const [scanProgress, setScanProgress] = useState(null);
   const [batchSource, setBatchSource] = useState("invoice");
+  const [distributors, setDistributors] = useState(seedDistributors);
+  const [listText, setListText] = useState("");
+  const [showList, setShowList] = useState(false);
   const [invoiceItems, setInvoiceItems] = useState(null);
   const [invoiceOwner, setInvoiceOwner] = useState("");
   const labelRef = useRef(null);
@@ -248,8 +265,10 @@ export default function TheCurfewCellar() {
         const r = await Promise.race([store.get(STORE_KEY, false), timeout]);
         if (!cancelled && r && r.value) {
           const data = JSON.parse(r.value);
+          // console.log(data);
           if (Array.isArray(data.library)) setLibrary(data.library);
           if (Array.isArray(data.lines)) setLines(data.lines);
+          if (Array.isArray(data.distributors)) setDistributors(data.distributors);
         }
         if (!cancelled) setStorageOk(true);
       } catch (e) {
@@ -265,12 +284,13 @@ export default function TheCurfewCellar() {
   // Save whenever data changes, but only if storage actually responded on load
   useEffect(() => {
     if (!hydrated || !store || storageOk !== true) return;
-    (async () => { try { await store.set(STORE_KEY, JSON.stringify({ library, lines }), false); } catch (e) { /* ignore */ } })();
-  }, [library, lines, hydrated, storageOk]);
+    (async () => { try { await store.set(STORE_KEY, JSON.stringify({ library, lines, distributors }), false); } catch (e) { /* ignore */ } })();
+  }, [library, lines, distributors, hydrated, storageOk]);
 
   const resetDemo = () => {
     setLibrary(clone(seedLibrary));
     setLines(clone(seedLines));
+    setDistributors(clone(seedDistributors));
     setOpenId(null); setHistoryOpen({}); setLibrarySearch(""); setForm(emptyForm); setFillNote(null); setView("cellar"); setConfirmReset(false);
   };
 
@@ -323,7 +343,7 @@ export default function TheCurfewCellar() {
       return;
     }
     setLoading(true);
-    setFillNote({ type: "loading", text: "Asking AI for a draft…" });
+    setFillNote({ type: "loading", text: "Filling in a draft…" });
     const isCider = form.drinkType === "cider";
     const prompt = `You help the cellar app for a UK micropub. Given a producer and product name, return your best-known real details as STRICT JSON only. No markdown, no backticks, no commentary.
 
@@ -333,6 +353,7 @@ Name: ${form.name.trim()}
 
 Return exactly:
 {
+  "location": "town or county the producer is based in, your best knowledge",
   "style": ${isCider ? '"Dry | Medium | Sweet | Perry"' : '"e.g. Pale Ale, IPA, Blonde, Best Bitter, Mild, Stout, Porter"'},
   "abv": "number as a string, e.g. 4.5",
   "clarity": "Clear | Hazy | Cloudy",
@@ -347,7 +368,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
     try {
       const res = await fetch("/api/anthropic", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 1000, messages: [{ role: "user", content: prompt }] }),
+        body: JSON.stringify({ model: MODEL, max_tokens: 1000, messages: [{ role: "user", content: prompt }] }),
       });
       if (!res.ok) throw new Error("status " + res.status);
       const data = await res.json();
@@ -357,7 +378,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
       try {
         p = JSON.parse(text.replace(/```json/gi, "").replace(/```/g, "").trim());
       } catch {
-        const m = text.match(/\{[\s\S]*\}/); // recover the JSON block if the model wrapped it in prose
+        const m = text.match(/\{[\s\S]*\}/); // pull the JSON out if it came back wrapped in text
         if (!m) throw new Error("no json");
         p = JSON.parse(m[0]);
       }
@@ -366,19 +387,20 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
       const abv = p.abv != null ? String(p.abv) : "";
       setF({
         style, abv,
+        location: p.location ? String(p.location) : form.location,
         clarity: CLARITY_OPTIONS.includes(p.clarity) ? p.clarity : "Clear",
         glutenStatus: GLUTEN_OPTIONS.includes(p.glutenStatus) ? p.glutenStatus : "Standard",
         vegan: !!p.vegan, allergens, notes: p.notes ? String(p.notes) : "",
         allergensVerified: false,
         category: form.drinkType === "cask" ? categorise(style, abv) : form.category,
       });
-      setFillNote({ type: "ai", text: "AI draft filled in. Check everything, and confirm allergens and dietary status against the producer's own info before serving." });
+      setFillNote({ type: "ai", text: "Draft filled in. Check everything, and confirm allergens and dietary status against the producer's own info before serving." });
     } catch (err) {
       const d = aiDraft(form.name);
       setF({ ...d, category: form.drinkType === "cask" ? categorise(d.style, d.abv) : form.category });
       const msg = stage === "parse"
-        ? "The AI replied but not in the expected format, so I used a local draft. Try Auto-fill again, or just check the details."
-        : "Couldn't reach the AI (this only works inside Claude; outside it there's no key). Used a local draft, so check the details.";
+        ? "The draft came back in an odd format, so a quick local one was used instead. Try again, or just check the details."
+        : "Couldn't reach the lookup service just now. A quick local draft was used, so double-check the details.";
       setFillNote({ type: "warn", text: msg });
     } finally { setLoading(false); }
   };
@@ -432,12 +454,13 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
     r.onerror = () => reject(new Error("read"));
     r.readAsDataURL(file);
   });
+  // scan output isn't always clean json, this is a bit rough but does the job
   const parseLooseJSON = (text) => { try { return JSON.parse(text.replace(/```json/gi, "").replace(/```/g, "").trim()); } catch { const m = text.match(/[\[{][\s\S]*[\]}]/); if (!m) throw new Error("no json"); return JSON.parse(m[0]); } };
   const visionCall = async (file, promptText, useSearch = false) => {
     const b64 = await fileToBase64(file);
     const isPdf = file.type === "application/pdf";
     const source = { type: "base64", media_type: isPdf ? "application/pdf" : (file.type || "image/jpeg"), data: b64 };
-    const body = { model: "claude-sonnet-4-6", max_tokens: 1500, messages: [{ role: "user", content: [{ type: isPdf ? "document" : "image", source }, { type: "text", text: promptText }] }] };
+    const body = { model: MODEL, max_tokens: 1500, messages: [{ role: "user", content: [{ type: isPdf ? "document" : "image", source }, { type: "text", text: promptText }] }] };
     if (useSearch) body.tools = [{ type: "web_search_20250305", name: "web_search" }];
     const res = await fetch("/api/anthropic", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -447,23 +470,24 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
     const data = await res.json();
     return (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("").trim();
   };
-  const labelPrompt = `This image is a beer or cider pump clip, cask end, or bottle/can label. Read what's printed AND use your knowledge of this product (look it up if it helps) to complete the details accurately. Return STRICT JSON only:\n{"brewery": string, "name": string, "kind": "beer"|"cider", "style": string, "abv": "number as string", "clarity": "Clear|Hazy|Cloudy", "glutenStatus": "Standard|Low gluten|Gluten-free", "vegan": true|false, "allergens": [only from: ${ALLERGEN_OPTIONS.join(", ")}], "notes": "short tasting note"}\nIf a field isn't legible or known, estimate from the style. Default vegan=false and glutenStatus="Standard" when unsure. JSON only, no other text.`;
+  const distHint = distributors.filter((d) => d.trim()).length ? ` Known distributors: ${distributors.filter((d) => d.trim()).join(", ")}. If one of these appears (often after "To:"), set deliveredBy to it, not the brewery.` : "";
+  const labelPrompt = `This image is a beer or cider pump clip, cask end, or bottle/can label. Read what's printed AND use your knowledge of this product (look it up if it helps) to complete the details accurately. Return STRICT JSON only:\n{"brewery": string, "location": "town or county the brewery is based in (use your knowledge if not printed)", "name": string, "kind": "beer"|"cider", "style": string, "abv": "number as string", "bestBefore": "best before date if printed, as YYYY-MM-DD, reading any dd/mm/yyyy in UK day-month order", "deliveredBy": "distributor or wholesaler named on the label, e.g. after 'To:', else empty", "clarity": "Clear|Hazy|Cloudy", "glutenStatus": "Standard|Low gluten|Gluten-free", "vegan": true|false, "allergens": [only from: ${ALLERGEN_OPTIONS.join(", ")}], "notes": "short tasting note"}\nIf a field isn't legible or known, estimate from the style, or use "" for text fields. Default vegan=false and glutenStatus="Standard" when unsure.${distHint} JSON only, no other text.`;
   const labelToItem = (p, i) => {
     const dt = p.kind === "cider" ? "cider" : "cask";
     const style = p.style ? String(p.style) : "";
     const abv = p.abv != null ? String(p.abv) : "";
-    return { id: "lb" + i + "_" + uid(), include: true, drinkType: dt, brewery: p.brewery ? String(p.brewery) : "", name: p.name ? String(p.name) : "", abv, price: "", style, clarity: CLARITY_OPTIONS.includes(p.clarity) ? p.clarity : "Clear", glutenStatus: GLUTEN_OPTIONS.includes(p.glutenStatus) ? p.glutenStatus : "Standard", vegan: !!p.vegan, allergens: Array.isArray(p.allergens) ? p.allergens.filter((a) => ALLERGEN_OPTIONS.includes(a)) : [], notes: p.notes ? String(p.notes) : "", category: dt === "cask" ? categorise(style, abv) : "Misc" };
+    return { id: "lb" + i + "_" + uid(), include: true, drinkType: dt, brewery: p.brewery ? String(p.brewery) : "", location: p.location ? String(p.location) : "", name: p.name ? String(p.name) : "", abv, price: "", bestBefore: toISO(p.bestBefore), caskOwner: p.deliveredBy ? String(p.deliveredBy) : "", style, clarity: CLARITY_OPTIONS.includes(p.clarity) ? p.clarity : "Clear", glutenStatus: GLUTEN_OPTIONS.includes(p.glutenStatus) ? p.glutenStatus : "Standard", vegan: !!p.vegan, allergens: Array.isArray(p.allergens) ? p.allergens.filter((a) => ALLERGEN_OPTIONS.includes(a)) : [], notes: p.notes ? String(p.notes) : "", category: dt === "cask" ? categorise(style, abv) : "Misc" };
   };
   const scanLabel = async (file) => {
     setScanning(true); setScanError(null); setFillNote({ type: "loading", text: "Reading the label…" });
     try {
       const p = parseLooseJSON(await visionCall(file, labelPrompt, true));
       const it = labelToItem(p, 0);
-      setForm({ ...emptyForm, drinkType: it.drinkType, brewery: it.brewery, name: it.name, style: it.style, abv: it.abv, clarity: it.clarity, glutenStatus: it.glutenStatus, vegan: it.vegan, allergens: it.allergens, notes: it.notes, allergensVerified: false, category: it.category });
+      setForm({ ...emptyForm, drinkType: it.drinkType, brewery: it.brewery, location: it.location, name: it.name, style: it.style, abv: it.abv, bestBefore: it.bestBefore, caskOwner: it.caskOwner, clarity: it.clarity, glutenStatus: it.glutenStatus, vegan: it.vegan, allergens: it.allergens, notes: it.notes, allergensVerified: false, category: it.category });
       setShowMore(false); setAddMode("form");
       setFillNote({ type: "ai", text: "Read from the label. Check everything, especially allergens, before serving." });
     } catch (e) {
-      setScanError("Couldn't read that image. The scanner needs the AI, which only runs inside Claude. Try a clearer photo, or enter it by hand.");
+      setScanError("Couldn't read that image. Try a clearer, well-lit photo, or enter it by hand.");
       setFillNote(null);
     } finally { setScanning(false); }
   };
@@ -484,20 +508,51 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
   const scanInvoice = async (file) => {
     setScanning(true); setScanError(null); setInvoiceItems(null);
     try {
-      const prompt = `This is a delivery invoice or delivery note from a brewery or drinks wholesaler. Extract every distinct beer or cider product line. Return STRICT JSON array only:\n[{"brewery": string, "name": string, "abv": "number as string or empty", "price": "unit price as string or empty"}]\nIgnore totals, VAT, delivery charges and non-drink lines. If brewery isn't shown per line, infer it from the header. JSON array only.`;
+      const prompt = `This is a delivery invoice or delivery note from a brewery or drinks wholesaler. Extract every distinct beer or cider product line. Return STRICT JSON array only:\n[{"brewery": string, "name": string, "abv": "number as string or empty", "price": "unit price as string or empty", "deliveredBy": "distributor or wholesaler if named, else empty"}]\nIgnore totals, VAT, delivery charges and non-drink lines. If brewery isn't shown per line, infer it from the header.${distHint} JSON array only.`;
       const arr = parseLooseJSON(await visionCall(file, prompt));
       if (!Array.isArray(arr) || !arr.length) throw new Error("empty");
-      setInvoiceItems(arr.map((x, i) => ({ id: "inv" + i, brewery: x.brewery ? String(x.brewery) : "", name: x.name ? String(x.name) : "", abv: x.abv != null ? String(x.abv) : "", price: x.price != null ? String(x.price) : "", drinkType: "cask", include: true })));
+      setInvoiceItems(arr.map((x, i) => ({ id: "inv" + i, brewery: x.brewery ? String(x.brewery) : "", name: x.name ? String(x.name) : "", abv: x.abv != null ? String(x.abv) : "", price: x.price != null ? String(x.price) : "", caskOwner: x.deliveredBy ? String(x.deliveredBy) : "", drinkType: "cask", include: true })));
       setBatchSource("invoice"); setAddMode("invoice");
     } catch (e) {
       setScanError("Couldn't read that invoice. Try a clearer photo, or add items by hand.");
     } finally { setScanning(false); }
   };
   const updateInvoice = (idx, patch) => setInvoiceItems((items) => items.map((x, i) => (i === idx ? { ...x, ...patch } : x)));
+  const addDistributor = () => setDistributors((d) => [...d, ""]);
+  const updateDistributor = (i, v) => setDistributors((d) => d.map((x, j) => (j === i ? v : x)));
+  const removeDistributor = (i) => setDistributors((d) => d.filter((_, j) => j !== i));
+  const importListText = async (text) => {
+    if (!text.trim()) return;
+    setScanning(true); setScanError(null); setInvoiceItems(null); setScanProgress("Reading your list…");
+    try {
+      const known = distributors.filter((d) => d.trim());
+      const prompt = `This is a delivery / price list a UK pub got from suppliers, pasted as text. It is grouped into sections. A section usually starts with a distributor or supplier name${known.length ? ` (known ones: ${known.join(", ")})` : ""} and/or a format word (Cask, Keg, Cider, Can). Each drink line is roughly "Brewery Beer Name PRICE".\nFor every cask, keg or cider drink (SKIP cans and anything that isn't a drink), return STRICT JSON array only:\n[{"brewery": string, "name": string, "drinkType": "cask"|"keg"|"cider", "distributor": "the section's distributor if there is one, matched to a known name where possible, else empty", "price": "number as string or empty", "abv": "look it up, number as string or empty", "style": "look it up, short style or empty"}]\nSplit brewery from beer name using your knowledge of UK breweries (e.g. "Oakham Citra" = brewery Oakham, beer Citra). JSON array only.\n\nLIST:\n${text}`;
+      const res = await fetch("/api/anthropic", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: MODEL, max_tokens: 2500, messages: [{ role: "user", content: prompt }], tools: [{ type: "web_search_20250305", name: "web_search" }] }),
+      });
+      if (!res.ok) throw new Error("status " + res.status);
+      const data = await res.json();
+      const out = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("").trim();
+      const arr = parseLooseJSON(out);
+      if (!Array.isArray(arr) || !arr.length) throw new Error("empty");
+      const items = arr.filter((x) => x && x.name).map((x, i) => {
+        const dt = x.drinkType === "keg" ? "keg" : x.drinkType === "cider" ? "cider" : "cask";
+        const style = x.style ? String(x.style) : "";
+        const abv = x.abv != null ? String(x.abv) : "";
+        return { id: "ls" + i, include: true, drinkType: dt, brewery: x.brewery ? String(x.brewery) : "", location: "", name: String(x.name), abv, price: x.price != null ? String(x.price) : "", bestBefore: "", caskOwner: x.distributor ? String(x.distributor) : "", style, clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", category: dt === "cask" ? categorise(style, abv) : "Misc" };
+      });
+      if (!items.length) throw new Error("empty");
+      setInvoiceItems(items); setBatchSource("list"); setInvoiceOwner(""); setAddMode("invoice"); setShowList(false); setListText("");
+    } catch (e) {
+      setScanError("Couldn't read that list. Check it's pasted in, or add items by hand.");
+    } finally { setScanning(false); setScanProgress(null); }
+  };
   const importInvoice = () => {
     const chosen = (invoiceItems || []).filter((x) => x.include && x.name.trim());
     if (!chosen.length) return;
     const nowIso = new Date().toISOString();
+    const enRoute = batchSource === "list";
     let lib = [...library];
     const newLines = [];
     chosen.forEach((x) => {
@@ -505,8 +560,8 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
       const entry = { date: nowIso, abv: x.abv, price: x.price };
       let beerId;
       if (existing) { beerId = existing.id; lib = lib.map((b) => (b.id === existing.id ? { ...b, abv: x.abv || b.abv, history: [...(b.history || []), entry] } : b)); }
-      else { beerId = uid(); lib = [...lib, { id: beerId, brewery: x.brewery.trim(), location: "", name: x.name.trim(), style: x.style || "", abv: x.abv, clarity: x.clarity || "Clear", glutenStatus: x.glutenStatus || "Standard", vegan: x.vegan || false, allergens: x.allergens || [], notes: x.notes || "", allergensVerified: false, category: x.category || (x.drinkType === "cask" ? categorise(x.style || "", x.abv) : "Misc"), history: [entry] }]; }
-      newLines.push({ id: uid(), beerId, drinkType: x.drinkType, size: x.drinkType === "cider" ? "Bag-in-box 20L" : x.drinkType === "keg" ? "Keg 50L" : "Firkin (9g)", price: x.price, status: "in_cellar", caskOwner: invoiceOwner.trim() || x.brewery.trim(), collected: false, bestBefore: "", dates: { ordered: null, delivered: nowIso, vented: null, tapped: null, on: null, off: null } });
+      else { beerId = uid(); lib = [...lib, { id: beerId, brewery: x.brewery.trim(), location: x.location || "", name: x.name.trim(), style: x.style || "", abv: x.abv, clarity: x.clarity || "Clear", glutenStatus: x.glutenStatus || "Standard", vegan: x.vegan || false, allergens: x.allergens || [], notes: x.notes || "", allergensVerified: false, category: x.category || (x.drinkType === "cask" ? categorise(x.style || "", x.abv) : "Misc"), history: [entry] }]; }
+      newLines.push({ id: uid(), beerId, drinkType: x.drinkType, size: x.drinkType === "cider" ? "Bag-in-box 20L" : x.drinkType === "keg" ? "Keg 50L" : "Firkin (9g)", price: x.price, status: enRoute ? "en_route" : "in_cellar", caskOwner: invoiceOwner.trim() || x.caskOwner || x.brewery.trim(), collected: false, bestBefore: x.bestBefore || "", dates: enRoute ? { ordered: nowIso, delivered: null, vented: null, tapped: null, on: null, off: null } : { ordered: null, delivered: nowIso, vented: null, tapped: null, on: null, off: null } });
     });
     setLibrary(lib); setLines((ls) => [...ls, ...newLines]);
     setInvoiceItems(null); setInvoiceOwner(""); setAddMode("pick"); setFillNote(null); setView("cellar");
@@ -515,6 +570,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
   const doUndo = () => { if (!undoState) return; setLines(undoState.lines); setUndoState(null); if (undoTimer.current) clearTimeout(undoTimer.current); };
   const setCaskOwner = (id, v) => setLines((ls) => ls.map((c) => (c.id === id ? { ...c, caskOwner: v } : c)));
   const markCollected = (id) => { snapshotUndo("Empty marked collected"); setLines((ls) => ls.map((c) => (c.id === id ? { ...c, collected: true } : c))); };
+  // TODO: line cleans tracker, keep meaning to do this
   const markOwnerCollected = (owner) => { snapshotUndo("Empties marked collected"); setLines((ls) => ls.map((c) => (c.status === "off" && !c.collected && (c.caskOwner || "Unknown") === owner ? { ...c, collected: true } : c))); };
 
   const byBB = (a, b) => {
@@ -641,8 +697,8 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
         <div className="mx-auto max-w-2xl space-y-4">
           <button onClick={() => { setAddMode("pick"); setInvoiceItems(null); }} className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"><ArrowRight size={14} className="rotate-180" /> Back</button>
           <div className="rounded-xl border bg-white p-4" style={{ borderColor: C.line }}>
-            <p className="text-base font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{batchSource === "labels" ? "Scanned labels" : "Delivery items"}</p>
-            <p className="mt-1 text-sm text-slate-500">{batchSource === "labels" ? "Read from your photos. Untick any you don't want, tweak as needed, then add. They arrive as \"In cellar\". Allergens and full details stay unverified until you confirm them." : "Pulled from your invoice. Untick anything that isn't a cask line, tweak as needed, then add. They arrive as \"In cellar\". Allergens and full details stay unverified until you confirm them."}</p>
+            <p className="text-base font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{batchSource === "labels" ? "Scanned labels" : batchSource === "list" ? "From your list" : "Delivery items"}</p>
+            <p className="mt-1 text-sm text-slate-500">{batchSource === "labels" ? "Read from your photos. Untick any you don't want, tweak as needed, then add. They arrive as \"In cellar\". Allergens and full details stay unverified until you confirm them." : batchSource === "list" ? "Read from your list. Anything already saved reuses its details; the rest were looked up. Untick any you don't want, then add. They go in as \"En route\". Check details and allergens before serving." : "Pulled from your invoice. Untick anything that isn't a cask line, tweak as needed, then add. They arrive as \"In cellar\". Allergens and full details stay unverified until you confirm them."}</p>
             <div className="mt-3">
               <label className="block text-sm font-medium text-slate-700">Delivered by (who collects the empties)</label>
               <input value={invoiceOwner} onChange={(e) => setInvoiceOwner(e.target.value)} placeholder="Leave blank to use each beer's brewery" className="mt-1 w-full rounded-lg border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
@@ -685,7 +741,17 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
             <div className="mt-3 flex flex-wrap gap-2">
               <button onClick={() => labelRef.current && labelRef.current.click()} disabled={scanning} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:opacity-60" style={{ background: C.ink }}><Camera size={16} /> Scan labels</button>
               <button onClick={() => invoiceRef.current && invoiceRef.current.click()} disabled={scanning} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-60" style={{ borderColor: C.line }}><FileText size={16} /> Scan an invoice</button>
+              <button onClick={() => setShowList((v) => !v)} disabled={scanning} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-60" style={{ borderColor: C.line }}><ClipboardList size={16} /> Paste a list</button>
             </div>
+            {showList && (
+              <div className="mt-3">
+                <textarea value={listText} onChange={(e) => setListText(e.target.value)} rows={6} placeholder={"Paste a delivery or price list, e.g.\n\nClark's cask\nOakham Citra 4.90\nTimothy Taylor Golden Best 4.30"} className="w-full rounded-lg border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
+                <div className="mt-2 flex items-center gap-2">
+                  <button onClick={() => importListText(listText)} disabled={scanning || !listText.trim()} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:opacity-60" style={{ background: C.ink }}><Plus size={16} /> Add list</button>
+                  <span className="text-xs text-slate-400">Adds them as en route. Cans are skipped.</span>
+                </div>
+              </div>
+            )}
             {scanning && <p className="mt-2 inline-flex items-center gap-2 text-sm text-slate-500"><Loader2 size={14} className="animate-spin" /> {scanProgress || "Reading… this can take a few seconds."}</p>}
             {scanError && <p className="mt-2 text-sm text-amber-700">{scanError}</p>}
           </div>
@@ -734,7 +800,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
           </div>
           <div className="mt-3"><Field label="Name"><input className={inputCls} value={form.name} onChange={(e) => setF({ name: e.target.value })} placeholder="e.g. Border Reiver IPA" /></Field></div>
           <button onClick={autoFill} disabled={loading} className="mt-3 inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:opacity-60" style={{ borderColor: C.brass, color: C.brass }}>
-            {loading ? <><Loader2 size={16} className="animate-spin" /> Asking AI…</> : <><Sparkles size={16} /> Auto-fill details</>}
+            {loading ? <><Loader2 size={16} className="animate-spin" /> Filling in…</> : <><Sparkles size={16} /> Auto-fill details</>}
           </button>
           {fillNote && (
             <div className={`mt-3 flex items-start gap-2 rounded-lg border p-2.5 text-sm ${fillNote.type === "ai" || fillNote.type === "warn" ? "border-amber-200 bg-amber-50 text-amber-800" : fillNote.type === "ok" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-50 text-slate-600"}`}>
@@ -1024,6 +1090,25 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
     );
   };
 
+  const Distributors = () => (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>Distributors</h2>
+        <button onClick={addDistributor} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Plus size={15} /> Add</button>
+      </div>
+      <p className="text-sm text-slate-500">Names the scanners recognise as distributors. When one shows up on a label, invoice or pasted list, it's set as who delivered it (and collects the empties), rather than mistaken for the brewery.</p>
+      {distributors.length === 0 && <p className="rounded-xl border border-dashed bg-white p-8 text-center text-sm text-slate-400" style={{ borderColor: C.line }}>No distributors yet.</p>}
+      <div className="space-y-2">
+        {distributors.map((d, i) => (
+          <div key={i} className="flex items-center gap-2 rounded-xl border bg-white p-2.5" style={{ borderColor: C.line }}>
+            <input value={d} onChange={(e) => updateDistributor(i, e.target.value)} placeholder="Distributor name" className="min-w-0 flex-1 rounded border px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
+            <button onClick={() => removeDistributor(i)} className="inline-flex shrink-0 items-center gap-1 text-xs text-red-600 hover:text-red-700"><Trash2 size={13} /> Remove</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
   const AllergenSheet = () => {
     const on = lines.filter((l) => l.status === "on");
     const groups = [
@@ -1264,7 +1349,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
                 <div className="absolute right-0 top-full z-50 mt-1 w-44 overflow-hidden rounded-lg border bg-white shadow-lg" style={{ borderColor: C.line }}>
-                  {[["library", "Library", BookOpen], ["insights", "Insights", BarChart3], ["allergens", "Allergen sheet", FileText], ["taplist", "Tap list", QrCode], ["backup", "Backup", Database]].map(([id, label, Icon]) => (
+                  {[["library", "Library", BookOpen], ["insights", "Insights", BarChart3], ["distributors", "Distributors", Package], ["allergens", "Allergen sheet", FileText], ["taplist", "Tap list", QrCode], ["backup", "Backup", Database]].map(([id, label, Icon]) => (
                     <button key={id} onClick={() => { setMenuOpen(false); go(id); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"><Icon size={15} className="text-slate-400" />{label}</button>
                   ))}
                 </div>
@@ -1283,6 +1368,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
             {view === "library" && Library()}
             {view === "insights" && Insights()}
             {view === "allergens" && AllergenSheet()}
+            {view === "distributors" && Distributors()}
             {view === "empties" && Empties()}
             {view === "backup" && Backup()}
           </>
