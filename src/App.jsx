@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 // import { useCallback } from "react"; // might need later
 import {
   Plus, ClipboardList, BookOpen, Beer, Sparkles, Check, CheckCircle2,
-  AlertTriangle, Clock, X, ArrowRight, Trash2, Search, Loader2, Bell, Calendar, History, ChevronDown, Database, Download, Upload, Copy, QrCode, Camera, FileText, Package, MoreHorizontal, BarChart3,
+  AlertTriangle, Clock, X, ArrowRight, Trash2, Search, Loader2, Bell, Calendar, History, ChevronDown, Database, Download, Upload, Copy, QrCode, Camera, FileText, Package, MoreHorizontal, BarChart3, Pencil,
 } from "lucide-react";
 
 // ---------- Brand ----------
@@ -58,6 +58,7 @@ const ALLERGEN_OPTIONS = [
 ];
 const GLUTEN_OPTIONS = ["Standard", "Low gluten", "Gluten-free"];
 const CLARITY_OPTIONS = ["Clear", "Hazy", "Cloudy"];
+const VIEW_TITLES = { cellar: "Cellar", add: "Add stock", library: "Library", insights: "Insights", allergens: "Allergen sheet", distributors: "Distributors", empties: "Empties to return", backup: "Backup & restore" };
 const SIZE_OPTIONS = ["Pin (4.5g)", "Firkin (9g)", "Kilderkin (18g)", "Keg 30L", "Keg 50L", "Bag-in-box 20L"];
 const FRESH_LIMIT = 3; // days on a cask before a quality check is worth a look
 const BB_SOON = 2;     // days before best-before to start flagging
@@ -222,6 +223,7 @@ export default function TheCurfewCellar() {
   const [form, setForm] = useState(emptyForm);
   const [fillNote, setFillNote] = useState(null);
   const [openId, setOpenId] = useState(null);
+  const [editBeerId, setEditBeerId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [librarySearch, setLibrarySearch] = useState("");
   const [historyOpen, setHistoryOpen] = useState({});
@@ -440,6 +442,8 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
   const setLineCategory = (id, beerId, cat) => { setLibrary((lib) => lib.map((b) => (b.id === beerId ? { ...b, category: cat } : b))); };
   const setOnDate = (id, v) => setLines((ls) => ls.map((c) => { if (c.id !== id) return c; const d = new Date(v); d.setHours(12, 0, 0, 0); return { ...c, dates: { ...c.dates, on: d.toISOString() } }; }));
   const verify = (beerId) => setLibrary((lib) => lib.map((b) => (b.id === beerId ? { ...b, allergensVerified: true } : b)));
+  const updateBeer = (id, patch) => setLibrary((lib) => lib.map((b) => (b.id === id ? { ...b, ...patch } : b)));
+  const toggleBeerAllergen = (id, a) => setLibrary((lib) => lib.map((b) => (b.id === id ? { ...b, allergens: b.allergens.includes(a) ? b.allergens.filter((x) => x !== a) : [...b.allergens, a] } : b)));
   const removeLine = (id) => { snapshotUndo("Removed from cellar"); setLines((ls) => ls.filter((c) => c.id !== id)); setOpenId(null); };
   const latestPrice = (beer) => { const h = beer.history || []; return h.length ? h[h.length - 1].price : ""; };
   const loadBeerIntoForm = (beer) => setForm({ ...emptyForm, drinkType: "cask", brewery: beer.brewery, location: beer.location, name: beer.name, style: beer.style, abv: beer.abv, clarity: beer.clarity, glutenStatus: beer.glutenStatus, vegan: beer.vegan, allergens: beer.allergens, notes: beer.notes, allergensVerified: beer.allergensVerified, category: beer.category || categorise(beer.style, beer.abv), price: latestPrice(beer) });
@@ -586,21 +590,20 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
   const cardSignal = (line) => {
     const bb = bbStatus(line);
     const f = freshness(line);
-    if (line.status === "off") return { edge: "#a1a1aa", tone: "bg-zinc-100 text-zinc-500 border-zinc-200", icon: null, text: "Off" };
-    if (bb && bb.level === "past") return { edge: "#dc2626", tone: BB_STYLE.past, icon: Calendar, text: "Best before passed" };
-    if (bb && bb.level === "soon") return { edge: "#d97706", tone: BB_STYLE.soon, icon: Calendar, text: bb.text };
-    if (line.status === "on" && f && f.level === "check") return { edge: "#d97706", tone: FRESH_STYLE.check, icon: Clock, text: f.text };
-    if (line.status === "on") return { edge: "#059669", tone: FRESH_STYLE.fresh, icon: Clock, text: f ? f.text : "On" };
-    return { edge: "#64748b", tone: STATUS_STYLE[line.status], icon: null, text: STATUSES[STATUS_INDEX[line.status]].label };
+    if (line.status === "off") return { text: "Off", warn: false };
+    if (bb && bb.level === "past") return { text: "Best before passed", warn: true };
+    if (bb && bb.level === "soon") return { text: bb.text, warn: false };
+    if (line.status === "on" && f && f.level === "check") return { text: f.text, warn: false };
+    if (line.status === "on") return { text: f ? f.text : "On", warn: false };
+    return { text: STATUSES[STATUS_INDEX[line.status]].label, warn: false };
   };
 
   const LineRow = ({ line }) => {
     const beer = beerById[line.beerId];
     if (!beer) return null;
     const sig = cardSignal(line);
-    const Icon = sig.icon;
     return (
-      <button onClick={() => setOpenId(line.id)} className="w-full rounded-xl border bg-white p-3 text-left shadow-sm transition hover:shadow focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line, borderLeftColor: sig.edge, borderLeftWidth: 4 }}>
+      <button onClick={() => setOpenId(line.id)} className="w-full rounded-xl border bg-white p-3 text-left shadow-sm transition hover:shadow focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="truncate text-base font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{beer.name}</p>
@@ -612,7 +615,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
           </div>
         </div>
         <div className="mt-2 flex items-center gap-2">
-          <Badge className={sig.tone}>{Icon && <Icon size={12} />}{sig.text}</Badge>
+          <Badge className={sig.warn ? "bg-red-50 text-red-700 border-red-200" : "bg-slate-100 text-slate-600 border-slate-200"}>{sig.text}</Badge>
           {!beer.allergensVerified && <span title="Allergens not verified" className="inline-flex items-center text-amber-600"><AlertTriangle size={14} /></span>}
           <span className="ml-auto"><DietaryMini beer={beer} /></span>
         </div>
@@ -912,6 +915,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">{b.category && <Badge className={CAT_STYLE[b.category] || CAT_STYLE.Misc}>{b.category}</Badge>}<DietaryBadges beer={b} /></div>
                 <div className="mt-3 flex items-center gap-2">
                   <button onClick={() => addLineOfBeer(b)} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><Plus size={14} /> Add to cellar</button>
+                  <button onClick={() => setEditBeerId(b.id)} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><Pencil size={14} /> Edit</button>
                   <button onClick={() => setHistoryOpen((m) => ({ ...m, [b.id]: !m[b.id] }))} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>
                     <History size={14} /> History{h.length ? ` (${h.length})` : ""} <ChevronDown size={14} className={open ? "rotate-180" : ""} />
                   </button>
@@ -995,8 +999,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
     const owners = [...new Set(empties.map((l) => l.caskOwner || "Unknown"))].sort();
     return (
       <div className="space-y-4">
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>Empties to return</h2>
+        <div className="flex items-center justify-end gap-2">
           <button onClick={() => go("cellar")} className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"><ArrowRight size={14} className="rotate-180" /> Back to cellar</button>
         </div>
         <p className="text-sm text-slate-500">Grouped by who collects them. Tick each off as it's picked up to clear the space.</p>
@@ -1013,7 +1016,6 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
             <div key={owner} className="rounded-xl border bg-white p-3" style={{ borderColor: C.line }}>
               <div className="mb-2 flex items-center justify-between gap-2">
                 <p className="font-semibold" style={{ color: C.ink }}>{owner} <span className="text-sm font-normal text-slate-400">· {items.length}</span></p>
-                <button onClick={() => markOwnerCollected(owner)} className="shrink-0 rounded-md border px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>All collected</button>
               </div>
               <ul className="space-y-1.5">
                 {items.map((l) => {
@@ -1056,7 +1058,6 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
     );
     return (
       <div className="space-y-5">
-        <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>Insights</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <Stat label="On now" value={onNow.length} />
           <Stat label="Avg days a cask lasts" value={avgDays == null ? "—" : avgDays} sub={lasted.length ? `from ${lasted.length} finished` : "no finished casks yet"} />
@@ -1092,8 +1093,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
 
   const Distributors = () => (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>Distributors</h2>
+      <div className="flex items-center justify-end gap-2">
         <button onClick={addDistributor} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Plus size={15} /> Add</button>
       </div>
       <p className="text-sm text-slate-500">Names the scanners recognise as distributors. When one shows up on a label, invoice or pasted list, it's set as who delivered it (and collects the empties), rather than mistaken for the brewery.</p>
@@ -1118,14 +1118,13 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
     ].filter((g) => g.items.length);
     return (
       <div className="space-y-4">
-        <div className="no-print flex items-center justify-between gap-2">
-          <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>Allergen sheet</h2>
+        <div className="no-print flex items-center justify-end gap-2">
           <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Download size={15} /> Print / Save PDF</button>
         </div>
         <p className="no-print text-sm text-slate-500">A printable list of everything on now. Unverified items say to ask staff. Print this for the bar folder.</p>
         <div id="allergen-sheet" className="rounded-xl border bg-white p-5" style={{ borderColor: C.line }}>
           <h1 className="text-xl font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>What's on: allergen and dietary guide</h1>
-          <p className="mt-0.5 text-xs text-slate-500">Generated {new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}. Please confirm with staff before ordering.</p>
+          <p className="mt-0.5 text-xs text-slate-500">Please confirm with staff before ordering.</p>
           {groups.length === 0 && <p className="mt-4 text-sm text-slate-400">Nothing on right now.</p>}
           {groups.map((g) => (
             <div key={g.title} className="mt-4">
@@ -1242,6 +1241,60 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
     );
   };
 
+  const EditBeer = () => {
+    const beer = editBeerId ? beerById[editBeerId] : null;
+    if (!beer) return null;
+    const close = () => setEditBeerId(null);
+    const chip = (on) => (on ? { background: C.ink, color: "#fff", borderColor: C.ink } : { borderColor: C.line, color: C.inkSoft });
+    return (
+      <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4" style={{ background: "rgba(27,34,48,0.45)" }} onClick={close}>
+        <div className="w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white sm:rounded-2xl" style={{ maxHeight: "92vh" }} onClick={(e) => e.stopPropagation()}>
+          <div className="sticky top-0 flex items-center justify-between gap-2 border-b bg-white p-4" style={{ borderColor: C.line }}>
+            <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>Edit beer details</h2>
+            <button onClick={close} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400"><X size={18} /></button>
+          </div>
+          <div className="space-y-3 p-4">
+            <p className="text-xs text-slate-500">Shared by every cask of this beer, on the board, allergen sheet and tap list.</p>
+            <Field label="Name"><input className={inputCls} value={beer.name} onChange={(e) => updateBeer(beer.id, { name: e.target.value })} /></Field>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Producer / brewery"><input className={inputCls} value={beer.brewery} onChange={(e) => updateBeer(beer.id, { brewery: e.target.value })} /></Field>
+              <Field label="Location"><input className={inputCls} value={beer.location || ""} onChange={(e) => updateBeer(beer.id, { location: e.target.value })} /></Field>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Style"><input className={inputCls} value={beer.style || ""} onChange={(e) => updateBeer(beer.id, { style: e.target.value })} /></Field>
+              <Field label="ABV %"><input className={inputCls} value={beer.abv || ""} onChange={(e) => updateBeer(beer.id, { abv: e.target.value })} /></Field>
+            </div>
+            <Field label="Category">
+              <div className="flex flex-wrap gap-2">
+                {CATEGORIES.map((cat) => (
+                  <button key={cat} onClick={() => updateBeer(beer.id, { category: cat })} className="rounded-full border px-3 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-slate-400" style={chip((beer.category || "Misc") === cat)}>{cat}</button>
+                ))}
+              </div>
+            </Field>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Clarity"><select className={inputCls} value={beer.clarity || "Clear"} onChange={(e) => updateBeer(beer.id, { clarity: e.target.value })}>{CLARITY_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}</select></Field>
+              <Field label="Gluten"><select className={inputCls} value={beer.glutenStatus || "Standard"} onChange={(e) => updateBeer(beer.id, { glutenStatus: e.target.value })}>{GLUTEN_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}</select></Field>
+            </div>
+            <button onClick={() => updateBeer(beer.id, { vegan: !beer.vegan })} className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-400" style={chip(!!beer.vegan)}>{beer.vegan ? <Check size={15} /> : null} Vegan</button>
+            <Field label="Allergens">
+              <div className="flex flex-wrap gap-2">
+                {ALLERGEN_OPTIONS.map((a) => (
+                  <button key={a} onClick={() => toggleBeerAllergen(beer.id, a)} className="rounded-full border px-3 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-slate-400" style={chip(beer.allergens.includes(a))}>{a}</button>
+                ))}
+              </div>
+            </Field>
+            <div className="flex items-center justify-between gap-2 rounded-lg border p-2.5" style={{ borderColor: C.line }}>
+              <span className="text-sm text-slate-600">Allergens verified by staff</span>
+              <button onClick={() => updateBeer(beer.id, { allergensVerified: !beer.allergensVerified })} className="rounded-md border px-2.5 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-slate-400" style={chip(!!beer.allergensVerified)}>{beer.allergensVerified ? "Verified" : "Mark verified"}</button>
+            </div>
+            <Field label="Tasting notes"><textarea className={inputCls} rows={3} value={beer.notes || ""} onChange={(e) => updateBeer(beer.id, { notes: e.target.value })} /></Field>
+            <button onClick={close} className="mt-1 inline-flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}>Done</button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const CardModal = () => {
     if (!openLine) return null;
     const beer = beerById[openLine.beerId];
@@ -1267,6 +1320,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
               <Badge className="bg-slate-100 text-slate-700 border-slate-200">{openLine.size}</Badge>
             </div>
             <DietaryBadges beer={beer} />
+            <button onClick={() => { setEditBeerId(beer.id); setOpenId(null); }} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><Pencil size={14} /> Edit beer details</button>
 
             {f && openLine.status === "on" && <div className={`flex items-center gap-2 rounded-lg border p-3 text-sm font-medium ${FRESH_STYLE[f.level]}`}><Clock size={16} /> {f.text}</div>}
             {bb && <div className={`flex items-center gap-2 rounded-lg border p-3 text-sm font-medium ${BB_STYLE[bb.level]}`}><Calendar size={16} /> {bb.text}</div>}
@@ -1363,6 +1417,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
           <div className="flex items-center justify-center gap-2 py-16 text-sm text-slate-500"><Loader2 size={16} className="animate-spin" /> Loading your cellar…</div>
         ) : (
           <>
+            {VIEW_TITLES[view] && <h1 className="no-print mb-4 text-2xl font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{VIEW_TITLES[view]}</h1>}
             {view === "cellar" && Cellar()}
             {view === "add" && AddForm()}
             {view === "library" && Library()}
@@ -1399,6 +1454,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
         </div>
       )}
       {CardModal()}
+      {EditBeer()}
     </div>
   );
 }
