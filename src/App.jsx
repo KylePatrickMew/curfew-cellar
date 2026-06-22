@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 // import { useCallback } from "react"; // might need later
 import {
   Plus, ClipboardList, BookOpen, Beer, Sparkles, Check, CheckCircle2,
-  AlertTriangle, Clock, X, ArrowRight, Trash2, Search, Loader2, Bell, Calendar, History, ChevronDown, Database, Download, Upload, Copy, QrCode, Camera, FileText, Package, MoreHorizontal, BarChart3, Pencil, Printer, RotateCcw, Compass,
+  AlertTriangle, Clock, X, ArrowRight, Trash2, Search, Loader2, Bell, Calendar, History, ChevronDown, Database, Download, Upload, Copy, QrCode, Camera, FileText, Package, MoreHorizontal, BarChart3, Pencil, Printer, RotateCcw, Compass, RefreshCw,
 } from "lucide-react";
 
 // ---------- Brand ----------
@@ -10,6 +10,7 @@ const C = {
   ink: "#1B2230", inkSoft: "#2B3445", brass: "#A9791F", brassSoft: "#C79A3E",
   stone: "#E8E7E2", surface: "#FCFBF9", line: "#DBD8D0", cream: "#F3EFE6",
 };
+const TYPE_ACCENT = { cask: "#A9791F", keg: "#3F6E8C", cider: "#5E8C4F" };
 const STORE_KEY = "curfew-cellar:data:v1";
 const MODEL = "claude-sonnet-4-6";
 const store = (typeof window !== "undefined" && window.localStorage) ? {
@@ -20,16 +21,16 @@ const clone = (x) => JSON.parse(JSON.stringify(x));
 
 // ---------- Reference data ----------
 const STATUSES = [
-  { key: "en_route", label: "Due for delivery", dateKey: "ordered" },
-  { key: "in_cellar", label: "In cellar", dateKey: "delivered" },
+  { key: "in_cellar", label: "In Store", dateKey: "delivered" },
   { key: "vented", label: "Vented", dateKey: "vented" },
-  { key: "tapped", label: "Tapped", dateKey: "tapped" },
-  { key: "on", label: "On", dateKey: "on" },
-  { key: "off", label: "Off", dateKey: "off" },
+  { key: "tapped", label: "Tapped and Ready", dateKey: "tapped" },
+  { key: "on", label: "Pouring", dateKey: "on" },
+  { key: "off", label: "Finished", dateKey: "off" },
 ];
 const STATUS_INDEX = Object.fromEntries(STATUSES.map((s, i) => [s.key, i]));
+const FIRST_IDX = STATUS_INDEX["in_cellar"];
+const VISIBLE_STATUSES = STATUSES;
 const STATUS_STYLE = {
-  en_route: "bg-slate-100 text-slate-600 border-slate-200",
   in_cellar: "bg-indigo-50 text-indigo-700 border-indigo-200",
   vented: "bg-violet-50 text-violet-700 border-violet-200",
   tapped: "bg-blue-50 text-blue-700 border-blue-200",
@@ -58,7 +59,7 @@ const ALLERGEN_OPTIONS = [
 ];
 const GLUTEN_OPTIONS = ["Standard", "Low gluten", "Gluten-free"];
 const CLARITY_OPTIONS = ["Clear", "Hazy", "Cloudy"];
-const VIEW_TITLES = { cellar: "Cellar", add: "Add stock", library: "Library", insights: "Insights", allergens: "Allergen sheet", distributors: "Distributors", empties: "Empties to return", backup: "Backup & restore", tutorial: "Guide" };
+const VIEW_TITLES = { cellar: "Cellar", add: "Add stock", library: "Library", allergens: "Allergen sheet", distributors: "Distributors", empties: "Empties to return", backup: "Backup & restore", tutorial: "Guide" };
 const SIZE_OPTIONS = ["Keg 30L", "Keg 50L", "Bag-in-box 20L"];
 const FRESH_LIMIT = 3; // days on a cask before a quality check is worth a look
 const BB_SOON = 2;     // days before best-before to start flagging
@@ -142,76 +143,76 @@ const aiDraft = (name) => {
 
 // ---------- Demo data ----------
 const seedLibrary = [
-  { id: "b1", brewery: "Tweedside Brewing", location: "Berwick-upon-Tweed", name: "Border Reiver IPA", style: "IPA", abv: "5.4", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Wheat (gluten)"], notes: "Big hazy IPA, mango and pine with a soft bitter finish.", allergensVerified: true, category: "IPA", history: [{ date: isoDaysAgo(120), abv: "5.2", price: "4.10" }, { date: isoDaysAgo(45), abv: "5.4", price: "4.20" }, { date: isoDaysAgo(2), abv: "5.4", price: "4.40" }] },
-  { id: "b2", brewery: "Cheviot Hills Brewery", location: "Wooler", name: "Curfew Bell Pale", style: "Pale Ale", abv: "4.0", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Crisp golden pale, grapefruit and a clean dry finish.", allergensVerified: true, category: "Pale", history: [{ date: isoDaysAgo(200), abv: "3.9", price: "3.50" }, { date: isoDaysAgo(60), abv: "4.0", price: "3.70" }, { date: isoDaysAgo(4), abv: "4.0", price: "3.80" }] },
-  { id: "b3", brewery: "Alnwick Ales", location: "Alnwick", name: "Old Wall Bitter", style: "Best Bitter", abv: "3.8", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)", "Fish (isinglass finings)"], notes: "Classic amber bitter, biscuit malt and earthy hops.", allergensVerified: false, category: "Bitter" },
-  { id: "b4", brewery: "Lindisfarne Craft", location: "Holy Island", name: "Lighthouse Porter", style: "Porter", abv: "5.0", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Oats (gluten)"], notes: "Smooth dark porter, roasted coffee and dark chocolate.", allergensVerified: true, category: "Stout/Porter" },
-  { id: "b5", brewery: "Borderlands Brew Co", location: "Coldstream", name: "Ramparts Lager", style: "Lager", abv: "4.6", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Crisp clean lager, light bready malt and gentle bitterness.", allergensVerified: true, category: "Misc" },
-  { id: "b6", brewery: "Tweedside Brewing", location: "Berwick-upon-Tweed", name: "Tweed Haze", style: "IPA", abv: "5.8", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Oats (gluten)"], notes: "Keg hazy IPA, juicy stone fruit, low bitterness.", allergensVerified: true, category: "IPA" },
-  { id: "b7", brewery: "Yard Press", location: "Berwick-upon-Tweed", name: "Courtyard Medium", style: "Medium", abv: "5.2", clarity: "Clear", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Traditional medium cider, crisp apple with light tannin.", allergensVerified: true, category: "Misc" },
-  { id: "b8", brewery: "Border Orchard", location: "Kelso", name: "Scrumpy Dry", style: "Dry", abv: "6.0", clarity: "Cloudy", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Full, dry farmhouse scrumpy with a sharp finish.", allergensVerified: true, category: "Misc" },
-  { id: "b9", brewery: "Ettrick Forest Brewery", location: "Selkirk", name: "Selkirk Pale", style: "Pale Ale", abv: "3.9", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Easy golden pale, soft citrus and a dry finish.", allergensVerified: true, category: "Pale" },
-  { id: "b10", brewery: "Coldstream Guard Brewing", location: "Coldstream", name: "Marchman IPA", style: "IPA", abv: "5.5", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Oats (gluten)"], notes: "Juicy hazy IPA, mango and passionfruit.", allergensVerified: true, category: "IPA" },
-  { id: "b11", brewery: "Hadrian Forge", location: "Hexham", name: "Wall's End Bitter", style: "Best Bitter", abv: "4.1", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)", "Fish (isinglass finings)"], notes: "Traditional amber bitter, toffee malt and earthy hops.", allergensVerified: false, category: "Bitter" },
-  { id: "b12", brewery: "Simonside Ales", location: "Rothbury", name: "Hillfort Stout", style: "Stout", abv: "4.7", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Oats (gluten)"], notes: "Dry Irish-style stout, roast coffee and cocoa.", allergensVerified: true, category: "Stout/Porter" },
-  { id: "b13", brewery: "Kielder Brewing", location: "Kielder", name: "Forest Dark Mild", style: "Mild", abv: "3.6", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Gentle dark mild, nutty and lightly sweet.", allergensVerified: false, category: "Bitter" },
-  { id: "b14", brewery: "Glendale Brew", location: "Wooler", name: "Harthope Gold", style: "Pale Ale", abv: "4.2", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Golden ale, honeyed malt and a clean bitterness.", allergensVerified: true, category: "Pale" },
-  { id: "b15", brewery: "Reiver Ales", location: "Hawick", name: "Steel Bonnets IPA", style: "IPA", abv: "6.0", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Wheat (gluten)"], notes: "Big punchy IPA, resinous pine and grapefruit.", allergensVerified: false, category: "IPA" },
-  { id: "b16", brewery: "Bamburgh Castle Brewery", location: "Bamburgh", name: "Grace Darling Amber", style: "Best Bitter", abv: "4.3", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)", "Fish (isinglass finings)"], notes: "Rich amber ale, caramel malt and orange marmalade.", allergensVerified: false, category: "Bitter" },
-  { id: "b17", brewery: "Whiteadder Brewing", location: "Chirnside", name: "Black Dyke Porter", style: "Porter", abv: "5.2", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Oats (gluten)"], notes: "Smooth porter, dark chocolate and liquorice.", allergensVerified: true, category: "Stout/Porter" },
-  { id: "b18", brewery: "Cheviot Hills Brewery", location: "Wooler", name: "Yeavering Best", style: "Best Bitter", abv: "4.0", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Classic best bitter, biscuit malt and a dry hop finish.", allergensVerified: false, category: "Bitter" },
-  { id: "b19", brewery: "Borderlands Brew Co", location: "Coldstream", name: "North Sea Pilsner", style: "Pilsner", abv: "4.8", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Crisp continental pilsner, lemon and a snappy bitterness.", allergensVerified: true, category: "Misc" },
-  { id: "b20", brewery: "Tyneside Tank Co", location: "Newcastle", name: "Quayside Helles", style: "Helles", abv: "4.5", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Soft golden lager, bready malt and gentle hop.", allergensVerified: true, category: "Misc" },
-  { id: "b21", brewery: "Toon Brew Works", location: "Newcastle", name: "Toon Hazy Pale", style: "Pale Ale", abv: "4.4", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Oats (gluten)"], notes: "Hazy keg pale, soft and juicy, low bitterness.", allergensVerified: false, category: "Pale" },
-  { id: "b22", brewery: "Aln Valley Brew", location: "Alnwick", name: "Coquet Session IPA", style: "Session IPA", abv: "4.2", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Oats (gluten)"], notes: "Light session IPA, tropical and easy-going.", allergensVerified: false, category: "IPA" },
-  { id: "b23", brewery: "Berwick Beer Co", location: "Berwick-upon-Tweed", name: "Old Bridge Stout", style: "Stout", abv: "4.9", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Oats (gluten)"], notes: "Velvety keg stout, roast barley and cream.", allergensVerified: false, category: "Stout/Porter" },
-  { id: "b24", brewery: "Cheviot Hills Brewery", location: "Wooler", name: "Milkshake IPA", style: "IPA", abv: "6.2", clarity: "Hazy", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)", "Oats (gluten)", "Milk (lactose)"], notes: "Lactose IPA, smooth tropical fruit and vanilla.", allergensVerified: false, category: "IPA" },
-  { id: "b25", brewery: "Borderlands Brew Co", location: "Coldstream", name: "Festival Saison", style: "Saison", abv: "5.0", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Wheat (gluten)"], notes: "Peppery saison, spicy yeast and a dry finish.", allergensVerified: false, category: "Misc" },
-  { id: "b26", brewery: "Tweedside Brewing", location: "Berwick-upon-Tweed", name: "Cold IPA", style: "Cold IPA", abv: "5.5", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Crisp cold IPA, sharp hop snap and a clean body.", allergensVerified: false, category: "IPA" },
-  { id: "b27", brewery: "Lammermuir Lager Co", location: "Duns", name: "Hilltop Pilsner", style: "Pilsner", abv: "4.4", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Dry hoppy pilsner with a floral noble-hop nose.", allergensVerified: false, category: "Misc" },
-  { id: "b28", brewery: "Press Yard Keg", location: "Berwick-upon-Tweed", name: "Raspberry Sour", style: "Fruited Sour", abv: "4.0", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Wheat (gluten)"], notes: "Tart raspberry sour, bright and refreshing.", allergensVerified: false, category: "Misc" },
-  { id: "b29", brewery: "Hexham Cider Co", location: "Hexham", name: "Tyne Valley Medium", style: "Medium", abv: "5.0", clarity: "Clear", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Balanced medium cider, ripe apple and light tannin.", allergensVerified: true, category: "Misc" },
-  { id: "b30", brewery: "Borders Press", location: "Kelso", name: "Teviot Dry", style: "Dry", abv: "6.2", clarity: "Cloudy", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Sharp farmhouse dry cider, full and tannic.", allergensVerified: false, category: "Misc" },
-  { id: "b31", brewery: "Berwick Orchard", location: "Berwick-upon-Tweed", name: "Harbour Sweet", style: "Sweet", abv: "4.5", clarity: "Clear", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Easy sweet cider, soft and fruity.", allergensVerified: true, category: "Misc" },
-  { id: "b32", brewery: "Perry Lane", location: "Morpeth", name: "Pear Tree Perry", style: "Perry", abv: "4.8", clarity: "Clear", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Delicate perry, ripe pear and a gentle sparkle.", allergensVerified: false, category: "Misc" },
-  { id: "b33", brewery: "Scrumpy Bros", location: "Wooler", name: "Old Tom Scrumpy", style: "Dry", abv: "6.5", clarity: "Cloudy", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Big rustic scrumpy, dry and punchy.", allergensVerified: false, category: "Misc" },
+  { id: "b1", brewery: "Wylam", location: "Newcastle upon Tyne", name: "Jakehead IPA", style: "IPA", abv: "6.3", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Wheat (gluten)"], notes: "Heavyweight West Coast IPA, resinous pine and grapefruit.", allergensVerified: true, category: "IPA", history: [{ date: isoDaysAgo(120), abv: "6.0", price: "4.20" }, { date: isoDaysAgo(40), abv: "6.3", price: "4.40" }, { date: isoDaysAgo(3), abv: "6.3", price: "4.60" }] },
+  { id: "b2", brewery: "Mordue", location: "North Shields", name: "Radgie Gadgie", style: "IPA", abv: "4.8", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)", "Fish (isinglass finings)"], notes: "Strong, hoppy amber IPA with a firm bitter finish.", allergensVerified: false, category: "IPA" },
+  { id: "b3", brewery: "Stewart Brewing", location: "Edinburgh", name: "Pentland IPA", style: "Session IPA", abv: "3.9", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Light, hoppy session IPA, citrus and a dry close.", allergensVerified: true, category: "IPA" },
+  { id: "b4", brewery: "Allendale", location: "Allendale, Northumberland", name: "Pennine Pale", style: "Pale Ale", abv: "3.7", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Easy-going pale, lemon and soft floral hops.", allergensVerified: true, category: "Pale", history: [{ date: isoDaysAgo(180), abv: "3.6", price: "3.40" }, { date: isoDaysAgo(50), abv: "3.7", price: "3.60" }, { date: isoDaysAgo(4), abv: "3.7", price: "3.70" }] },
+  { id: "b5", brewery: "Tempest Brewing Co", location: "Tweedbank, Scottish Borders", name: "Long White Cloud", style: "Pale Ale", abv: "5.6", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Oats (gluten)"], notes: "NZ-hopped pale, tropical fruit and a juicy body.", allergensVerified: true, category: "Pale" },
+  { id: "b6", brewery: "Hadrian Border", location: "Newcastle upon Tyne", name: "Farne Island Pale Ale", style: "Pale Ale", abv: "4.0", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)", "Fish (isinglass finings)"], notes: "Well-balanced golden pale, biscuit malt and citrus.", allergensVerified: false, category: "Pale" },
+  { id: "b7", brewery: "Mordue", location: "North Shields", name: "Workie Ticket", style: "Best Bitter", abv: "4.5", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)", "Fish (isinglass finings)"], notes: "Complex, multi-hopped bitter. A North East classic.", allergensVerified: false, category: "Bitter", history: [{ date: isoDaysAgo(160), abv: "4.5", price: "3.70" }, { date: isoDaysAgo(40), abv: "4.5", price: "3.85" }, { date: isoDaysAgo(2), abv: "4.5", price: "3.90" }] },
+  { id: "b8", brewery: "Broughton Ales", location: "Broughton, Scottish Borders", name: "Greenmantle Ale", style: "Best Bitter", abv: "3.9", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Traditional Borders amber bitter, malty and rounded.", allergensVerified: true, category: "Bitter" },
+  { id: "b9", brewery: "Big Lamp", location: "Newburn, Newcastle", name: "Prince Bishop Ale", style: "Best Bitter", abv: "4.8", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)", "Fish (isinglass finings)"], notes: "Pale, refreshing strong bitter with a hoppy lift.", allergensVerified: false, category: "Bitter" },
+  { id: "b10", brewery: "Maxim Brewery", location: "Houghton-le-Spring", name: "Double Maxim", style: "Brown Ale", abv: "4.7", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)"], notes: "Legendary North East brown ale, nutty and smooth.", allergensVerified: true, category: "Bitter" },
+  { id: "b11", brewery: "Big Lamp", location: "Newburn, Newcastle", name: "Summerhill Stout", style: "Stout", abv: "4.4", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Oats (gluten)"], notes: "Dry Irish-style stout, roast coffee and dark chocolate.", allergensVerified: true, category: "Stout/Porter", history: [{ date: isoDaysAgo(150), abv: "4.4", price: "3.80" }, { date: isoDaysAgo(30), abv: "4.4", price: "3.95" }, { date: isoDaysAgo(1), abv: "4.4", price: "4.00" }] },
+  { id: "b12", brewery: "Allendale", location: "Allendale, Northumberland", name: "Tar Bar'l", style: "Smoked Porter", abv: "5.4", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Rich smoked porter, treacle, roast and a wisp of smoke.", allergensVerified: true, category: "Stout/Porter" },
+  { id: "b13", brewery: "Traquair House", location: "Innerleithen, Scottish Borders", name: "Jacobite Ale", style: "Strong Ale", abv: "8.0", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Oak-aged strong ale spiced with coriander. A sipper.", allergensVerified: true, category: "Stout/Porter" },
+  { id: "b14", brewery: "Born in the Borders", location: "Jedburgh, Scottish Borders", name: "Foxy Blonde", style: "Blonde Ale", abv: "4.0", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Light blonde ale, honeyed malt and gentle hops.", allergensVerified: true, category: "Pale" },
+  { id: "b15", brewery: "Firebrick", location: "Blaydon", name: "Blaydon Brick", style: "Amber Ale", abv: "4.6", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)", "Fish (isinglass finings)"], notes: "Malty amber ale, caramel and a balanced bitterness.", allergensVerified: false, category: "Bitter" },
+  { id: "b16", brewery: "Donzoko", location: "Hartlepool", name: "Northern Helles", style: "Helles Lager", abv: "4.7", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Crisp, clean German-style Helles. Pure refreshment.", allergensVerified: true, category: "Misc", history: [{ date: isoDaysAgo(90), abv: "4.7", price: "5.00" }, { date: isoDaysAgo(20), abv: "4.7", price: "5.20" }] },
+  { id: "b17", brewery: "Tempest Brewing Co", location: "Tweedbank, Scottish Borders", name: "Modern Helles", style: "Helles Lager", abv: "4.6", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Soft, bready lager with a delicate noble-hop finish.", allergensVerified: true, category: "Misc" },
+  { id: "b18", brewery: "Two by Two", location: "Wallsend", name: "Leap Frog", style: "Pale Ale", abv: "4.2", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Oats (gluten)"], notes: "Smooth, juicy pale, stone fruit and citrus.", allergensVerified: true, category: "Misc" },
+  { id: "b19", brewery: "Anarchy Brew Co", location: "Newcastle upon Tyne", name: "Blonde Star", style: "Blonde Ale", abv: "4.0", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Zesty, sessionable blonde with a clean snap.", allergensVerified: true, category: "Misc" },
+  { id: "b20", brewery: "Wylam", location: "Newcastle upon Tyne", name: "Hickey the Rake", style: "Saison", abv: "4.2", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Wheat (gluten)"], notes: "Belgian-inspired saison, peppery and dry.", allergensVerified: true, category: "Misc" },
+  { id: "b21", brewery: "Stewart Brewing", location: "Edinburgh", name: "Ka Pai", style: "Pale Ale", abv: "4.5", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Oats (gluten)"], notes: "New-world pale bursting with passionfruit.", allergensVerified: true, category: "Misc" },
+  { id: "b22", brewery: "Cross Borders", location: "Dalkeith", name: "Heavy", style: "Scottish Ale", abv: "4.0", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Malt-forward Scottish heavy, toffee and a dry finish.", allergensVerified: true, category: "Misc" },
+  { id: "b23", brewery: "Vault City", location: "Edinburgh", name: "Strawberry Skies", style: "Sour", abv: "5.0", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Wheat (gluten)"], notes: "Bright modern fruited sour, jammy strawberry.", allergensVerified: true, category: "Misc" },
+  { id: "b24", brewery: "Northern Monk", location: "Leeds", name: "Faith", style: "Pale Ale", abv: "5.4", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Wheat (gluten)", "Oats (gluten)"], notes: "Flagship hazy pale, soft and tropical.", allergensVerified: true, category: "Misc" },
+  { id: "b25", brewery: "Lost & Grounded", location: "Bristol", name: "Keller Pils", style: "Pilsner", abv: "4.8", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Unfiltered keller pils, crisp and herbal.", allergensVerified: true, category: "Misc" },
+  { id: "b26", brewery: "Donzoko", location: "Hartlepool", name: "Northern Lager", style: "Lager", abv: "4.2", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Everyday lager done properly, clean and dry.", allergensVerified: true, category: "Misc" },
+  { id: "b27", brewery: "Thistly Cross", location: "Dunbar, East Lothian", name: "Original Cider", style: "Medium Cider", abv: "4.4", clarity: "Clear", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Scotland's flagship cider, medium and easy-drinking.", allergensVerified: true, category: "Misc" },
+  { id: "b28", brewery: "Thistly Cross", location: "Dunbar, East Lothian", name: "Traditional Scottish", style: "Dry Cider", abv: "4.0", clarity: "Clear", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Bone-dry traditional cider, sharp and rustic.", allergensVerified: true, category: "Misc" },
+  { id: "b29", brewery: "Thistly Cross", location: "Dunbar, East Lothian", name: "Whisky Cask", style: "Cider", abv: "6.9", clarity: "Clear", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Aged in Scotch casks, rich with vanilla and oak.", allergensVerified: true, category: "Misc" },
+  { id: "b30", brewery: "Westons", location: "Much Marcle, Herefordshire", name: "Old Rosie", style: "Cloudy Scrumpy", abv: "7.3", clarity: "Hazy", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Cloudy scrumpy with a powerful, fruity punch.", allergensVerified: true, category: "Misc" },
+  { id: "b31", brewery: "Sandford Orchards", location: "Crediton, Devon", name: "Devon Red", style: "Medium Cider", abv: "4.5", clarity: "Clear", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Classic Devon medium cider, smooth and orchard-fresh.", allergensVerified: true, category: "Misc" },
+  { id: "b32", brewery: "Dunkertons", location: "Pembridge, Herefordshire", name: "Black Fox", style: "Organic Cider", abv: "7.0", clarity: "Clear", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Organic still-ish cider, dry and characterful.", allergensVerified: true, category: "Misc" },
+  { id: "b33", brewery: "Hawkes", location: "London", name: "Urban Orchard", style: "Cider", abv: "4.5", clarity: "Clear", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Bright, crunchy apple cider from rescued fruit.", allergensVerified: true, category: "Misc" },
 ];
 const seedLines = [
-  { id: "l1", beerId: "b1", drinkType: "cask", size: "", price: "4.40", status: "on", caskOwner: "Tweedside Brewing", collected: false, bestBefore: dateInDays(4), dates: { ordered: isoDaysAgo(6), delivered: isoDaysAgo(4), vented: isoDaysAgo(3), tapped: isoDaysAgo(2), on: isoDaysAgo(2), off: null } },
-  { id: "l2", beerId: "b2", drinkType: "cask", size: "", price: "3.80", status: "on", caskOwner: "Cheviot Hills Brewery", collected: false, bestBefore: dateInDays(1), dates: { ordered: isoDaysAgo(7), delivered: isoDaysAgo(5), vented: isoDaysAgo(4), tapped: isoDaysAgo(4), on: isoDaysAgo(4), off: null } },
-  { id: "l3", beerId: "b3", drinkType: "cask", size: "", price: "3.70", status: "tapped", caskOwner: "Borders Beer Distribution", collected: false, bestBefore: dateInDays(-1), dates: { ordered: isoDaysAgo(3), delivered: isoDaysAgo(1), vented: isoDaysAgo(0), tapped: isoDaysAgo(0), on: null, off: null } },
-  { id: "l4", beerId: "b4", drinkType: "cask", size: "", price: "4.30", status: "in_cellar", caskOwner: "Lindisfarne Craft", collected: false, bestBefore: dateInDays(12), dates: { ordered: isoDaysAgo(1), delivered: isoDaysAgo(0), vented: null, tapped: null, on: null, off: null } },
-  { id: "l5", beerId: "b5", drinkType: "keg", size: "Keg 50L", price: "4.80", status: "on", caskOwner: "Borderlands Brew Co", collected: false, bestBefore: dateInDays(40), dates: { ordered: isoDaysAgo(5), delivered: isoDaysAgo(3), vented: null, tapped: isoDaysAgo(2), on: isoDaysAgo(2), off: null } },
-  { id: "l6", beerId: "b6", drinkType: "keg", size: "Keg 30L", price: "5.20", status: "en_route", caskOwner: "Tweedside Brewing", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(0), delivered: null, vented: null, tapped: null, on: null, off: null } },
-  { id: "l7", beerId: "b7", drinkType: "cider", size: "Bag-in-box 20L", price: "4.60", status: "on", caskOwner: "Yard Press", collected: false, bestBefore: dateInDays(18), dates: { ordered: isoDaysAgo(4), delivered: isoDaysAgo(2), vented: null, tapped: isoDaysAgo(1), on: isoDaysAgo(1), off: null } },
-  { id: "l8", beerId: "b8", drinkType: "cider", size: "Bag-in-box 20L", price: "4.70", status: "in_cellar", caskOwner: "Border Orchard", collected: false, bestBefore: dateInDays(25), dates: { ordered: isoDaysAgo(1), delivered: isoDaysAgo(0), vented: null, tapped: null, on: null, off: null } },
-  { id: "l9", beerId: "b1", drinkType: "cask", size: "", price: "4.40", status: "off", caskOwner: "Tweedside Brewing", collected: false, bestBefore: dateInDays(-2), dates: { ordered: isoDaysAgo(12), delivered: isoDaysAgo(10), vented: isoDaysAgo(9), tapped: isoDaysAgo(8), on: isoDaysAgo(8), off: isoDaysAgo(3) } },
-  { id: "l10", beerId: "b3", drinkType: "cask", size: "", price: "3.70", status: "off", caskOwner: "Borders Beer Distribution", collected: false, bestBefore: dateInDays(-4), dates: { ordered: isoDaysAgo(14), delivered: isoDaysAgo(11), vented: isoDaysAgo(10), tapped: isoDaysAgo(9), on: isoDaysAgo(9), off: isoDaysAgo(2) } },
-  { id: "l11", beerId: "b9", drinkType: "cask", size: "", price: "3.80", status: "in_cellar", caskOwner: "Ettrick Forest Brewery", collected: false, bestBefore: dateInDays(6), dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
-  { id: "l12", beerId: "b10", drinkType: "cask", size: "", price: "4.50", status: "in_cellar", caskOwner: "Coldstream Guard Brewing", collected: false, bestBefore: dateInDays(5), dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
-  { id: "l13", beerId: "b11", drinkType: "cask", size: "", price: "3.90", status: "on", caskOwner: "Hadrian Forge", collected: false, bestBefore: dateInDays(3), dates: { ordered: isoDaysAgo(6), delivered: isoDaysAgo(4), vented: isoDaysAgo(3), tapped: isoDaysAgo(2), on: isoDaysAgo(2), off: null } },
-  { id: "l14", beerId: "b18", drinkType: "cask", size: "", price: "3.90", status: "in_cellar", caskOwner: "Cheviot Hills Brewery", collected: false, bestBefore: dateInDays(8), dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
-  { id: "l15", beerId: "b13", drinkType: "cask", size: "", price: "3.60", status: "tapped", caskOwner: "Kielder Brewing", collected: false, bestBefore: dateInDays(4), dates: { ordered: isoDaysAgo(3), delivered: isoDaysAgo(2), vented: isoDaysAgo(1), tapped: isoDaysAgo(0), on: null, off: null } },
-  { id: "l16", beerId: "b16", drinkType: "cask", size: "", price: "4.10", status: "vented", caskOwner: "Bamburgh Castle Brewery", collected: false, bestBefore: dateInDays(6), dates: { ordered: isoDaysAgo(3), delivered: isoDaysAgo(2), vented: isoDaysAgo(0), tapped: null, on: null, off: null } },
-  { id: "l17", beerId: "b12", drinkType: "cask", size: "", price: "4.30", status: "on", caskOwner: "Simonside Ales", collected: false, bestBefore: dateInDays(9), dates: { ordered: isoDaysAgo(6), delivered: isoDaysAgo(4), vented: isoDaysAgo(3), tapped: isoDaysAgo(2), on: isoDaysAgo(2), off: null } },
-  { id: "l18", beerId: "b14", drinkType: "cask", size: "", price: "4.00", status: "in_cellar", caskOwner: "Glendale Brew", collected: false, bestBefore: dateInDays(16), dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
-  { id: "l19", beerId: "b17", drinkType: "cask", size: "", price: "4.40", status: "in_cellar", caskOwner: "Whiteadder Brewing", collected: false, bestBefore: dateInDays(22), dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
-  { id: "l20", beerId: "b15", drinkType: "cask", size: "", price: "4.60", status: "en_route", caskOwner: "Reiver Ales", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(0), delivered: null, vented: null, tapped: null, on: null, off: null } },
-  { id: "l21", beerId: "b19", drinkType: "keg", size: "Keg 50L", price: "4.70", status: "on", caskOwner: "Borderlands Brew Co", collected: false, bestBefore: dateInDays(45), dates: { ordered: isoDaysAgo(6), delivered: isoDaysAgo(4), vented: isoDaysAgo(3), tapped: isoDaysAgo(2), on: isoDaysAgo(2), off: null } },
-  { id: "l22", beerId: "b20", drinkType: "keg", size: "Keg 50L", price: "4.80", status: "on", caskOwner: "Tyneside Tank Co", collected: false, bestBefore: dateInDays(50), dates: { ordered: isoDaysAgo(6), delivered: isoDaysAgo(4), vented: isoDaysAgo(3), tapped: isoDaysAgo(2), on: isoDaysAgo(2), off: null } },
-  { id: "l23", beerId: "b21", drinkType: "keg", size: "Keg 30L", price: "5.00", status: "on", caskOwner: "Toon Brew Works", collected: false, bestBefore: dateInDays(30), dates: { ordered: isoDaysAgo(6), delivered: isoDaysAgo(4), vented: isoDaysAgo(3), tapped: isoDaysAgo(2), on: isoDaysAgo(2), off: null } },
-  { id: "l24", beerId: "b22", drinkType: "keg", size: "Keg 30L", price: "4.60", status: "in_cellar", caskOwner: "Aln Valley Brew", collected: false, bestBefore: dateInDays(35), dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
-  { id: "l25", beerId: "b23", drinkType: "keg", size: "Keg 50L", price: "4.90", status: "in_cellar", caskOwner: "Berwick Beer Co", collected: false, bestBefore: dateInDays(28), dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
-  { id: "l26", beerId: "b26", drinkType: "keg", size: "Keg 30L", price: "5.20", status: "in_cellar", caskOwner: "Tweedside Brewing", collected: false, bestBefore: dateInDays(40), dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
-  { id: "l27", beerId: "b28", drinkType: "keg", size: "Keg 30L", price: "5.40", status: "tapped", caskOwner: "Press Yard Keg", collected: false, bestBefore: dateInDays(20), dates: { ordered: isoDaysAgo(3), delivered: isoDaysAgo(2), vented: isoDaysAgo(1), tapped: isoDaysAgo(0), on: null, off: null } },
-  { id: "l28", beerId: "b24", drinkType: "keg", size: "Keg 30L", price: "6.00", status: "en_route", caskOwner: "Cheviot Hills Brewery", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(0), delivered: null, vented: null, tapped: null, on: null, off: null } },
-  { id: "l29", beerId: "b25", drinkType: "keg", size: "Keg 50L", price: "5.10", status: "en_route", caskOwner: "Borderlands Brew Co", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(0), delivered: null, vented: null, tapped: null, on: null, off: null } },
-  { id: "l30", beerId: "b27", drinkType: "keg", size: "Keg 50L", price: "4.60", status: "en_route", caskOwner: "Lammermuir Lager Co", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(0), delivered: null, vented: null, tapped: null, on: null, off: null } },
-  { id: "l31", beerId: "b29", drinkType: "cider", size: "Bag-in-box 20L", price: "4.60", status: "on", caskOwner: "Hexham Cider Co", collected: false, bestBefore: dateInDays(20), dates: { ordered: isoDaysAgo(6), delivered: isoDaysAgo(4), vented: isoDaysAgo(3), tapped: isoDaysAgo(2), on: isoDaysAgo(2), off: null } },
-  { id: "l32", beerId: "b30", drinkType: "cider", size: "Bag-in-box 20L", price: "4.90", status: "on", caskOwner: "Borders Press", collected: false, bestBefore: dateInDays(26), dates: { ordered: isoDaysAgo(6), delivered: isoDaysAgo(4), vented: isoDaysAgo(3), tapped: isoDaysAgo(2), on: isoDaysAgo(2), off: null } },
-  { id: "l33", beerId: "b31", drinkType: "cider", size: "Bag-in-box 20L", price: "4.50", status: "on", caskOwner: "Berwick Orchard", collected: false, bestBefore: dateInDays(15), dates: { ordered: isoDaysAgo(6), delivered: isoDaysAgo(4), vented: isoDaysAgo(3), tapped: isoDaysAgo(2), on: isoDaysAgo(2), off: null } },
-  { id: "l34", beerId: "b32", drinkType: "cider", size: "Bag-in-box 20L", price: "4.80", status: "in_cellar", caskOwner: "Perry Lane", collected: false, bestBefore: dateInDays(30), dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
-  { id: "l35", beerId: "b33", drinkType: "cider", size: "Bag-in-box 20L", price: "5.00", status: "en_route", caskOwner: "Scrumpy Bros", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(0), delivered: null, vented: null, tapped: null, on: null, off: null } },
+  { id: "l1", beerId: "b1", drinkType: "cask", size: "", price: "4.60", status: "on", caskOwner: "Wylam", collected: false, bestBefore: dateInDays(5), dates: { ordered: isoDaysAgo(12), delivered: isoDaysAgo(9), vented: isoDaysAgo(3), tapped: isoDaysAgo(2), on: isoDaysAgo(2), off: null } },
+  { id: "l2", beerId: "b4", drinkType: "cask", size: "", price: "3.70", status: "on", caskOwner: "Allendale", collected: false, bestBefore: dateInDays(1), dates: { ordered: isoDaysAgo(14), delivered: isoDaysAgo(10), vented: isoDaysAgo(4), tapped: isoDaysAgo(3), on: isoDaysAgo(3), off: null } },
+  { id: "l3", beerId: "b7", drinkType: "cask", size: "", price: "3.90", status: "on", caskOwner: "Mordue", collected: false, bestBefore: dateInDays(4), dates: { ordered: isoDaysAgo(11), delivered: isoDaysAgo(8), vented: isoDaysAgo(3), tapped: isoDaysAgo(2), on: isoDaysAgo(2), off: null } },
+  { id: "l4", beerId: "b11", drinkType: "cask", size: "", price: "4.00", status: "on", caskOwner: "Big Lamp", collected: false, bestBefore: dateInDays(6), dates: { ordered: isoDaysAgo(10), delivered: isoDaysAgo(7), vented: isoDaysAgo(2), tapped: isoDaysAgo(1), on: isoDaysAgo(1), off: null } },
+  { id: "l5", beerId: "b2", drinkType: "cask", size: "", price: "4.20", status: "tapped", caskOwner: "Mordue", collected: false, bestBefore: dateInDays(8), dates: { ordered: isoDaysAgo(6), delivered: isoDaysAgo(4), vented: isoDaysAgo(2), tapped: isoDaysAgo(1), on: null, off: null } },
+  { id: "l6", beerId: "b3", drinkType: "cask", size: "", price: "3.60", status: "vented", caskOwner: "Stewart Brewing", collected: false, bestBefore: dateInDays(7), dates: { ordered: isoDaysAgo(5), delivered: isoDaysAgo(3), vented: isoDaysAgo(1), tapped: null, on: null, off: null } },
+  { id: "l7", beerId: "b5", drinkType: "cask", size: "", price: "4.60", status: "tapped", caskOwner: "Tempest Brewing Co", collected: false, bestBefore: dateInDays(9), dates: { ordered: isoDaysAgo(6), delivered: isoDaysAgo(4), vented: isoDaysAgo(2), tapped: isoDaysAgo(1), on: null, off: null } },
+  { id: "l8", beerId: "b6", drinkType: "cask", size: "", price: "3.80", status: "vented", caskOwner: "Hadrian Border", collected: false, bestBefore: dateInDays(6), dates: { ordered: isoDaysAgo(4), delivered: isoDaysAgo(2), vented: isoDaysAgo(1), tapped: null, on: null, off: null } },
+  { id: "l9", beerId: "b8", drinkType: "cask", size: "", price: "3.70", status: "tapped", caskOwner: "Broughton Ales", collected: false, bestBefore: dateInDays(5), dates: { ordered: isoDaysAgo(5), delivered: isoDaysAgo(3), vented: isoDaysAgo(1), tapped: isoDaysAgo(1), on: null, off: null } },
+  { id: "l10", beerId: "b12", drinkType: "cask", size: "", price: "4.40", status: "tapped", caskOwner: "Allendale", collected: false, bestBefore: dateInDays(12), dates: { ordered: isoDaysAgo(7), delivered: isoDaysAgo(5), vented: isoDaysAgo(2), tapped: isoDaysAgo(1), on: null, off: null } },
+  { id: "l11", beerId: "b9", drinkType: "cask", size: "", price: "4.10", status: "in_cellar", caskOwner: "Big Lamp", collected: false, bestBefore: dateInDays(20), dates: { ordered: isoDaysAgo(3), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
+  { id: "l12", beerId: "b10", drinkType: "cask", size: "", price: "4.00", status: "in_cellar", caskOwner: "Maxim Brewery", collected: false, bestBefore: dateInDays(25), dates: { ordered: isoDaysAgo(4), delivered: isoDaysAgo(2), vented: null, tapped: null, on: null, off: null } },
+  { id: "l13", beerId: "b13", drinkType: "cask", size: "", price: "5.20", status: "in_cellar", caskOwner: "Traquair House", collected: false, bestBefore: dateInDays(45), dates: { ordered: isoDaysAgo(3), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
+  { id: "l14", beerId: "b14", drinkType: "cask", size: "", price: "3.80", status: "in_cellar", caskOwner: "Born in the Borders", collected: false, bestBefore: dateInDays(15), dates: { ordered: isoDaysAgo(5), delivered: isoDaysAgo(3), vented: null, tapped: null, on: null, off: null } },
+  { id: "l15", beerId: "b15", drinkType: "cask", size: "", price: "4.00", status: "off", caskOwner: "Firebrick", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(18), delivered: isoDaysAgo(15), vented: isoDaysAgo(12), tapped: isoDaysAgo(11), on: isoDaysAgo(10), off: isoDaysAgo(1) } },
+  { id: "l16", beerId: "b1", drinkType: "cask", size: "", price: "4.60", status: "off", caskOwner: "Wylam", collected: true, bestBefore: "", dates: { ordered: isoDaysAgo(30), delivered: isoDaysAgo(27), vented: isoDaysAgo(24), tapped: isoDaysAgo(23), on: isoDaysAgo(22), off: isoDaysAgo(3) } },
+  { id: "l17", beerId: "b16", drinkType: "keg", size: "Keg 30L", price: "5.20", status: "on", caskOwner: "Donzoko", collected: false, bestBefore: dateInDays(30), dates: { ordered: isoDaysAgo(12), delivered: isoDaysAgo(9), vented: null, tapped: null, on: isoDaysAgo(4), off: null } },
+  { id: "l18", beerId: "b18", drinkType: "keg", size: "Keg 30L", price: "5.00", status: "on", caskOwner: "Two by Two", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(10), delivered: isoDaysAgo(7), vented: null, tapped: null, on: isoDaysAgo(2), off: null } },
+  { id: "l19", beerId: "b19", drinkType: "keg", size: "Keg 50L", price: "4.80", status: "on", caskOwner: "Anarchy Brew Co", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(11), delivered: isoDaysAgo(8), vented: null, tapped: null, on: isoDaysAgo(3), off: null } },
+  { id: "l20", beerId: "b17", drinkType: "keg", size: "Keg 30L", price: "5.20", status: "in_cellar", caskOwner: "Tempest Brewing Co", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(3), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
+  { id: "l21", beerId: "b20", drinkType: "keg", size: "Keg 30L", price: "5.40", status: "in_cellar", caskOwner: "Wylam", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(4), delivered: isoDaysAgo(2), vented: null, tapped: null, on: null, off: null } },
+  { id: "l22", beerId: "b21", drinkType: "keg", size: "Keg 30L", price: "5.30", status: "in_cellar", caskOwner: "Stewart Brewing", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(3), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
+  { id: "l23", beerId: "b22", drinkType: "keg", size: "Keg 50L", price: "4.60", status: "in_cellar", caskOwner: "Cross Borders", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(4), delivered: isoDaysAgo(2), vented: null, tapped: null, on: null, off: null } },
+  { id: "l24", beerId: "b23", drinkType: "keg", size: "Keg 30L", price: "5.80", status: "in_cellar", caskOwner: "Vault City", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(3), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
+  { id: "l25", beerId: "b24", drinkType: "keg", size: "Keg 30L", price: "5.60", status: "in_cellar", caskOwner: "Northern Monk", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(5), delivered: isoDaysAgo(3), vented: null, tapped: null, on: null, off: null } },
+  { id: "l26", beerId: "b25", drinkType: "keg", size: "Keg 50L", price: "4.80", status: "in_cellar", caskOwner: "Lost & Grounded", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(4), delivered: isoDaysAgo(2), vented: null, tapped: null, on: null, off: null } },
+  { id: "l27", beerId: "b26", drinkType: "keg", size: "Keg 50L", price: "4.50", status: "in_cellar", caskOwner: "Donzoko", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(3), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
+  { id: "l28", beerId: "b16", drinkType: "keg", size: "Keg 30L", price: "5.20", status: "in_cellar", caskOwner: "Donzoko", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
+  { id: "l29", beerId: "b27", drinkType: "cider", size: "Bag-in-box 20L", price: "5.00", status: "on", caskOwner: "Thistly Cross", collected: false, bestBefore: dateInDays(25), dates: { ordered: isoDaysAgo(12), delivered: isoDaysAgo(9), vented: null, tapped: null, on: isoDaysAgo(3), off: null } },
+  { id: "l30", beerId: "b30", drinkType: "cider", size: "Bag-in-box 20L", price: "5.20", status: "on", caskOwner: "Westons", collected: false, bestBefore: dateInDays(30), dates: { ordered: isoDaysAgo(10), delivered: isoDaysAgo(7), vented: null, tapped: null, on: isoDaysAgo(2), off: null } },
+  { id: "l31", beerId: "b31", drinkType: "cider", size: "Bag-in-box 20L", price: "4.80", status: "on", caskOwner: "Sandford Orchards", collected: false, bestBefore: dateInDays(28), dates: { ordered: isoDaysAgo(13), delivered: isoDaysAgo(10), vented: null, tapped: null, on: isoDaysAgo(4), off: null } },
+  { id: "l32", beerId: "b28", drinkType: "cider", size: "Bag-in-box 20L", price: "4.80", status: "in_cellar", caskOwner: "Thistly Cross", collected: false, bestBefore: dateInDays(30), dates: { ordered: isoDaysAgo(3), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
+  { id: "l33", beerId: "b29", drinkType: "cider", size: "Bag-in-box 20L", price: "5.60", status: "in_cellar", caskOwner: "Thistly Cross", collected: false, bestBefore: dateInDays(40), dates: { ordered: isoDaysAgo(4), delivered: isoDaysAgo(2), vented: null, tapped: null, on: null, off: null } },
+  { id: "l34", beerId: "b32", drinkType: "cider", size: "Bag-in-box 20L", price: "5.40", status: "in_cellar", caskOwner: "Dunkertons", collected: false, bestBefore: dateInDays(35), dates: { ordered: isoDaysAgo(3), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
+  { id: "l35", beerId: "b33", drinkType: "cider", size: "Bag-in-box 20L", price: "4.60", status: "in_cellar", caskOwner: "Hawkes", collected: false, bestBefore: dateInDays(30), dates: { ordered: isoDaysAgo(5), delivered: isoDaysAgo(3), vented: null, tapped: null, on: null, off: null } },
 ];
 
 const seedDistributors = ["HB Clark & Co", "6B", "LWC"];
@@ -277,6 +278,8 @@ export default function TheCurfewCellar() {
   const [editBusy, setEditBusy] = useState(false);
   const [editNote, setEditNote] = useState(null);
   const [lineDetails, setLineDetails] = useState(false);
+  const [swap, setSwap] = useState(null);
+  const [catchUp, setCatchUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [librarySearch, setLibrarySearch] = useState("");
   const [historyOpen, setHistoryOpen] = useState({});
@@ -322,7 +325,7 @@ export default function TheCurfewCellar() {
           const data = JSON.parse(r.value);
           // console.log(data);
           if (Array.isArray(data.library)) setLibrary(data.library);
-          if (Array.isArray(data.lines)) setLines(data.lines);
+          if (Array.isArray(data.lines)) setLines(data.lines.map((l) => l.status === "en_route" ? { ...l, status: "in_cellar", dates: { ...l.dates, delivered: l.dates && l.dates.delivered ? l.dates.delivered : (l.dates && l.dates.ordered) || new Date().toISOString() } } : l));
           if (Array.isArray(data.distributors)) setDistributors(data.distributors);
         }
         if (!cancelled) setStorageOk(true);
@@ -352,6 +355,13 @@ export default function TheCurfewCellar() {
   }, [openId, editBeerId]);
 
   useEffect(() => { setLineDetails(false); }, [openId]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    let m = document.querySelector('meta[name="viewport"]');
+    if (!m) { m = document.createElement("meta"); m.setAttribute("name", "viewport"); document.head.appendChild(m); }
+    m.setAttribute("content", "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover");
+  }, []);
 
   const resetDemo = () => {
     setLibrary(clone(seedLibrary));
@@ -502,11 +512,38 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
     if (!dates[next.dateKey]) dates[next.dateKey] = new Date().toISOString();
     return { ...c, status: next.key, dates };
   }));
+  const goBack = (id) => setLines((ls) => ls.map((c) => {
+    if (c.id !== id) return c;
+    const idx = STATUS_INDEX[c.status];
+    if (idx <= FIRST_IDX) return c;
+    const dates = { ...c.dates };
+    dates[STATUSES[idx].dateKey] = null;
+    return { ...c, status: STATUSES[idx - 1].key, dates };
+  }));
   const setBestBefore = (id, v) => setLines((ls) => ls.map((c) => (c.id === id ? { ...c, bestBefore: v } : c)));
+  const finishAndChoose = (line) => {
+    const beer = beerById[line.beerId];
+    snapshotUndo("Line finished");
+    const now = new Date().toISOString();
+    setLines((ls) => ls.map((c) => (c.id === line.id ? { ...c, status: "off", dates: { ...c.dates, off: now } } : c)));
+    setOpenId(null);
+    setSwap({ drink: line.drinkType, category: line.drinkType === "cask" ? (beer ? (beer.category || "Misc") : null) : null, oldId: null });
+  };
+  const doSwap = (newId, oldId) => {
+    snapshotUndo("Beer changed");
+    const now = new Date().toISOString();
+    setLines((ls) => ls.map((c) => {
+      if (oldId && c.id === oldId) return { ...c, status: "off", dates: { ...c.dates, off: now } };
+      if (c.id === newId) return { ...c, status: "on", dates: { ...c.dates, on: c.dates.on || now } };
+      return c;
+    }));
+    setSwap(null);
+  };
   const setLineCategory = (id, beerId, cat) => { setLibrary((lib) => lib.map((b) => (b.id === beerId ? { ...b, category: cat } : b))); };
   const setOnDate = (id, v) => setLines((ls) => ls.map((c) => { if (c.id !== id) return c; const d = new Date(v); d.setHours(12, 0, 0, 0); return { ...c, dates: { ...c.dates, on: d.toISOString() } }; }));
   const verify = (beerId) => setLibrary((lib) => lib.map((b) => (b.id === beerId ? { ...b, allergensVerified: true } : b)));
   const updateBeer = (id, patch) => setLibrary((lib) => lib.map((b) => (b.id === id ? { ...b, ...patch } : b)));
+  const updateBeerPrice = (id, v) => { setLibrary((lib) => lib.map((b) => (b.id === id ? { ...b, price: v } : b))); setLines((ls) => ls.map((c) => (c.beerId === id ? { ...c, price: v } : c))); };
   const toggleBeerAllergen = (id, a) => setLibrary((lib) => lib.map((b) => (b.id === id ? { ...b, allergens: b.allergens.includes(a) ? b.allergens.filter((x) => x !== a) : [...b.allergens, a] } : b)));
   const autoFillBeer = async (beer) => {
     if (!beer.name || !beer.name.trim()) { setEditNote({ type: "warn", text: "Add a name first." }); return; }
@@ -573,13 +610,35 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
     r.onerror = () => reject(new Error("read"));
     r.readAsDataURL(file);
   });
+  // phone photos are huge; shrink them so the upload stays small and quick
+  const imageToScaledB64 = (file, maxEdge = 1600, quality = 0.82) => new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let w = img.naturalWidth, h = img.naturalHeight;
+      if (!w || !h) { reject(new Error("no dimensions")); return; }
+      const scale = Math.min(1, maxEdge / Math.max(w, h));
+      w = Math.round(w * scale); h = Math.round(h * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, w, h);
+      try { resolve(canvas.toDataURL("image/jpeg", quality).split(",")[1]); }
+      catch (e) { reject(e); }
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("image load failed")); };
+    img.src = url;
+  });
   // scan output isn't always clean json, this is a bit rough but does the job
   const parseLooseJSON = (text) => { try { return JSON.parse(text.replace(/```json/gi, "").replace(/```/g, "").trim()); } catch { const m = text.match(/[\[{][\s\S]*[\]}]/); if (!m) throw new Error("no json"); return JSON.parse(m[0]); } };
   const visionCall = async (file, promptText, useSearch = false) => {
-    const b64 = await fileToBase64(file);
     const isPdf = file.type === "application/pdf";
-    const source = { type: "base64", media_type: isPdf ? "application/pdf" : (file.type || "image/jpeg"), data: b64 };
-    const body = { model: MODEL, max_tokens: 1500, messages: [{ role: "user", content: [{ type: isPdf ? "document" : "image", source }, { type: "text", text: promptText }] }] };
+    let mediaType = "image/jpeg", b64;
+    if (isPdf) { mediaType = "application/pdf"; b64 = await fileToBase64(file); }
+    else { try { b64 = await imageToScaledB64(file); mediaType = "image/jpeg"; } catch (e) { b64 = await fileToBase64(file); mediaType = file.type || "image/jpeg"; } }
+    const source = { type: "base64", media_type: mediaType, data: b64 };
+    const body = { model: MODEL, max_tokens: 2048, messages: [{ role: "user", content: [{ type: isPdf ? "document" : "image", source }, { type: "text", text: promptText }] }] };
     if (useSearch) body.tools = [{ type: "web_search_20250305", name: "web_search" }];
     const res = await fetch("/api/anthropic", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -627,10 +686,19 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
   const scanInvoice = async (file) => {
     setScanning(true); setScanError(null); setInvoiceItems(null);
     try {
-      const prompt = `This is a delivery invoice or delivery note from a brewery or drinks wholesaler. Extract every distinct beer or cider product line. Return STRICT JSON array only:\n[{"brewery": string, "name": string, "abv": "number as string or empty", "price": "unit price as string or empty", "deliveredBy": "distributor or wholesaler if named, else empty"}]\nIgnore totals, VAT, delivery charges and non-drink lines. If brewery isn't shown per line, infer it from the header.${distHint} JSON array only.`;
+      const prompt = `This is a delivery invoice or delivery note from a brewery or drinks wholesaler. Extract every distinct beer or cider product line. Return STRICT JSON array only:\n[{"brewery": string, "name": string, "abv": "number as string or empty", "qty": "quantity ordered as a whole number, default 1", "deliveredBy": "distributor or wholesaler if named, else empty"}]\nRead the Qty column for how many of each product. Do NOT extract any prices. SKIP fuel surcharges, delivery or carriage charges, deposits, credits, VAT, totals and anything that is not an actual beer or cider. If brewery isn't shown per line, infer it from the header.${distHint} JSON array only.`;
       const arr = parseLooseJSON(await visionCall(file, prompt));
-      if (!Array.isArray(arr) || !arr.length) throw new Error("empty");
-      setInvoiceItems(arr.map((x, i) => ({ id: "inv" + i, brewery: x.brewery ? String(x.brewery) : "", name: x.name ? String(x.name) : "", abv: x.abv != null ? String(x.abv) : "", price: x.price != null ? String(x.price) : "", caskOwner: x.deliveredBy ? String(x.deliveredBy) : "", drinkType: "cask", include: true })));
+      const SKIP = /surcharge|carriage|delivery|deposit|credit|fuel|\bvat\b|total|empties|bottle return/i;
+      const expanded = [];
+      (Array.isArray(arr) ? arr : []).forEach((x) => {
+        const name = x.name ? String(x.name).trim() : "";
+        const brewery = x.brewery ? String(x.brewery).trim() : "";
+        if (!name || SKIP.test(name) || SKIP.test(brewery)) return;
+        const qty = Math.max(1, Math.min(36, parseInt(x.qty, 10) || 1));
+        for (let q = 0; q < qty; q++) expanded.push({ id: "inv" + expanded.length, brewery, name, abv: x.abv != null ? String(x.abv) : "", price: "", caskOwner: x.deliveredBy ? String(x.deliveredBy) : "", drinkType: "cask", include: true });
+      });
+      if (!expanded.length) throw new Error("empty");
+      setInvoiceItems(expanded);
       setBatchSource("invoice"); setAddMode("invoice");
     } catch (e) {
       setScanError("Couldn't read that invoice. Try a clearer photo, or add items by hand.");
@@ -671,7 +739,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
     const chosen = (invoiceItems || []).filter((x) => x.include && x.name.trim());
     if (!chosen.length) return;
     const nowIso = new Date().toISOString();
-    const enRoute = batchSource === "list";
+    
     let lib = [...library];
     const newLines = [];
     chosen.forEach((x) => {
@@ -680,7 +748,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
       let beerId;
       if (existing) { beerId = existing.id; lib = lib.map((b) => (b.id === existing.id ? { ...b, abv: x.abv || b.abv, history: [...(b.history || []), entry] } : b)); }
       else { beerId = uid(); lib = [...lib, { id: beerId, brewery: x.brewery.trim(), location: x.location || "", name: x.name.trim(), style: x.style || "", abv: x.abv, clarity: x.clarity || "Clear", glutenStatus: x.glutenStatus || "Standard", vegan: x.vegan || false, allergens: x.allergens || [], notes: x.notes || "", allergensVerified: false, category: x.category || (x.drinkType === "cask" ? categorise(x.style || "", x.abv) : "Misc"), history: [entry] }]; }
-      newLines.push({ id: uid(), beerId, drinkType: x.drinkType, size: x.drinkType === "cider" ? "Bag-in-box 20L" : x.drinkType === "keg" ? "Keg 50L" : "", price: x.price, status: enRoute ? "en_route" : "in_cellar", caskOwner: invoiceOwner.trim() || x.caskOwner || x.brewery.trim(), collected: false, bestBefore: x.bestBefore || "", dates: enRoute ? { ordered: nowIso, delivered: null, vented: null, tapped: null, on: null, off: null } : { ordered: null, delivered: nowIso, vented: null, tapped: null, on: null, off: null } });
+      newLines.push({ id: uid(), beerId, drinkType: x.drinkType, size: x.drinkType === "cider" ? "Bag-in-box 20L" : x.drinkType === "keg" ? "Keg 50L" : "", price: x.price, status: "in_cellar", caskOwner: invoiceOwner.trim() || x.caskOwner || x.brewery.trim(), collected: false, bestBefore: x.bestBefore || "", dates: { ordered: null, delivered: nowIso, vented: null, tapped: null, on: null, off: null } });
     });
     setLibrary(lib); setLines((ls) => [...ls, ...newLines]);
     setInvoiceItems(null); setInvoiceOwner(""); setAddMode("pick"); setFillNote(null); setView("cellar");
@@ -701,15 +769,30 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
 
   const openLine = openId ? lines.find((c) => c.id === openId) : null;
 
+  const buildOnSlots = () => {
+    const onAll = lines.filter((l) => l.status === "on");
+    const used = new Set();
+    const takeCat = (pool, cat) => { const m = pool.find((l) => !used.has(l.id) && (beerById[l.beerId]?.category || "Misc") === cat); if (m) used.add(m.id); return m || null; };
+    const takeNext = (pool) => { const m = pool.find((l) => !used.has(l.id)); if (m) used.add(m.id); return m || null; };
+    const onCask = onAll.filter((l) => l.drinkType === "cask");
+    const onKeg = onAll.filter((l) => l.drinkType === "keg").sort(byBB);
+    const onCider = onAll.filter((l) => l.drinkType === "cider").sort(byBB);
+    const cask = [["IPA", "IPA"], ["Pale", "Pale"], ["Bitter", "Bitter"], ["Stout", "Stout/Porter"]].map(([label, cat]) => ({ label, cat, drink: "cask", line: takeCat(onCask, cat) }));
+    const keg = [1, 2, 3].map((n) => ({ label: `Keg ${n}`, drink: "keg", line: takeNext(onKeg) }));
+    const cider = [1, 2, 3].map((n) => ({ label: `Cider ${n}`, drink: "cider", line: takeNext(onCider) }));
+    return { cask, keg, cider, all: [...cask, ...keg, ...cider] };
+  };
+
   // ---------- Cards ----------
   const cardSignal = (line) => {
     const bb = bbStatus(line);
     const f = freshness(line);
-    if (line.status === "off") return { text: "Off", warn: false };
+    if (line.status === "off") return { text: "Finished", warn: false };
     if (bb && bb.level === "past") return { text: "Best before passed", warn: true };
     if (bb && bb.level === "soon") return { text: bb.text, warn: false };
     if (line.status === "on" && f && f.level === "check") return { text: f.text, warn: false };
-    if (line.status === "on") return { text: f ? f.text : "On", warn: false };
+    if (line.status === "on") return { text: f ? f.text : "Pouring", warn: false };
+    if (line.status === "tapped") return { text: "Ready", warn: false };
     return { text: STATUSES[STATUS_INDEX[line.status]].label, warn: false };
   };
 
@@ -718,7 +801,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
     if (!beer) return null;
     const sig = cardSignal(line);
     return (
-      <button onClick={() => setOpenId(line.id)} className="w-full rounded-2xl border bg-white p-3.5 text-left transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-amber-300 active:scale-95" style={{ borderColor: C.line, boxShadow: "0 1px 2px rgba(27,34,48,0.04), 0 2px 8px -4px rgba(27,34,48,0.10)" }}>
+      <button onClick={() => setOpenId(line.id)} className="w-full rounded-2xl border bg-white p-3.5 text-left transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-amber-300 active:scale-95" style={{ borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[line.drinkType] || C.line, boxShadow: "0 1px 2px rgba(27,34,48,0.04), 0 2px 8px -4px rgba(27,34,48,0.10)" }}>
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="truncate text-base font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{beer.name}</p>
@@ -730,7 +813,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
           </div>
         </div>
         <div className="mt-2 flex items-center gap-2">
-          <Badge className={sig.warn ? "bg-red-50 text-red-700 border-red-200" : "bg-slate-100 text-slate-600 border-slate-200"}>{sig.text}</Badge>
+          <Badge className={`whitespace-nowrap ${sig.warn ? "bg-red-50 text-red-700 border-red-200" : "bg-slate-100 text-slate-600 border-slate-200"}`}>{sig.text}</Badge>
           {!beer.allergensVerified && <span title="Allergens not verified" className="inline-flex items-center text-amber-600"><AlertTriangle size={14} /></span>}
           <span className="ml-auto"><DietaryMini beer={beer} /></span>
         </div>
@@ -761,28 +844,25 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
   const Cellar = () => {
     const live = lines.filter((l) => l.status !== "off");
     const empties = lines.filter((l) => l.status === "off" && !l.collected && l.drinkType !== "cider");
+    const onS = buildOnSlots();
+    const onCaskSlots = onS.cask;
+    const onKegSlots = onS.keg;
+    const onCiderSlots = onS.cider;
+    const onFilled = onS.all.filter((s) => s.line).length;
+
     const used = new Set();
     const takeCat = (pool, cat) => { const m = pool.find((l) => !used.has(l.id) && (beerById[l.beerId]?.category || "Misc") === cat); if (m) used.add(m.id); return m || null; };
-    const takeNext = (pool) => { const m = pool.find((l) => !used.has(l.id)); if (m) used.add(m.id); return m || null; };
-
-    const onAll = live.filter((l) => l.status === "on");
-    const onCask = onAll.filter((l) => l.drinkType === "cask");
-    const onKeg = onAll.filter((l) => l.drinkType === "keg").sort(byBB);
-    const onCider = onAll.filter((l) => l.drinkType === "cider").sort(byBB);
-    const onCaskSlots = [["IPA", "IPA"], ["Pale", "Pale"], ["Bitter", "Bitter"], ["Stout", "Stout/Porter"]].map(([label, cat]) => ({ label, line: takeCat(onCask, cat) }));
-    const onKegSlots = [1, 2, 3].map((n) => ({ label: `Keg ${n}`, line: takeNext(onKeg) }));
-    const onCiderSlots = [1, 2, 3].map((n) => ({ label: `Cider ${n}`, line: takeNext(onCider) }));
-    const onFilled = [...onCaskSlots, ...onKegSlots, ...onCiderSlots].filter((s) => s.line).length;
 
     const rackedCask = live.filter((l) => l.drinkType === "cask" && (l.status === "tapped" || l.status === "vented"));
     const rackedSlots = [["IPA", "IPA"], ["IPA", "IPA"], ["Pale", "Pale"], ["Pale", "Pale"], ["Bitter", "Bitter"], ["Stout", "Stout/Porter"]].map(([label, cat]) => ({ label, line: takeCat(rackedCask, cat) }));
     const rackedFilled = rackedSlots.filter((s) => s.line).length;
+    const rackedOverflow = rackedCask.filter((l) => !used.has(l.id)).sort(byBB);
 
-    const storage = live.filter((l) => !used.has(l.id)).sort(byBB);
-    const stockGroups = [
-      { label: "Cask", items: storage.filter((l) => l.drinkType === "cask") },
-      { label: "Keg", items: storage.filter((l) => l.drinkType === "keg") },
-      { label: "Cider", items: storage.filter((l) => l.drinkType === "cider") },
+    const store = lines.filter((l) => l.status === "in_cellar");
+    const storeGroups = [
+      { label: "Cask", items: store.filter((l) => l.drinkType === "cask").sort(byBB) },
+      { label: "Keg", items: store.filter((l) => l.drinkType === "keg").sort(byBB) },
+      { label: "Cider", items: store.filter((l) => l.drinkType === "cider").sort(byBB) },
     ];
 
     const renderSlot = (slot, k, urgent) => (
@@ -809,7 +889,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
       );
     }
     return (
-      <div className="space-y-7">
+      <div className="space-y-10">
         <section>
           <h2 className="mb-3 text-lg font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>On <span className="text-sm font-normal text-slate-400">· {onFilled}/10</span></h2>
           <div className="space-y-5">
@@ -818,15 +898,23 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
             <div className="grid gap-3 sm:grid-cols-2">{onCiderSlots.map((s, i) => renderSlot(s, `od${i}`, true))}</div>
           </div>
         </section>
-        <section>
+        <section className="border-t pt-8" style={{ borderColor: C.line }}>
           <h2 className="mb-3 text-lg font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>Racked <span className="text-sm font-normal text-slate-400">· {rackedFilled}/6</span></h2>
-          <div className="grid gap-3 sm:grid-cols-2">{rackedSlots.map((s, i) => renderSlot(s, `r${i}`, false))}</div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {rackedSlots.map((s, i) => renderSlot(s, `r${i}`, false))}
+            {rackedOverflow.map((l) => (
+              <div key={l.id}>
+                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{beerById[l.beerId]?.category || "Misc"}</p>
+                <LineRow line={l} />
+              </div>
+            ))}
+          </div>
         </section>
-        {storage.length > 0 && (
-          <section>
-            <h2 className="mb-3 text-lg font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>Stock <span className="text-sm font-normal text-slate-400">· {storage.length}</span></h2>
+        {store.length > 0 && (
+          <section className="border-t pt-8" style={{ borderColor: C.line }}>
+            <h2 className="mb-3 text-lg font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>In Store <span className="text-sm font-normal text-slate-400">· {store.length}</span></h2>
             <div className="space-y-5">
-              {stockGroups.map((g) => g.items.length ? (
+              {storeGroups.map((g) => g.items.length ? (
                 <div key={g.label}>
                   <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{g.label}</p>
                   <div className="grid gap-3 sm:grid-cols-2">{g.items.map((l) => <LineRow key={l.id} line={l} />)}</div>
@@ -844,6 +932,10 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
             <span className="text-xs font-semibold" style={{ color: "#b45309" }}>View →</span>
           </button>
         )}
+        <div className="border-t pt-6" style={{ borderColor: C.line }}>
+          <button onClick={() => setCatchUp(true)} className="flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition hover:bg-amber-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ borderColor: C.brass, color: C.brass }}><RefreshCw size={16} /> Catch up the boards</button>
+          <p className="mt-2 text-center text-xs text-slate-400">Quickly change anything that's swapped since your last shift.</p>
+        </div>
       </div>
     );
   };
@@ -859,7 +951,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
           <div className="rounded-xl border bg-white p-4" style={{ borderColor: C.line }}>
             <p className="text-base font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{batchSource === "labels" ? "Scanned labels" : batchSource === "list" ? "From your list" : "Delivery items"}</p>
             <div className="mt-3">
-              <label className="block text-sm font-medium text-slate-700">Delivered by</label>
+              <label className="block text-sm font-medium text-slate-700">Supplied by</label>
               <input value={invoiceOwner} onChange={(e) => setInvoiceOwner(e.target.value)} placeholder="Leave blank to use each beer's brewery" className="mt-1 w-full rounded-lg border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
             </div>
             <div className="mt-3 space-y-2">
@@ -870,10 +962,10 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
                     <input type="checkbox" checked={x.include} onChange={(e) => updateInvoice(idx, { include: e.target.checked })} className="h-4 w-4" />
                     <input value={x.name} onChange={(e) => updateInvoice(idx, { name: e.target.value })} placeholder="Name" className={cellChk} style={{ borderColor: C.line }} />
                   </div>
-                  <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  <div className={`mt-2 grid grid-cols-2 gap-2 ${batchSource === "invoice" ? "sm:grid-cols-3" : "sm:grid-cols-4"}`}>
                     <input value={x.brewery} onChange={(e) => updateInvoice(idx, { brewery: e.target.value })} placeholder="Brewery" className="rounded border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
                     <input value={x.abv} onChange={(e) => updateInvoice(idx, { abv: e.target.value })} placeholder="ABV %" className="rounded border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
-                    <input value={x.price} onChange={(e) => updateInvoice(idx, { price: e.target.value })} placeholder="£ price" className="rounded border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
+                    {batchSource !== "invoice" && <input value={x.price} onChange={(e) => updateInvoice(idx, { price: e.target.value })} placeholder="£ price" className="rounded border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />}
                     <select value={x.drinkType} onChange={(e) => updateInvoice(idx, { drinkType: e.target.value })} className="rounded border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }}>{DRINK_TYPES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}</select>
                   </div>
                 </div>
@@ -985,7 +1077,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
             <Field label="Price (£)"><input className={inputCls} value={form.price} onChange={(e) => setF({ price: e.target.value })} placeholder="e.g. 4.40" /></Field>
             {form.drinkType !== "cask" && <Field label="Container"><select className={inputCls} value={form.size} onChange={(e) => setF({ size: e.target.value })}>{SIZE_OPTIONS.map((s) => <option key={s}>{s}</option>)}</select></Field>}
           </div>
-          <Field label="Delivered by"><input className={inputCls} value={form.caskOwner} onChange={(e) => setF({ caskOwner: e.target.value })} placeholder={form.brewery ? `Defaults to ${form.brewery}` : "Defaults to the brewery"} /></Field>
+          <Field label="Supplied by"><input className={inputCls} value={form.caskOwner} onChange={(e) => setF({ caskOwner: e.target.value })} placeholder={form.brewery ? `Defaults to ${form.brewery}` : "Defaults to the brewery"} /></Field>
           <Field label="Best before">
             <input type="date" className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" value={form.bestBefore} onChange={(e) => setF({ bestBefore: e.target.value })} />
           </Field>
@@ -1298,7 +1390,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
 
   const TapList = () => {
     const on = lines.filter((l) => l.status === "on");
-    const soon = lines.filter((l) => ["tapped", "vented", "in_cellar", "en_route"].includes(l.status));
+    const soon = lines.filter((l) => ["tapped", "vented", "in_cellar"].includes(l.status));
     const cask = on.filter((l) => l.drinkType === "cask");
     const keg = on.filter((l) => l.drinkType === "keg").sort(byBB);
     const cider = on.filter((l) => l.drinkType === "cider").sort(byBB);
@@ -1374,7 +1466,18 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
             {soon.length > 0 && (
               <section className="mb-7">
                 <h2 className="mb-2 text-sm font-semibold uppercase tracking-widest" style={{ color: C.brass }}>Coming soon</h2>
-                <p className="text-sm" style={{ color: "rgba(243,239,230,0.7)" }}>{soon.map((l) => beerById[l.beerId]?.name).filter(Boolean).join(" · ")}</p>
+                <div className="space-y-2">
+                  {[["Cask", "cask", "#C79A3E"], ["Keg", "keg", "#7FA8C4"], ["Cider", "cider", "#8FB97A"]].map(([label, dt, col]) => {
+                    const names = soon.filter((l) => l.drinkType === dt).map((l) => beerById[l.beerId]?.name).filter(Boolean);
+                    if (!names.length) return null;
+                    return (
+                      <div key={dt} className="flex gap-2">
+                        <span className="shrink-0 text-xs font-semibold uppercase tracking-wide" style={{ color: col, minWidth: 42 }}>{label}</span>
+                        <p className="text-sm" style={{ color: "rgba(243,239,230,0.7)" }}>{names.join(" · ")}</p>
+                      </div>
+                    );
+                  })}
+                </div>
               </section>
             )}
 
@@ -1388,7 +1491,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
   const Tutorial = () => {
     const steps = [
       [Plus, "Add stock", "Scan a pump clip, or pick from your saved library."],
-      [ArrowRight, "Move it along", "Advance each line as it goes: due for delivery, in cellar, vented, tapped, on, off."],
+      [ArrowRight, "Move it along", "Advance each line as it goes: Store, Vented, Tapped and Ready, Pouring, Finished."],
       [Calendar, "Watch the dates", "The cellar flags best-before dates so nothing slips past."],
       [AlertTriangle, "Confirm allergens", "Scanned details start unverified. Check them, then tap Verify before serving."],
       [Package, "Return empties", "When a cask goes off it moves to Empties, grouped by who collects it."],
@@ -1397,7 +1500,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
     return (
       <div className="mx-auto max-w-2xl space-y-4">
         <div className="rounded-2xl border p-5" style={{ borderColor: C.line, background: C.ink }}>
-          <p className="text-lg font-semibold" style={{ color: C.cream, fontFamily: "Fraunces, Georgia, serif" }}>Track every cask, keg and cider from delivery to empty.</p>
+          <p className="text-lg font-semibold" style={{ color: C.cream, fontFamily: "Fraunces, Georgia, serif" }}>Track every cask, keg and cider from store to empty.</p>
           <p className="mt-1 text-sm" style={{ color: C.brassSoft }}>Six steps to get going.</p>
         </div>
         <ol className="space-y-2.5">
@@ -1412,6 +1515,80 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
           ))}
         </ol>
         <button onClick={() => go("add")} className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.brass, color: C.ink }}><Plus size={16} /> Add your first beer</button>
+      </div>
+    );
+  };
+
+  const SwapChooser = () => {
+    if (!swap) return null;
+    const close = () => setSwap(null);
+    const readyStatus = swap.drink === "cask" ? "tapped" : "in_cellar";
+    const readyKey = swap.drink === "cask" ? "tapped" : "delivered";
+    const pool = lines.filter((l) => l.drinkType === swap.drink && l.status === readyStatus).sort((a, b) => ((a.dates[readyKey]) || "").localeCompare((b.dates[readyKey]) || ""));
+    const matching = swap.category ? pool.filter((l) => (beerById[l.beerId]?.category || "Misc") === swap.category) : pool;
+    const list = matching.length ? matching : pool;
+    const emptyMsg = swap.drink === "cask" ? "Nothing tapped and ready. Vent and tap a cask in the store to get it ready." : `Nothing in the store to put on. Add ${swap.drink === "keg" ? "a keg" : "a cider"} first.`;
+    return (
+      <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(27,34,48,0.45)" }} onClick={close}>
+        <div className="w-full max-w-md overflow-y-auto rounded-t-2xl bg-white sm:rounded-2xl cc-pop" style={{ maxHeight: "85vh" }} onClick={(e) => e.stopPropagation()}>
+          <div className="sticky top-0 flex items-center justify-between gap-2 border-b bg-white p-4" style={{ borderColor: C.line }}>
+            <div className="min-w-0">
+              <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>Put one on</h2>
+              {swap.category && <p className="truncate text-xs text-slate-500">{matching.length ? `${swap.category}, tapped and ready` : `Nothing ${swap.category} ready, showing all ready casks`}</p>}
+            </div>
+            <button onClick={close} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400"><X size={18} /></button>
+          </div>
+          <div className="space-y-2 p-4">
+            {list.length ? list.map((l) => {
+              const beer = beerById[l.beerId];
+              if (!beer) return null;
+              return (
+                <button key={l.id} onClick={() => doSwap(l.id, swap.oldId)} className="flex w-full items-center justify-between gap-2 rounded-xl border bg-white p-3 text-left transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ borderColor: C.line }}>
+                  <span className="min-w-0">
+                    <span className="block truncate font-semibold" style={{ color: C.ink }}>{beer.name}</span>
+                    <span className="block truncate text-sm text-slate-500">{beer.brewery} · {beer.style} · {beer.abv}%</span>
+                  </span>
+                  <span className="shrink-0 text-xs text-slate-400">ready {fmt(l.dates[readyKey])}</span>
+                </button>
+              );
+            }) : (
+              <div className="rounded-xl border border-dashed p-5 text-center text-sm text-slate-500" style={{ borderColor: C.line }}>{emptyMsg}</div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const CatchUpSheet = () => {
+    if (!catchUp) return null;
+    const slots = buildOnSlots().all;
+    const close = () => setCatchUp(false);
+    return (
+      <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(27,34,48,0.55)" }} onClick={close}>
+        <div className="w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white sm:rounded-2xl cc-pop" style={{ maxHeight: "90vh" }} onClick={(e) => e.stopPropagation()}>
+          <div className="sticky top-0 flex items-center justify-between gap-2 border-b bg-white p-4" style={{ borderColor: C.line }}>
+            <div>
+              <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>Catch up</h2>
+              <p className="text-xs text-slate-500">Change anything that's swapped since your last shift.</p>
+            </div>
+            <button onClick={close} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400"><X size={18} /></button>
+          </div>
+          <div className="space-y-2 p-4">
+            {slots.map((slot, i) => {
+              const beer = slot.line ? beerById[slot.line.beerId] : null;
+              return (
+                <div key={`cu${i}`} className="flex items-center justify-between gap-3 rounded-xl border p-3" style={{ borderColor: C.line, borderLeft: `3px solid ${TYPE_ACCENT[slot.drink]}` }}>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{slot.label}</p>
+                    {beer ? <p className="truncate font-medium" style={{ color: C.ink }}>{beer.name}</p> : <p className="text-sm text-slate-400">Empty</p>}
+                  </div>
+                  <button onClick={() => setSwap({ drink: slot.drink, category: slot.cat || null, oldId: slot.line ? slot.line.id : null })} className="shrink-0 rounded-lg border px-3 py-1.5 text-sm font-medium transition hover:bg-amber-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ borderColor: C.brass, color: C.brass }}>{slot.line ? "Change" : "Fill"}</button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
     );
   };
@@ -1447,6 +1624,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
               <Field label="Style"><input className={inputCls} value={beer.style || ""} onChange={(e) => updateBeer(beer.id, { style: e.target.value })} /></Field>
               <Field label="ABV %"><input className={inputCls} value={beer.abv || ""} onChange={(e) => updateBeer(beer.id, { abv: e.target.value })} /></Field>
             </div>
+            <Field label="Price (£ per pint)"><input className={inputCls} inputMode="decimal" value={beer.price || ""} onChange={(e) => updateBeerPrice(beer.id, e.target.value)} placeholder="e.g. 4.40" /></Field>
             <Field label="Category">
               <div className="flex flex-wrap gap-2">
                 {CATEGORIES.map((cat) => (
@@ -1526,18 +1704,32 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
             {beer.notes && <div><p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Tasting notes</p><p className="text-sm leading-relaxed text-slate-700">{beer.notes}</p></div>}
 
             <div className="rounded-xl border p-3" style={{ borderColor: C.line }}>
-              <div className="mb-2 flex items-center justify-between">
-                <StatusBadge status={openLine.status} />
-                <span className="text-xs text-slate-400">{idx + 1} of {STATUSES.length}</span>
+              <div className="mb-3"><StatusBadge status={openLine.status} /></div>
+              <div className="flex gap-1.5">
+                {VISIBLE_STATUSES.map((s, i) => {
+                  const vIdx = idx - FIRST_IDX;
+                  const done = i <= vIdx;
+                  const cur = i === vIdx;
+                  return (
+                    <div key={s.key} className="flex-1 text-center">
+                      <div className="h-1.5 rounded-full" style={{ background: done ? C.brass : C.line }} />
+                      <p className="mt-1.5 text-xs leading-tight" style={{ color: cur ? C.ink : "#94a3b8", fontWeight: cur ? 600 : 400 }}>{s.key === "tapped" ? "Tapped" : s.label}</p>
+                    </div>
+                  );
+                })}
               </div>
-              <div className="flex items-center gap-1">
-                {STATUSES.map((s, i) => <div key={s.key} className="h-1.5 flex-1 rounded-full" style={{ background: i <= idx ? C.brass : C.line }} />)}
+              <div className="mt-4 flex gap-2">
+                {idx > FIRST_IDX && <button onClick={() => goBack(openLine.id)} className="inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-lg border px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><ArrowRight size={15} className="rotate-180" /> Back</button>}
+                {openLine.status === "on"
+                  ? <button onClick={() => finishAndChoose(openLine)} className="inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Check size={15} /> Line finished</button>
+                  : idx < STATUSES.length - 1
+                    ? <button onClick={() => advance(openLine.id)} className="inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}>Advance to {STATUSES[idx + 1].key === "tapped" ? "Tapped" : STATUSES[idx + 1].label} <ArrowRight size={15} /></button>
+                    : null}
               </div>
-              {idx < STATUSES.length - 1 && <button onClick={() => advance(openLine.id)} className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}>Advance to "{STATUSES[idx + 1].label}" <ArrowRight size={15} /></button>}
               {openLine.status === "off" && openLine.drinkType !== "cider" && (openLine.collected
                 ? <p className="mt-2 flex items-center gap-1.5 text-sm text-emerald-700"><CheckCircle2 size={15} /> Empty collected</p>
                 : <button onClick={() => markCollected(openLine.id)} className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><Check size={15} /> Collected</button>)}
-              <button onClick={() => setLineDetails((v) => !v)} className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-slate-500 transition hover:text-slate-700"><ChevronDown size={14} style={{ transform: lineDetails ? "rotate(180deg)" : "none", transition: "transform .2s" }} /> Dates & delivery</button>
+              <button onClick={() => setLineDetails((v) => !v)} className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-slate-500 transition hover:text-slate-700"><ChevronDown size={14} style={{ transform: lineDetails ? "rotate(180deg)" : "none", transition: "transform .2s" }} /> Dates</button>
               {lineDetails && (
                 <div className="mt-2 space-y-3 border-t pt-3" style={{ borderColor: C.line }}>
                   <ol className="space-y-1.5">
@@ -1555,7 +1747,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
                     <label className="text-xs text-slate-500">Best before<input type="date" value={openLine.bestBefore || ""} onChange={(e) => setBestBefore(openLine.id, e.target.value)} className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-300" /></label>
                     {openLine.dates.on && <label className="text-xs text-slate-500">On date<input type="date" value={openLine.dates.on.slice(0, 10)} onChange={(e) => setOnDate(openLine.id, e.target.value)} className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-300" /></label>}
                   </div>
-                  <label className="block text-xs text-slate-500">Delivered by<input value={openLine.caskOwner || ""} onChange={(e) => setCaskOwner(openLine.id, e.target.value)} placeholder="e.g. the brewery or distributor" className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-300" /></label>
+                  <label className="block text-xs text-slate-500">Supplied by<input value={openLine.caskOwner || ""} onChange={(e) => setCaskOwner(openLine.id, e.target.value)} placeholder="e.g. the brewery or distributor" className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-300" /></label>
                 </div>
               )}
             </div>
@@ -1568,8 +1760,11 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
   };
 
   return (
-    <div className="min-h-screen" style={{ background: "linear-gradient(180deg, #EFEDE7 0%, #E8E7E2 60%)", fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif" }}>
+    <div className="min-h-screen w-full overflow-x-hidden" style={{ background: "linear-gradient(180deg, #EFEDE7 0%, #E8E7E2 60%)", fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif" }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap');
+html, body { overflow-x: hidden; width: 100%; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { touch-action: manipulation; overscroll-behavior-y: contain; }
+@media (max-width: 640px) { input, select, textarea { font-size: 16px !important; } }
 @media print { .no-print { display: none !important; } body { background: #fff; } }
 .cc-fade{animation:ccfade .28s ease both}
 @keyframes ccfade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
@@ -1599,7 +1794,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
                 <div className="absolute right-0 top-full z-50 mt-1 w-44 overflow-hidden rounded-lg border bg-white shadow-lg" style={{ borderColor: C.line }}>
-                  {[["library", "Library", BookOpen], ["insights", "Insights", BarChart3], ["distributors", "Distributors", Package], ["allergens", "Allergen sheet", FileText], ["taplist", "Tap list", QrCode], ["backup", "Backup", Database], ["tutorial", "Guide", Compass]].map(([id, label, Icon]) => (
+                  {[["library", "Library", BookOpen], ["distributors", "Distributors", Package], ["allergens", "Allergen sheet", FileText], ["taplist", "Tap list", QrCode], ["backup", "Backup", Database], ["tutorial", "Guide", Compass]].map(([id, label, Icon]) => (
                     <button key={id} onClick={() => { setMenuOpen(false); go(id); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"><Icon size={15} className="text-slate-400" />{label}</button>
                   ))}
                 </div>
@@ -1623,7 +1818,6 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
             {view === "cellar" && Cellar()}
             {view === "add" && AddForm()}
             {view === "library" && Library()}
-            {view === "insights" && Insights()}
             {view === "allergens" && AllergenSheet()}
             {view === "distributors" && Distributors()}
             {view === "empties" && Empties()}
@@ -1667,7 +1861,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
           <div className="cc-sheet absolute inset-x-0 bottom-0 rounded-t-2xl bg-white p-4" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 16px)" }}>
             <div className="mx-auto mb-3 h-1.5 w-10 rounded-full" style={{ background: C.line }} />
             <div className="grid grid-cols-3 gap-2.5">
-              {[["insights", "Insights", BarChart3], ["distributors", "Distributors", Package], ["allergens", "Allergen sheet", FileText], ["taplist", "Tap list", QrCode], ["backup", "Backup", Database], ["tutorial", "Guide", Compass]].map(([id, label, Icon]) => (
+              {[["distributors", "Distributors", Package], ["allergens", "Allergen sheet", FileText], ["taplist", "Tap list", QrCode], ["backup", "Backup", Database], ["tutorial", "Guide", Compass]].map(([id, label, Icon]) => (
                 <button key={id} onClick={() => { setMenuOpen(false); go(id); }} className="flex flex-col items-center gap-1.5 rounded-xl border p-3 transition active:scale-95" style={{ borderColor: C.line, color: C.ink }}>
                   <Icon size={20} style={{ color: C.brass }} />
                   <span className="text-center text-xs font-medium leading-tight">{label}</span>
@@ -1688,6 +1882,8 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
       )}
       {CardModal()}
       {EditBeer()}
+      {CatchUpSheet()}
+      {SwapChooser()}
     </div>
   );
 }
