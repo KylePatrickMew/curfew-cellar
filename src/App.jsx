@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 // import { useCallback } from "react"; // might need later
 import {
   Plus, ClipboardList, BookOpen, Beer, Sparkles, Check, CheckCircle2,
-  AlertTriangle, Clock, X, ArrowRight, Trash2, Search, Loader2, Bell, Calendar, History, ChevronDown, Database, Download, Upload, Copy, QrCode, Camera, FileText, Package, MoreHorizontal, BarChart3, Pencil, Printer, RotateCcw, Compass, RefreshCw,
+  AlertTriangle, Clock, X, ArrowRight, Trash2, Search, Loader2, Bell, Calendar, History, ChevronDown, Database, Download, Upload, Copy, QrCode, Camera, FileText, Package, MoreHorizontal, BarChart3, Pencil, Printer, RotateCcw, Compass,
 } from "lucide-react";
 
 // ---------- Brand ----------
@@ -11,6 +11,7 @@ const C = {
   stone: "#E8E7E2", surface: "#FCFBF9", line: "#DBD8D0", cream: "#F3EFE6",
 };
 const TYPE_ACCENT = { cask: "#A9791F", keg: "#3F6E8C", cider: "#5E8C4F" };
+const CAT_ACCENT = { IPA: "#A9791F", Pale: "#C79A3E", Bitter: "#9C6B2E", "Stout/Porter": "#4E3B30", Stout: "#4E3B30", Porter: "#4E3B30", Misc: "#9AA1AC" };
 const STORE_KEY = "curfew-cellar:data:v1";
 const MODEL = "claude-sonnet-4-6";
 const store = (typeof window !== "undefined" && window.localStorage) ? {
@@ -279,7 +280,8 @@ export default function TheCurfewCellar() {
   const [editNote, setEditNote] = useState(null);
   const [lineDetails, setLineDetails] = useState(false);
   const [swap, setSwap] = useState(null);
-  const [catchUp, setCatchUp] = useState(false);
+  const [prefs, setPrefs] = useState({ on: true, racked: true, store: false, empties: {} });
+  const toggleSection = (k) => setPrefs((p) => ({ ...p, [k]: !p[k] }));
   const [loading, setLoading] = useState(false);
   const [librarySearch, setLibrarySearch] = useState("");
   const [historyOpen, setHistoryOpen] = useState({});
@@ -327,6 +329,7 @@ export default function TheCurfewCellar() {
           if (Array.isArray(data.library)) setLibrary(data.library);
           if (Array.isArray(data.lines)) setLines(data.lines.map((l) => l.status === "en_route" ? { ...l, status: "in_cellar", dates: { ...l.dates, delivered: l.dates && l.dates.delivered ? l.dates.delivered : (l.dates && l.dates.ordered) || new Date().toISOString() } } : l));
           if (Array.isArray(data.distributors)) setDistributors(data.distributors);
+          if (data.prefs) setPrefs((p) => ({ ...p, ...data.prefs, empties: data.prefs.empties || {} }));
         }
         if (!cancelled) setStorageOk(true);
       } catch (e) {
@@ -342,8 +345,8 @@ export default function TheCurfewCellar() {
   // Save whenever data changes, but only if storage actually responded on load
   useEffect(() => {
     if (!hydrated || !store || storageOk !== true) return;
-    (async () => { try { await store.set(STORE_KEY, JSON.stringify({ library, lines, distributors }), false); } catch (e) { /* ignore */ } })();
-  }, [library, lines, distributors, hydrated, storageOk]);
+    (async () => { try { await store.set(STORE_KEY, JSON.stringify({ library, lines, distributors, prefs }), false); } catch (e) { /* ignore */ } })();
+  }, [library, lines, distributors, prefs, hydrated, storageOk]);
 
   useEffect(() => {
     if (!(openId || editBeerId) || typeof document === "undefined") return;
@@ -801,10 +804,10 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
     if (!beer) return null;
     const sig = cardSignal(line);
     return (
-      <button onClick={() => setOpenId(line.id)} className="w-full rounded-2xl border bg-white p-3.5 text-left transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-amber-300 active:scale-95" style={{ borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[line.drinkType] || C.line, boxShadow: "0 1px 2px rgba(27,34,48,0.04), 0 2px 8px -4px rgba(27,34,48,0.10)" }}>
+      <button onClick={() => setOpenId(line.id)} className="w-full rounded-2xl border bg-white p-3 text-left transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-amber-300 active:scale-95" style={{ borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[line.drinkType] || C.line, boxShadow: "0 1px 2px rgba(27,34,48,0.04), 0 2px 8px -4px rgba(27,34,48,0.10)" }}>
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <p className="truncate text-base font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{beer.name}</p>
+            <p className="truncate text-base font-semibold leading-snug" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{beer.name}</p>
             <p className="truncate text-sm text-slate-500">{beer.brewery} · {beer.location}</p>
           </div>
           <div className="shrink-0 text-right">
@@ -812,7 +815,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
             <p className="text-xs text-slate-500">{beer.abv}% · £{line.price || "—"}</p>
           </div>
         </div>
-        <div className="mt-2 flex items-center gap-2">
+        <div className="mt-1.5 flex items-center gap-2">
           <Badge className={`whitespace-nowrap ${sig.warn ? "bg-red-50 text-red-700 border-red-200" : "bg-slate-100 text-slate-600 border-slate-200"}`}>{sig.text}</Badge>
           {!beer.allergensVerified && <span title="Allergens not verified" className="inline-flex items-center text-amber-600"><AlertTriangle size={14} /></span>}
           <span className="ml-auto"><DietaryMini beer={beer} /></span>
@@ -859,19 +862,21 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
     const rackedOverflow = rackedCask.filter((l) => !used.has(l.id)).sort(byBB);
 
     const store = lines.filter((l) => l.status === "in_cellar");
+    const STYLE_ORDER = ["IPA", "Pale", "Bitter", "Stout/Porter", "Misc"];
+    const storeCask = store.filter((l) => l.drinkType === "cask");
     const storeGroups = [
-      { label: "Cask", items: store.filter((l) => l.drinkType === "cask").sort(byBB) },
+      ...STYLE_ORDER.map((cat) => ({ label: cat === "Stout/Porter" ? "Stout & Porter" : cat, items: storeCask.filter((l) => (beerById[l.beerId]?.category || "Misc") === cat).sort(byBB) })),
       { label: "Keg", items: store.filter((l) => l.drinkType === "keg").sort(byBB) },
       { label: "Cider", items: store.filter((l) => l.drinkType === "cider").sort(byBB) },
-    ];
+    ].filter((g) => g.items.length);
 
     const renderSlot = (slot, k, urgent) => (
       <div key={k}>
         <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{slot.label}</p>
         {slot.line ? <LineRow line={slot.line} /> : (
           urgent
-            ? <button onClick={() => go("add")} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed text-sm font-medium transition hover:bg-amber-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ borderColor: "#e2c98a", color: "#b45309", minHeight: 78 }}><AlertTriangle size={15} /> Empty</button>
-            : <button onClick={() => go("add")} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed text-sm font-medium text-slate-400 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line, minHeight: 78 }}>Empty</button>
+            ? <button onClick={() => go("add")} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed text-sm font-medium transition hover:bg-amber-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ borderColor: "#e2c98a", color: "#b45309", minHeight: 56 }}><AlertTriangle size={15} /> Empty</button>
+            : <button onClick={() => go("add")} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed text-sm font-medium text-slate-400 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line, minHeight: 56 }}>Empty</button>
         )}
       </div>
     );
@@ -888,39 +893,61 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
         </div>
       );
     }
+    const anyOpen = prefs.on || prefs.racked || prefs.store;
+    const setAllSections = (v) => setPrefs((p) => ({ ...p, on: v, racked: v, store: v }));
     return (
-      <div className="space-y-10">
+      <div className="space-y-6">
+        <div className="flex justify-end">
+          <button onClick={() => setAllSections(!anyOpen)} className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 transition hover:text-slate-700 focus:outline-none">
+            <ChevronDown size={14} style={{ transform: anyOpen ? "rotate(180deg)" : "none", transition: "transform .2s" }} /> {anyOpen ? "Collapse all" : "Expand all"}
+          </button>
+        </div>
         <section>
-          <h2 className="mb-3 text-lg font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>On <span className="text-sm font-normal text-slate-400">· {onFilled}/10</span></h2>
-          <div className="space-y-5">
-            <div className="grid gap-3 sm:grid-cols-2">{onCaskSlots.map((s, i) => renderSlot(s, `oc${i}`, true))}</div>
-            <div className="grid gap-3 sm:grid-cols-2">{onKegSlots.map((s, i) => renderSlot(s, `ok${i}`, true))}</div>
-            <div className="grid gap-3 sm:grid-cols-2">{onCiderSlots.map((s, i) => renderSlot(s, `od${i}`, true))}</div>
-          </div>
+          <button onClick={() => toggleSection("on")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
+            <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>On <span className="text-sm font-normal text-slate-400">· {onFilled}/10</span></h2>
+            <ChevronDown size={20} className="text-slate-400" style={{ transform: prefs.on ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
+          </button>
+          {prefs.on && (
+            <div className="mt-3 space-y-3">
+              <div className="grid gap-2.5 sm:grid-cols-2">{onCaskSlots.map((s, i) => renderSlot(s, `oc${i}`, true))}</div>
+              <div className="grid gap-2.5 sm:grid-cols-2">{onKegSlots.map((s, i) => renderSlot(s, `ok${i}`, true))}</div>
+              <div className="grid gap-2.5 sm:grid-cols-2">{onCiderSlots.map((s, i) => renderSlot(s, `od${i}`, true))}</div>
+            </div>
+          )}
         </section>
-        <section className="border-t pt-8" style={{ borderColor: C.line }}>
-          <h2 className="mb-3 text-lg font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>Racked <span className="text-sm font-normal text-slate-400">· {rackedFilled}/6</span></h2>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {rackedSlots.map((s, i) => renderSlot(s, `r${i}`, false))}
-            {rackedOverflow.map((l) => (
-              <div key={l.id}>
-                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{beerById[l.beerId]?.category || "Misc"}</p>
-                <LineRow line={l} />
-              </div>
-            ))}
-          </div>
+        <section className="border-t pt-5" style={{ borderColor: C.line }}>
+          <button onClick={() => toggleSection("racked")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
+            <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>Racked <span className="text-sm font-normal text-slate-400">· {rackedFilled}/6</span></h2>
+            <ChevronDown size={20} className="text-slate-400" style={{ transform: prefs.racked ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
+          </button>
+          {prefs.racked && (
+            <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
+              {rackedSlots.map((s, i) => renderSlot(s, `r${i}`, false))}
+              {rackedOverflow.map((l) => (
+                <div key={l.id}>
+                  <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{beerById[l.beerId]?.category || "Misc"}</p>
+                  <LineRow line={l} />
+                </div>
+              ))}
+            </div>
+          )}
         </section>
         {store.length > 0 && (
-          <section className="border-t pt-8" style={{ borderColor: C.line }}>
-            <h2 className="mb-3 text-lg font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>In Store <span className="text-sm font-normal text-slate-400">· {store.length}</span></h2>
-            <div className="space-y-5">
-              {storeGroups.map((g) => g.items.length ? (
-                <div key={g.label}>
-                  <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{g.label}</p>
-                  <div className="grid gap-3 sm:grid-cols-2">{g.items.map((l) => <LineRow key={l.id} line={l} />)}</div>
-                </div>
-              ) : null)}
-            </div>
+          <section className="border-t pt-5" style={{ borderColor: C.line }}>
+            <button onClick={() => toggleSection("store")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
+              <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>In Store <span className="text-sm font-normal text-slate-400">· {store.length}</span></h2>
+              <ChevronDown size={20} className="text-slate-400" style={{ transform: prefs.store ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
+            </button>
+            {prefs.store && (
+              <div className="mt-3 space-y-3">
+                {storeGroups.map((g) => (
+                  <div key={g.label}>
+                    <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{g.label}</p>
+                    <div className="grid gap-2.5 sm:grid-cols-2">{g.items.map((l) => <LineRow key={l.id} line={l} />)}</div>
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
         )}
         {empties.length > 0 && (
@@ -932,10 +959,6 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
             <span className="text-xs font-semibold" style={{ color: "#b45309" }}>View →</span>
           </button>
         )}
-        <div className="border-t pt-6" style={{ borderColor: C.line }}>
-          <button onClick={() => setCatchUp(true)} className="flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition hover:bg-amber-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ borderColor: C.brass, color: C.brass }}><RefreshCw size={16} /> Catch up the boards</button>
-          <p className="mt-2 text-center text-xs text-slate-400">Quickly change anything that's swapped since your last shift.</p>
-        </div>
       </div>
     );
   };
@@ -957,7 +980,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
             <div className="mt-3 space-y-2">
               {items.length === 0 && <p className="py-3 text-center text-sm text-slate-400">Nothing found.</p>}
               {items.map((x, idx) => (
-                <div key={x.id} className="rounded-lg border p-2.5" style={{ borderColor: C.line }}>
+                <div key={x.id} className="rounded-lg border p-2.5" style={{ borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[x.drinkType] || C.line }}>
                   <div className="flex items-center gap-2">
                     <input type="checkbox" checked={x.include} onChange={(e) => updateInvoice(idx, { include: e.target.checked })} className="h-4 w-4" />
                     <input value={x.name} onChange={(e) => updateInvoice(idx, { name: e.target.value })} placeholder="Name" className={cellChk} style={{ borderColor: C.line }} />
@@ -981,7 +1004,17 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
     }
     if (addMode === "pick") {
       const q = addPickSearch.trim().toLowerCase();
-      const matches = library.filter((b) => !q || [b.name, b.brewery, b.style].some((x) => (x || "").toLowerCase().includes(q)));
+      const results = q ? library.filter((b) => [b.name, b.brewery, b.style, b.category].some((x) => (x || "").toLowerCase().includes(q))) : [];
+      const recent = library.slice(-5).reverse();
+      const pickRow = (b) => (
+        <button key={b.id} onClick={() => pickBeer(b)} className="flex w-full items-center justify-between gap-2 rounded-lg border bg-white p-2.5 text-left transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line, borderLeftWidth: 3, borderLeftColor: CAT_ACCENT[b.category] || C.line }}>
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{b.name}</span>
+            <span className="block truncate text-xs text-slate-500">{b.brewery} · {b.style} · {b.abv}%</span>
+          </span>
+          <span className="shrink-0 text-xs text-slate-400">{latestPrice(b) ? `last £${latestPrice(b)} ` : ""}→</span>
+        </button>
+      );
       return (
         <div className="mx-auto max-w-2xl space-y-4">
           <input ref={labelRef} type="file" accept="image/*" multiple onChange={(e) => { const fs = Array.from(e.target.files || []); e.target.value = ""; if (fs.length === 1) scanLabel(fs[0]); else if (fs.length > 1) scanLabelsBatch(fs); }} className="hidden" />
@@ -1007,21 +1040,26 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
           <div className="rounded-xl border bg-white p-4" style={{ borderColor: C.line }}>
             <p className="text-base font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>Add from your library</p>
             <div className="relative mt-3">
-              <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input value={addPickSearch} onChange={(e) => setAddPickSearch(e.target.value)} placeholder="Search saved beers…" className="w-full rounded-lg border bg-white py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
+              <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input value={addPickSearch} onChange={(e) => setAddPickSearch(e.target.value)} placeholder="Search saved beers…" className="w-full rounded-xl border bg-white py-2.5 pl-10 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
+              {addPickSearch && <button onClick={() => setAddPickSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 hover:bg-slate-100"><X size={16} /></button>}
             </div>
-            <div className="mt-3 space-y-2">
-              {matches.length === 0 && <p className="py-4 text-center text-sm text-slate-400">No matches. Add it as a new beer below.</p>}
-              {matches.map((b) => (
-                <button key={b.id} onClick={() => pickBeer(b)} className="flex w-full items-center justify-between gap-2 rounded-lg border bg-white p-2.5 text-left hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>
-                  <span className="min-w-0">
-                    <span className="block truncate font-medium" style={{ color: C.ink }}>{b.name}</span>
-                    <span className="block truncate text-xs text-slate-500">{b.brewery} · {b.style} · {b.abv}%</span>
-                  </span>
-                  <span className="shrink-0 text-xs text-slate-400">{latestPrice(b) ? `last £${latestPrice(b)} ` : ""}→</span>
-                </button>
-              ))}
-            </div>
+            {q ? (
+              results.length ? (
+                <div className="mt-3 space-y-2">
+                  <p className="text-xs text-slate-500">{results.length} match{results.length === 1 ? "" : "es"}</p>
+                  {results.map(pickRow)}
+                </div>
+              ) : <p className="mt-3 py-3 text-center text-sm text-slate-400">No matches. Add it as a new beer below.</p>
+            ) : (
+              <div className="mt-3 space-y-2">
+                <p className="text-xs text-slate-500">{library.length} beer{library.length === 1 ? "" : "s"} saved. Search to add one quickly.</p>
+                {recent.length > 0 && <>
+                  <p className="pt-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Recently added</p>
+                  {recent.map(pickRow)}
+                </>}
+              </div>
+            )}
           </div>
           <button onClick={startNewBeer} className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><Plus size={16} /> Add a beer not in the library</button>
         </div>
@@ -1043,7 +1081,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
             </div>
           </Field>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <Field label="Producer / brewery"><input className={inputCls} value={form.brewery} onChange={(e) => setF({ brewery: e.target.value })} placeholder="e.g. Tweedside Brewing" /></Field>
+            <Field label="Producer / brewery"><input className={inputCls} value={form.brewery} onChange={(e) => setF({ brewery: e.target.value })} placeholder="e.g. Wylam" /></Field>
             <Field label="Location"><input className={inputCls} value={form.location} onChange={(e) => setF({ location: e.target.value })} placeholder="e.g. Berwick-upon-Tweed" /></Field>
           </div>
           <div className="mt-3"><Field label="Name"><input className={inputCls} value={form.name} onChange={(e) => setF({ name: e.target.value })} placeholder="e.g. Border Reiver IPA" /></Field></div>
@@ -1130,67 +1168,90 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
 
   const Library = () => {
     const q = librarySearch.trim().toLowerCase();
-    const filtered = library.filter((b) => !q || [b.name, b.brewery, b.style, b.category, b.location].some((x) => (x || "").toLowerCase().includes(q)));
+    const match = (b) => [b.name, b.brewery, b.style, b.category, b.location].some((x) => (x || "").toLowerCase().includes(q));
+    const results = q ? library.filter(match) : [];
+    const recent = library.slice(-6).reverse();
     const histChrono = (b) => (b.history || []).slice().sort((x, y) => new Date(x.date) - new Date(y.date));
+    const libRow = (b) => {
+      const h = histChrono(b);
+      const open = !!historyOpen[b.id];
+      return (
+        <div key={b.id} className="rounded-xl border bg-white p-2.5" style={{ borderColor: C.line, borderLeftWidth: 3, borderLeftColor: CAT_ACCENT[b.category] || C.line }}>
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{b.name}</p>
+              <p className="truncate text-xs text-slate-500">{b.brewery} · {b.style} · {b.abv}%</p>
+            </div>
+            <div className="flex shrink-0 items-center gap-1">
+              <button onClick={() => addLineOfBeer(b)} title="Add to cellar" className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Plus size={13} /> Add</button>
+              <button onClick={() => setEditBeerId(b.id)} title="Edit details" className="rounded-lg border p-1.5 text-slate-500 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><Pencil size={14} /></button>
+              <button onClick={() => setHistoryOpen((m) => ({ ...m, [b.id]: !m[b.id] }))} title="Price & ABV history" className="inline-flex items-center gap-0.5 rounded-lg border p-1.5 text-slate-500 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><History size={14} />{h.length ? <span className="text-xs font-medium">{h.length}</span> : null}</button>
+            </div>
+          </div>
+          {open && (
+            <div className="mt-2.5 rounded-lg border p-2.5" style={{ borderColor: C.line, background: "#FAFAF8" }}>
+              {!h.length ? <p className="text-xs text-slate-400">No history yet. It builds up each time you re-add this over time.</p> : (
+                <>
+                  <div className="mb-1 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-slate-400"><span>When</span><span className="flex gap-4"><span>ABV</span><span>Price</span></span></div>
+                  <ul className="space-y-1">
+                    {h.map((e, i) => {
+                      const prev = i > 0 ? h[i - 1] : null;
+                      const pN = parseFloat(e.price), pP = prev ? parseFloat(prev.price) : NaN;
+                      const aN = parseFloat(e.abv), aP = prev ? parseFloat(prev.abv) : NaN;
+                      const priceCh = !isNaN(pP) && !isNaN(pN) && pN !== pP;
+                      const abvCh = !isNaN(aP) && !isNaN(aN) && aN !== aP;
+                      return (
+                        <li key={i} className="flex items-center justify-between text-xs">
+                          <span className="text-slate-500">{new Date(e.date).toLocaleDateString("en-GB", { month: "short", year: "2-digit" })}</span>
+                          <span className="flex items-center gap-4">
+                            <span className={abvCh ? "font-semibold text-amber-700" : "text-slate-600"}>{e.abv || "—"}%</span>
+                            <span className={priceCh ? (pN > pP ? "font-semibold text-red-600" : "font-semibold text-emerald-600") : "text-slate-600"}>£{e.price || "—"}{priceCh ? (pN > pP ? " ↑" : " ↓") : ""}</span>
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      );
+    };
     return (
       <div className="space-y-3">
         <div className="relative">
-          <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input value={librarySearch} onChange={(e) => setLibrarySearch(e.target.value)} placeholder="Search saved ales, breweries, styles…" className="w-full rounded-lg border bg-white py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
+          <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input value={librarySearch} onChange={(e) => setLibrarySearch(e.target.value)} placeholder="Search ales, breweries, styles…" className="w-full rounded-xl border bg-white py-2.5 pl-10 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
+          {librarySearch && <button onClick={() => setLibrarySearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 hover:bg-slate-100"><X size={16} /></button>}
         </div>
-        <p className="text-xs text-slate-500">{filtered.length} of {library.length} shown</p>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {filtered.map((b) => {
-            const h = histChrono(b);
-            const open = !!historyOpen[b.id];
-            return (
-              <div key={b.id} className="rounded-xl border bg-white p-3" style={{ borderColor: C.line }}>
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="truncate font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{b.name}</p>
-                    <p className="truncate text-sm text-slate-500">{b.brewery} · {b.location}</p>
-                  </div>
-                  <p className="shrink-0 text-sm font-medium text-slate-700">{b.style} · {b.abv}%</p>
-                </div>
-                <div className="mt-2 flex flex-wrap items-center gap-1.5">{b.category && <Badge className={CAT_STYLE[b.category] || CAT_STYLE.Misc}>{b.category}</Badge>}<DietaryBadges beer={b} /></div>
-                <div className="mt-3 flex items-center gap-2">
-                  <button onClick={() => addLineOfBeer(b)} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><Plus size={14} /> Add</button>
-                  <button onClick={() => setEditBeerId(b.id)} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><Pencil size={14} /> Edit</button>
-                  <button onClick={() => setHistoryOpen((m) => ({ ...m, [b.id]: !m[b.id] }))} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>
-                    <History size={14} /> History{h.length ? ` (${h.length})` : ""} <ChevronDown size={14} className={open ? "rotate-180" : ""} />
-                  </button>
-                </div>
-                {open && (
-                  <div className="mt-3 rounded-lg border p-2.5" style={{ borderColor: C.line, background: "#FAFAF8" }}>
-                    {!h.length ? <p className="text-xs text-slate-400">No history yet. It builds up each time you re-add this over time.</p> : (
-                      <>
-                        <div className="mb-1 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-slate-400"><span>When</span><span className="flex gap-4"><span>ABV</span><span>Price</span></span></div>
-                        <ul className="space-y-1">
-                          {h.map((e, i) => {
-                            const prev = i > 0 ? h[i - 1] : null;
-                            const pN = parseFloat(e.price), pP = prev ? parseFloat(prev.price) : NaN;
-                            const aN = parseFloat(e.abv), aP = prev ? parseFloat(prev.abv) : NaN;
-                            const priceCh = !isNaN(pP) && !isNaN(pN) && pN !== pP;
-                            const abvCh = !isNaN(aP) && !isNaN(aN) && aN !== aP;
-                            return (
-                              <li key={i} className="flex items-center justify-between text-xs">
-                                <span className="text-slate-500">{new Date(e.date).toLocaleDateString("en-GB", { month: "short", year: "2-digit" })}</span>
-                                <span className="flex items-center gap-4">
-                                  <span className={abvCh ? "font-semibold text-amber-700" : "text-slate-600"}>{e.abv || "—"}%</span>
-                                  <span className={priceCh ? (pN > pP ? "font-semibold text-red-600" : "font-semibold text-emerald-600") : "text-slate-600"}>£{e.price || "—"}{priceCh ? (pN > pP ? " ↑" : " ↓") : ""}</span>
-                                </span>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      </>
-                    )}
-                  </div>
-                )}
+        {q ? (
+          results.length ? (
+            <>
+              <p className="text-xs text-slate-500">{results.length} match{results.length === 1 ? "" : "es"}</p>
+              <div className="space-y-2">{results.map(libRow)}</div>
+            </>
+          ) : (
+            <div className="rounded-xl border border-dashed bg-white p-8 text-center" style={{ borderColor: C.line }}>
+              <p className="font-medium" style={{ color: C.ink }}>No beers match "{librarySearch}"</p>
+              <p className="mt-1 text-sm text-slate-500">Try a brewery or style, or add it as new stock.</p>
+            </div>
+          )
+        ) : (
+          <>
+            <div className="rounded-xl border border-dashed bg-white p-6 text-center" style={{ borderColor: C.line }}>
+              <Search size={22} className="mx-auto mb-2 text-slate-300" />
+              <p className="font-semibold" style={{ color: C.ink }}>Search your library</p>
+              <p className="mt-1 text-sm text-slate-500">{library.length} beer{library.length === 1 ? "" : "s"} saved. Type a name, brewery or style.</p>
+            </div>
+            {recent.length > 0 && (
+              <div>
+                <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">Recently added</p>
+                <div className="space-y-2">{recent.map(libRow)}</div>
               </div>
-            );
-          })}
-        </div>
+            )}
+          </>
+        )}
       </div>
     );
   };
@@ -1250,25 +1311,29 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
         )}
         {owners.map((owner) => {
           const items = empties.filter((l) => (l.caskOwner || "Unknown") === owner);
+          const open = !!prefs.empties[owner];
           return (
-            <div key={owner} className="rounded-xl border bg-white p-3" style={{ borderColor: C.line }}>
-              <div className="mb-2 flex items-center justify-between gap-2">
+            <div key={owner} className="rounded-xl border bg-white" style={{ borderColor: C.line }}>
+              <button onClick={() => setPrefs((p) => ({ ...p, empties: { ...p.empties, [owner]: !p.empties[owner] } }))} className="flex w-full items-center justify-between gap-2 p-3 text-left focus:outline-none">
                 <p className="font-semibold" style={{ color: C.ink }}>{owner} <span className="text-sm font-normal text-slate-400">· {items.length}</span></p>
-              </div>
-              <ul className="space-y-1.5">
-                {items.map((l) => {
-                  const beer = beerById[l.beerId];
-                  return (
-                    <li key={l.id} className="flex items-center justify-between gap-2 rounded-lg border px-2.5 py-2" style={{ borderColor: C.line }}>
-                      <span className="min-w-0">
-                        <span className="block truncate text-sm font-medium" style={{ color: C.ink }}>{beer ? beer.name : "Unknown"}</span>
-                        <span className="block truncate text-xs text-slate-500">{l.size} · off {l.dates.off ? fmtDate(l.dates.off.slice(0, 10)) : "—"}</span>
-                      </span>
-                      <button onClick={() => markCollected(l.id)} className="inline-flex shrink-0 items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><Check size={13} /> Collected</button>
-                    </li>
-                  );
-                })}
-              </ul>
+                <ChevronDown size={18} className="text-slate-400" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
+              </button>
+              {open && (
+                <ul className="space-y-1.5 px-3 pb-3">
+                  {items.map((l) => {
+                    const beer = beerById[l.beerId];
+                    return (
+                      <li key={l.id} className="flex items-center justify-between gap-2 rounded-lg border px-2.5 py-2" style={{ borderColor: C.line }}>
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-medium" style={{ color: C.ink }}>{beer ? beer.name : "Unknown"}</span>
+                          <span className="block truncate text-xs text-slate-500">{l.size} · off {l.dates.off ? fmtDate(l.dates.off.slice(0, 10)) : "—"}</span>
+                        </span>
+                        <button onClick={() => markCollected(l.id)} className="inline-flex shrink-0 items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><Check size={13} /> Collected</button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </div>
           );
         })}
@@ -1337,9 +1402,10 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
       {distributors.length === 0 && <p className="rounded-xl border border-dashed bg-white p-8 text-center text-sm text-slate-400" style={{ borderColor: C.line }}>No distributors yet.</p>}
       <div className="space-y-2">
         {distributors.map((d, i) => (
-          <div key={i} className="flex items-center gap-2 rounded-xl border bg-white p-2.5" style={{ borderColor: C.line }}>
+          <div key={i} className="flex items-center gap-2 rounded-xl border bg-white p-2.5" style={{ borderColor: C.line, borderLeftWidth: 3, borderLeftColor: C.brass }}>
+            <Package size={16} className="shrink-0 text-slate-400" />
             <input value={d} onChange={(e) => updateDistributor(i, e.target.value)} placeholder="Distributor name" className="min-w-0 flex-1 rounded border px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
-            <button onClick={() => removeDistributor(i)} className="inline-flex shrink-0 items-center gap-1 text-xs text-red-600 hover:text-red-700"><Trash2 size={13} /> Remove</button>
+            <button onClick={() => removeDistributor(i)} className="inline-flex shrink-0 items-center gap-1 rounded-md p-1.5 text-red-600 transition hover:bg-red-50" title="Remove"><Trash2 size={15} /></button>
           </div>
         ))}
       </div>
@@ -1543,9 +1609,9 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
               const beer = beerById[l.beerId];
               if (!beer) return null;
               return (
-                <button key={l.id} onClick={() => doSwap(l.id, swap.oldId)} className="flex w-full items-center justify-between gap-2 rounded-xl border bg-white p-3 text-left transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ borderColor: C.line }}>
+                <button key={l.id} onClick={() => doSwap(l.id, swap.oldId)} className="flex w-full items-center justify-between gap-2 rounded-xl border bg-white p-3 text-left transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[swap.drink] || C.line }}>
                   <span className="min-w-0">
-                    <span className="block truncate font-semibold" style={{ color: C.ink }}>{beer.name}</span>
+                    <span className="block truncate font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{beer.name}</span>
                     <span className="block truncate text-sm text-slate-500">{beer.brewery} · {beer.style} · {beer.abv}%</span>
                   </span>
                   <span className="shrink-0 text-xs text-slate-400">ready {fmt(l.dates[readyKey])}</span>
@@ -1554,39 +1620,6 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
             }) : (
               <div className="rounded-xl border border-dashed p-5 text-center text-sm text-slate-500" style={{ borderColor: C.line }}>{emptyMsg}</div>
             )}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const CatchUpSheet = () => {
-    if (!catchUp) return null;
-    const slots = buildOnSlots().all;
-    const close = () => setCatchUp(false);
-    return (
-      <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(27,34,48,0.55)" }} onClick={close}>
-        <div className="w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white sm:rounded-2xl cc-pop" style={{ maxHeight: "90vh" }} onClick={(e) => e.stopPropagation()}>
-          <div className="sticky top-0 flex items-center justify-between gap-2 border-b bg-white p-4" style={{ borderColor: C.line }}>
-            <div>
-              <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>Catch up</h2>
-              <p className="text-xs text-slate-500">Change anything that's swapped since your last shift.</p>
-            </div>
-            <button onClick={close} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400"><X size={18} /></button>
-          </div>
-          <div className="space-y-2 p-4">
-            {slots.map((slot, i) => {
-              const beer = slot.line ? beerById[slot.line.beerId] : null;
-              return (
-                <div key={`cu${i}`} className="flex items-center justify-between gap-3 rounded-xl border p-3" style={{ borderColor: C.line, borderLeft: `3px solid ${TYPE_ACCENT[slot.drink]}` }}>
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{slot.label}</p>
-                    {beer ? <p className="truncate font-medium" style={{ color: C.ink }}>{beer.name}</p> : <p className="text-sm text-slate-400">Empty</p>}
-                  </div>
-                  <button onClick={() => setSwap({ drink: slot.drink, category: slot.cat || null, oldId: slot.line ? slot.line.id : null })} className="shrink-0 rounded-lg border px-3 py-1.5 text-sm font-medium transition hover:bg-amber-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ borderColor: C.brass, color: C.brass }}>{slot.line ? "Change" : "Fill"}</button>
-                </div>
-              );
-            })}
           </div>
         </div>
       </div>
@@ -1665,7 +1698,8 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
     const alert = (f && openLine.status === "on" && f.level === "check") ? { cls: FRESH_STYLE.check, Icon: Clock, text: f.text } : null;
     const AlertIcon = alert ? alert.Icon : null;
     const bbCls = bb && bb.level === "past" ? "text-red-700" : bb && bb.level === "soon" ? "text-amber-700" : "text-slate-700";
-    const meta = [DRINK_TYPES.find((t) => t.key === openLine.drinkType)?.label, beer.style, `${beer.abv}%`, `£${openLine.price || "—"}`, openLine.size].filter(Boolean).join("  ·  ");
+    const sizeShort = openLine.size ? openLine.size.replace("Bag-in-box ", "").replace("Keg ", "") : "";
+    const meta = [DRINK_TYPES.find((t) => t.key === openLine.drinkType)?.label, beer.style, `${beer.abv}%`, `£${openLine.price || "—"}`, sizeShort].filter(Boolean).join("  ·  ");
     return (
       <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(27,34,48,0.45)" }} onClick={() => setOpenId(null)}>
         <div className="w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white sm:rounded-2xl cc-pop" style={{ maxHeight: "92vh" }} onClick={(e) => e.stopPropagation()}>
@@ -1676,35 +1710,14 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
             </div>
             <button onClick={() => setOpenId(null)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400"><X size={18} /></button>
           </div>
-          <div className="space-y-4 p-4">
-            <p className="text-sm text-slate-500">{meta}</p>
-            <div className="flex items-center justify-between gap-2">
+          <div className="space-y-5 p-5">
+            <div className="space-y-2.5">
+              <p className="text-sm text-slate-500">{meta}</p>
               <DietaryBadges beer={beer} />
-              <button onClick={() => { setEditBeerId(beer.id); setOpenId(null); }} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><Pencil size={14} /> Edit</button>
+              {openLine.bestBefore && <p className={`text-sm font-medium ${bbCls}`}>Best before {fmtDate(openLine.bestBefore)}{bb && bb.level === "past" ? " · passed" : ""}</p>}
             </div>
 
-            <div className="flex items-center gap-2 rounded-lg border p-2.5 text-sm" style={{ borderColor: C.line }}>
-              <Calendar size={15} style={{ color: C.brass }} />
-              <span className="text-slate-500">Best before</span>
-              <span className={`ml-auto font-semibold ${bbCls}`}>{openLine.bestBefore ? fmtDate(openLine.bestBefore) : "Not set"}{bb && bb.level === "past" ? " · passed" : ""}</span>
-            </div>
-            {alert && <div className={`flex items-center gap-2 rounded-lg border p-3 text-sm font-medium ${alert.cls}`}><AlertIcon size={16} /> {alert.text}</div>}
-
-            <div>
-              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Allergens</p>
-              {beer.allergens.length ? <div className="flex flex-wrap gap-1.5">{beer.allergens.map((a) => <Badge key={a} className="bg-slate-100 text-slate-700 border-slate-200">{a}</Badge>)}</div> : <p className="text-sm text-slate-500">None recorded.</p>}
-              {!beer.allergensVerified ? (
-                <div className="mt-2 flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-sm text-amber-800">
-                  <span className="flex items-center gap-1.5"><AlertTriangle size={15} /> Not yet verified. Don't serve on this alone.</span>
-                  <button onClick={() => verify(beer.id)} className="shrink-0 rounded-md bg-amber-800 px-2 py-1 text-xs font-medium text-white hover:bg-amber-900">Verify</button>
-                </div>
-              ) : <p className="mt-2 flex items-center gap-1.5 text-sm text-emerald-700"><CheckCircle2 size={15} /> Verified by staff</p>}
-            </div>
-
-            {beer.notes && <div><p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Tasting notes</p><p className="text-sm leading-relaxed text-slate-700">{beer.notes}</p></div>}
-
-            <div className="rounded-xl border p-3" style={{ borderColor: C.line }}>
-              <div className="mb-3"><StatusBadge status={openLine.status} /></div>
+            <div className="rounded-xl p-3" style={{ background: "#F4F1E9", border: `1px solid ${C.line}` }}>
               <div className="flex gap-1.5">
                 {VISIBLE_STATUSES.map((s, i) => {
                   const vIdx = idx - FIRST_IDX;
@@ -1712,26 +1725,27 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
                   const cur = i === vIdx;
                   return (
                     <div key={s.key} className="flex-1 text-center">
-                      <div className="h-1.5 rounded-full" style={{ background: done ? C.brass : C.line }} />
-                      <p className="mt-1.5 text-xs leading-tight" style={{ color: cur ? C.ink : "#94a3b8", fontWeight: cur ? 600 : 400 }}>{s.key === "tapped" ? "Tapped" : s.label}</p>
+                      <div className="h-1.5 rounded-full" style={{ background: done ? C.brass : "#E0DCD2" }} />
+                      <p className="mt-1 text-xs leading-tight" style={{ color: cur ? C.ink : "#9aa1ac", fontWeight: cur ? 700 : 400 }}>{s.key === "tapped" ? "Tapped" : s.label}</p>
                     </div>
                   );
                 })}
               </div>
-              <div className="mt-4 flex gap-2">
-                {idx > FIRST_IDX && <button onClick={() => goBack(openLine.id)} className="inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-lg border px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><ArrowRight size={15} className="rotate-180" /> Back</button>}
+              {alert && <p className="mt-2.5 inline-flex items-center gap-1 text-xs font-semibold text-amber-700">{AlertIcon && <AlertIcon size={13} />} {alert.text}</p>}
+              <div className="mt-3 flex gap-2">
+                {idx > FIRST_IDX && <button onClick={() => goBack(openLine.id)} className="inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-lg border bg-white px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><ArrowRight size={15} className="rotate-180" /> Back</button>}
                 {openLine.status === "on"
-                  ? <button onClick={() => finishAndChoose(openLine)} className="inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Check size={15} /> Line finished</button>
+                  ? <button onClick={() => finishAndChoose(openLine)} className="inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Check size={16} /> Line finished</button>
                   : idx < STATUSES.length - 1
-                    ? <button onClick={() => advance(openLine.id)} className="inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}>Advance to {STATUSES[idx + 1].key === "tapped" ? "Tapped" : STATUSES[idx + 1].label} <ArrowRight size={15} /></button>
+                    ? <button onClick={() => advance(openLine.id)} className="inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}>Advance to {STATUSES[idx + 1].key === "tapped" ? "Tapped" : STATUSES[idx + 1].label} <ArrowRight size={15} /></button>
                     : null}
               </div>
               {openLine.status === "off" && openLine.drinkType !== "cider" && (openLine.collected
-                ? <p className="mt-2 flex items-center gap-1.5 text-sm text-emerald-700"><CheckCircle2 size={15} /> Empty collected</p>
-                : <button onClick={() => markCollected(openLine.id)} className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><Check size={15} /> Collected</button>)}
-              <button onClick={() => setLineDetails((v) => !v)} className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-slate-500 transition hover:text-slate-700"><ChevronDown size={14} style={{ transform: lineDetails ? "rotate(180deg)" : "none", transition: "transform .2s" }} /> Dates</button>
+                ? <p className="mt-2.5 flex items-center gap-1.5 text-sm text-emerald-700"><CheckCircle2 size={15} /> Empty collected</p>
+                : <button onClick={() => markCollected(openLine.id)} className="mt-2.5 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><Check size={15} /> Mark empty collected</button>)}
+              <button onClick={() => setLineDetails((v) => !v)} className="mt-2.5 inline-flex items-center gap-1 text-xs font-medium text-slate-500 transition hover:text-slate-700"><ChevronDown size={14} style={{ transform: lineDetails ? "rotate(180deg)" : "none", transition: "transform .2s" }} /> Dates & supplier</button>
               {lineDetails && (
-                <div className="mt-2 space-y-3 border-t pt-3" style={{ borderColor: C.line }}>
+                <div className="mt-3 space-y-3 border-t pt-3" style={{ borderColor: C.line }}>
                   <ol className="space-y-1.5">
                     {STATUSES.map((s, i) => {
                       const done = i <= idx;
@@ -1744,15 +1758,31 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
                     })}
                   </ol>
                   <div className="grid gap-2 border-t pt-3 sm:grid-cols-2" style={{ borderColor: C.line }}>
-                    <label className="text-xs text-slate-500">Best before<input type="date" value={openLine.bestBefore || ""} onChange={(e) => setBestBefore(openLine.id, e.target.value)} className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-300" /></label>
-                    {openLine.dates.on && <label className="text-xs text-slate-500">On date<input type="date" value={openLine.dates.on.slice(0, 10)} onChange={(e) => setOnDate(openLine.id, e.target.value)} className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-300" /></label>}
+                    <label className="text-xs text-slate-500">Best before<input type="date" value={openLine.bestBefore || ""} onChange={(e) => setBestBefore(openLine.id, e.target.value)} className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" /></label>
+                    {openLine.dates.on && <label className="text-xs text-slate-500">On date<input type="date" value={openLine.dates.on.slice(0, 10)} onChange={(e) => setOnDate(openLine.id, e.target.value)} className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" /></label>}
                   </div>
-                  <label className="block text-xs text-slate-500">Supplied by<input value={openLine.caskOwner || ""} onChange={(e) => setCaskOwner(openLine.id, e.target.value)} placeholder="e.g. the brewery or distributor" className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-300" /></label>
+                  <label className="block text-xs text-slate-500">Supplied by<input value={openLine.caskOwner || ""} onChange={(e) => setCaskOwner(openLine.id, e.target.value)} placeholder="e.g. the brewery or distributor" className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" /></label>
                 </div>
               )}
             </div>
 
-            <button onClick={() => removeLine(openLine.id)} className="inline-flex items-center gap-1.5 text-sm text-red-600 transition hover:text-red-700"><Trash2 size={14} /> Remove from cellar</button>
+            <div>
+              <p className="mb-2 text-sm font-medium text-slate-500">Allergens</p>
+              {beer.allergens.length ? <div className="flex flex-wrap gap-1.5">{beer.allergens.map((a) => <Badge key={a} className="bg-slate-100 text-slate-700 border-slate-200">{a}</Badge>)}</div> : <p className="text-sm text-slate-500">None recorded.</p>}
+              {!beer.allergensVerified ? (
+                <div className="mt-2 flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-sm text-amber-800">
+                  <span className="flex items-center gap-1.5"><AlertTriangle size={15} /> Not verified yet</span>
+                  <button onClick={() => verify(beer.id)} className="shrink-0 rounded-md bg-amber-800 px-2.5 py-1 text-xs font-medium text-white hover:bg-amber-900">Verify</button>
+                </div>
+              ) : <p className="mt-2 flex items-center gap-1.5 text-sm text-emerald-700"><CheckCircle2 size={15} /> Verified by staff</p>}
+            </div>
+
+            {beer.notes && <div><p className="mb-2 text-sm font-medium text-slate-500">Tasting notes</p><p className="text-sm leading-relaxed text-slate-600">{beer.notes}</p></div>}
+
+            <div className="flex items-center justify-between border-t pt-4" style={{ borderColor: C.line }}>
+              <button onClick={() => { setEditBeerId(beer.id); setOpenId(null); }} className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 transition hover:text-slate-900"><Pencil size={15} /> Edit details</button>
+              <button onClick={() => removeLine(openLine.id)} className="inline-flex items-center gap-1.5 text-sm font-medium text-red-600 transition hover:text-red-700"><Trash2 size={15} /> Remove</button>
+            </div>
           </div>
         </div>
       </div>
@@ -1882,7 +1912,6 @@ body { touch-action: manipulation; overscroll-behavior-y: contain; }
       )}
       {CardModal()}
       {EditBeer()}
-      {CatchUpSheet()}
       {SwapChooser()}
     </div>
   );
