@@ -23,14 +23,45 @@ const clone = (x) => JSON.parse(JSON.stringify(x));
 // ---------- Reference data ----------
 const STATUSES = [
   { key: "in_cellar", label: "In Store", dateKey: "delivered" },
+  { key: "racked", label: "Racked", dateKey: "racked" },
   { key: "vented", label: "Vented", dateKey: "vented" },
   { key: "tapped", label: "Tapped and Ready", dateKey: "tapped" },
-  { key: "on", label: "Pouring", dateKey: "on" },
+  { key: "on", label: "On", dateKey: "on" },
   { key: "off", label: "Finished", dateKey: "off" },
 ];
 const STATUS_INDEX = Object.fromEntries(STATUSES.map((s, i) => [s.key, i]));
 const FIRST_IDX = STATUS_INDEX["in_cellar"];
 const VISIBLE_STATUSES = STATUSES;
+const STATUS_BY_KEY = Object.fromEntries(STATUSES.map((s) => [s.key, s]));
+const CASK_FLOW = ["in_cellar", "racked", "vented", "tapped", "on", "off"];
+const SHORT_FLOW = ["in_cellar", "on", "off"];
+const flowFor = (drinkType) => (drinkType === "cask" ? CASK_FLOW : SHORT_FLOW);
+
+const PUMPS = { cask: ["cask0", "cask1", "cask2", "cask3"], keg: ["keg0", "keg1", "keg2"], cider: ["cider0", "cider1", "cider2"] };
+const PUMP_LABELS = { cask0: "IPA", cask1: "Pale", cask2: "Bitter", cask3: "Stout", keg0: "Keg 1", keg1: "Keg 2", keg2: "Keg 3", cider0: "Cider 1", cider1: "Cider 2", cider2: "Cider 3" };
+const caskPrefPumps = (cat) => (cat === "IPA" || cat === "Pale") ? ["cask0", "cask1"] : cat === "Bitter" ? ["cask2"] : cat === "Stout/Porter" ? ["cask3"] : [];
+const bbCmp = (a, b) => (a.bestBefore || "9999-12-31").localeCompare(b.bestBefore || "9999-12-31");
+// Pin each "on" line to a physical pump so beers never jump between pumps.
+const assignPumps = (ls, catOf) => {
+  const out = ls.map((l) => ({ ...l }));
+  const onCask = out.filter((l) => l.status === "on" && l.drinkType === "cask");
+  const taken = new Set();
+  onCask.forEach((l) => { if (l.slot && PUMPS.cask.includes(l.slot) && !taken.has(l.slot)) taken.add(l.slot); else l.slot = null; });
+  const place = (cands, pumpList) => { const free = pumpList.filter((p) => !taken.has(p)); cands.filter((l) => !l.slot).sort(bbCmp).forEach((l) => { const p = free.shift(); if (p) { l.slot = p; taken.add(p); } }); };
+  place(onCask.filter((l) => ["IPA", "Pale"].includes(catOf(l))), ["cask0", "cask1"]);
+  place(onCask.filter((l) => catOf(l) === "Bitter"), ["cask2"]);
+  place(onCask.filter((l) => catOf(l) === "Stout/Porter"), ["cask3"]);
+  place(onCask.filter((l) => !l.slot), PUMPS.cask);
+  ["keg", "cider"].forEach((drink) => {
+    const on = out.filter((l) => l.status === "on" && l.drinkType === drink);
+    const tk = new Set();
+    on.forEach((l) => { if (l.slot && PUMPS[drink].includes(l.slot) && !tk.has(l.slot)) tk.add(l.slot); else l.slot = null; });
+    const free = PUMPS[drink].filter((p) => !tk.has(p));
+    on.filter((l) => !l.slot).sort(bbCmp).forEach((l) => { const p = free.shift(); if (p) l.slot = p; });
+  });
+  return out;
+};
+const catFromLib = (lib) => (l) => ((lib.find((b) => b.id === l.beerId) || {}).category) || "Misc";
 const STATUS_STYLE = {
   in_cellar: "bg-indigo-50 text-indigo-700 border-indigo-200",
   vented: "bg-violet-50 text-violet-700 border-violet-200",
@@ -62,7 +93,7 @@ const GLUTEN_OPTIONS = ["Standard", "Low gluten", "Gluten-free"];
 const CLARITY_OPTIONS = ["Clear", "Hazy", "Cloudy"];
 const VIEW_TITLES = { cellar: "Cellar", add: "Add stock", library: "Library", allergens: "Allergen sheet", distributors: "Distributors", empties: "Empties to return", backup: "Backup & restore", tutorial: "Guide" };
 const SIZE_OPTIONS = ["Keg 30L", "Keg 50L", "Bag-in-box 20L"];
-const FRESH_LIMIT = 3; // days on a cask before a quality check is worth a look
+const FRESH_LIMIT = 4; // days on a cask before a quality check is worth a look
 const BB_SOON = 2;     // days before best-before to start flagging
 
 // ---------- Helpers ----------
@@ -96,8 +127,8 @@ const freshness = (line) => {
   const d = daysOn(line);
   if (d === null) return null;
   if (line.status === "off") return { level: "off", text: `Lasted ${d} day${d === 1 ? "" : "s"}` };
-  if (d < FRESH_LIMIT) return { level: "fresh", text: d === 0 ? "On today" : `On ${d} day${d === 1 ? "" : "s"}` };
-  return { level: "check", text: `On ${d} days · check quality` };
+  if (d < FRESH_LIMIT) return null;
+  return { level: "check", text: `On for ${d} days · check quality` };
 };
 const FRESH_STYLE = {
   fresh: "bg-emerald-50 text-emerald-700 border-emerald-200",
@@ -179,44 +210,48 @@ const seedLibrary = [
   { id: "b33", brewery: "Hawkes", location: "London", name: "Urban Orchard", style: "Cider", abv: "4.5", clarity: "Clear", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Bright, crunchy apple cider from rescued fruit.", allergensVerified: true, category: "Misc" },
 ];
 const seedLines = [
-  { id: "l1", beerId: "b1", drinkType: "cask", size: "", price: "4.60", status: "on", caskOwner: "Wylam", collected: false, bestBefore: dateInDays(5), dates: { ordered: isoDaysAgo(12), delivered: isoDaysAgo(9), vented: isoDaysAgo(3), tapped: isoDaysAgo(2), on: isoDaysAgo(2), off: null } },
-  { id: "l2", beerId: "b4", drinkType: "cask", size: "", price: "3.70", status: "on", caskOwner: "Allendale", collected: false, bestBefore: dateInDays(1), dates: { ordered: isoDaysAgo(14), delivered: isoDaysAgo(10), vented: isoDaysAgo(4), tapped: isoDaysAgo(3), on: isoDaysAgo(3), off: null } },
-  { id: "l3", beerId: "b7", drinkType: "cask", size: "", price: "3.90", status: "on", caskOwner: "Mordue", collected: false, bestBefore: dateInDays(4), dates: { ordered: isoDaysAgo(11), delivered: isoDaysAgo(8), vented: isoDaysAgo(3), tapped: isoDaysAgo(2), on: isoDaysAgo(2), off: null } },
-  { id: "l4", beerId: "b11", drinkType: "cask", size: "", price: "4.00", status: "on", caskOwner: "Big Lamp", collected: false, bestBefore: dateInDays(6), dates: { ordered: isoDaysAgo(10), delivered: isoDaysAgo(7), vented: isoDaysAgo(2), tapped: isoDaysAgo(1), on: isoDaysAgo(1), off: null } },
-  { id: "l5", beerId: "b2", drinkType: "cask", size: "", price: "4.20", status: "tapped", caskOwner: "Mordue", collected: false, bestBefore: dateInDays(8), dates: { ordered: isoDaysAgo(6), delivered: isoDaysAgo(4), vented: isoDaysAgo(2), tapped: isoDaysAgo(1), on: null, off: null } },
-  { id: "l6", beerId: "b3", drinkType: "cask", size: "", price: "3.60", status: "vented", caskOwner: "Stewart Brewing", collected: false, bestBefore: dateInDays(7), dates: { ordered: isoDaysAgo(5), delivered: isoDaysAgo(3), vented: isoDaysAgo(1), tapped: null, on: null, off: null } },
-  { id: "l7", beerId: "b5", drinkType: "cask", size: "", price: "4.60", status: "tapped", caskOwner: "Tempest Brewing Co", collected: false, bestBefore: dateInDays(9), dates: { ordered: isoDaysAgo(6), delivered: isoDaysAgo(4), vented: isoDaysAgo(2), tapped: isoDaysAgo(1), on: null, off: null } },
-  { id: "l8", beerId: "b6", drinkType: "cask", size: "", price: "3.80", status: "vented", caskOwner: "Hadrian Border", collected: false, bestBefore: dateInDays(6), dates: { ordered: isoDaysAgo(4), delivered: isoDaysAgo(2), vented: isoDaysAgo(1), tapped: null, on: null, off: null } },
-  { id: "l9", beerId: "b8", drinkType: "cask", size: "", price: "3.70", status: "tapped", caskOwner: "Broughton Ales", collected: false, bestBefore: dateInDays(5), dates: { ordered: isoDaysAgo(5), delivered: isoDaysAgo(3), vented: isoDaysAgo(1), tapped: isoDaysAgo(1), on: null, off: null } },
-  { id: "l10", beerId: "b12", drinkType: "cask", size: "", price: "4.40", status: "tapped", caskOwner: "Allendale", collected: false, bestBefore: dateInDays(12), dates: { ordered: isoDaysAgo(7), delivered: isoDaysAgo(5), vented: isoDaysAgo(2), tapped: isoDaysAgo(1), on: null, off: null } },
-  { id: "l11", beerId: "b9", drinkType: "cask", size: "", price: "4.10", status: "in_cellar", caskOwner: "Big Lamp", collected: false, bestBefore: dateInDays(20), dates: { ordered: isoDaysAgo(3), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
-  { id: "l12", beerId: "b10", drinkType: "cask", size: "", price: "4.00", status: "in_cellar", caskOwner: "Maxim Brewery", collected: false, bestBefore: dateInDays(25), dates: { ordered: isoDaysAgo(4), delivered: isoDaysAgo(2), vented: null, tapped: null, on: null, off: null } },
-  { id: "l13", beerId: "b13", drinkType: "cask", size: "", price: "5.20", status: "in_cellar", caskOwner: "Traquair House", collected: false, bestBefore: dateInDays(45), dates: { ordered: isoDaysAgo(3), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
-  { id: "l14", beerId: "b14", drinkType: "cask", size: "", price: "3.80", status: "in_cellar", caskOwner: "Born in the Borders", collected: false, bestBefore: dateInDays(15), dates: { ordered: isoDaysAgo(5), delivered: isoDaysAgo(3), vented: null, tapped: null, on: null, off: null } },
-  { id: "l15", beerId: "b15", drinkType: "cask", size: "", price: "4.00", status: "off", caskOwner: "Firebrick", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(18), delivered: isoDaysAgo(15), vented: isoDaysAgo(12), tapped: isoDaysAgo(11), on: isoDaysAgo(10), off: isoDaysAgo(1) } },
-  { id: "l16", beerId: "b1", drinkType: "cask", size: "", price: "4.60", status: "off", caskOwner: "Wylam", collected: true, bestBefore: "", dates: { ordered: isoDaysAgo(30), delivered: isoDaysAgo(27), vented: isoDaysAgo(24), tapped: isoDaysAgo(23), on: isoDaysAgo(22), off: isoDaysAgo(3) } },
-  { id: "l17", beerId: "b16", drinkType: "keg", size: "Keg 30L", price: "5.20", status: "on", caskOwner: "Donzoko", collected: false, bestBefore: dateInDays(30), dates: { ordered: isoDaysAgo(12), delivered: isoDaysAgo(9), vented: null, tapped: null, on: isoDaysAgo(4), off: null } },
-  { id: "l18", beerId: "b18", drinkType: "keg", size: "Keg 30L", price: "5.00", status: "on", caskOwner: "Two by Two", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(10), delivered: isoDaysAgo(7), vented: null, tapped: null, on: isoDaysAgo(2), off: null } },
-  { id: "l19", beerId: "b19", drinkType: "keg", size: "Keg 50L", price: "4.80", status: "on", caskOwner: "Anarchy Brew Co", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(11), delivered: isoDaysAgo(8), vented: null, tapped: null, on: isoDaysAgo(3), off: null } },
-  { id: "l20", beerId: "b17", drinkType: "keg", size: "Keg 30L", price: "5.20", status: "in_cellar", caskOwner: "Tempest Brewing Co", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(3), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
-  { id: "l21", beerId: "b20", drinkType: "keg", size: "Keg 30L", price: "5.40", status: "in_cellar", caskOwner: "Wylam", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(4), delivered: isoDaysAgo(2), vented: null, tapped: null, on: null, off: null } },
-  { id: "l22", beerId: "b21", drinkType: "keg", size: "Keg 30L", price: "5.30", status: "in_cellar", caskOwner: "Stewart Brewing", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(3), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
-  { id: "l23", beerId: "b22", drinkType: "keg", size: "Keg 50L", price: "4.60", status: "in_cellar", caskOwner: "Cross Borders", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(4), delivered: isoDaysAgo(2), vented: null, tapped: null, on: null, off: null } },
-  { id: "l24", beerId: "b23", drinkType: "keg", size: "Keg 30L", price: "5.80", status: "in_cellar", caskOwner: "Vault City", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(3), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
-  { id: "l25", beerId: "b24", drinkType: "keg", size: "Keg 30L", price: "5.60", status: "in_cellar", caskOwner: "Northern Monk", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(5), delivered: isoDaysAgo(3), vented: null, tapped: null, on: null, off: null } },
-  { id: "l26", beerId: "b25", drinkType: "keg", size: "Keg 50L", price: "4.80", status: "in_cellar", caskOwner: "Lost & Grounded", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(4), delivered: isoDaysAgo(2), vented: null, tapped: null, on: null, off: null } },
-  { id: "l27", beerId: "b26", drinkType: "keg", size: "Keg 50L", price: "4.50", status: "in_cellar", caskOwner: "Donzoko", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(3), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
-  { id: "l28", beerId: "b16", drinkType: "keg", size: "Keg 30L", price: "5.20", status: "in_cellar", caskOwner: "Donzoko", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
-  { id: "l29", beerId: "b27", drinkType: "cider", size: "Bag-in-box 20L", price: "5.00", status: "on", caskOwner: "Thistly Cross", collected: false, bestBefore: dateInDays(25), dates: { ordered: isoDaysAgo(12), delivered: isoDaysAgo(9), vented: null, tapped: null, on: isoDaysAgo(3), off: null } },
-  { id: "l30", beerId: "b30", drinkType: "cider", size: "Bag-in-box 20L", price: "5.20", status: "on", caskOwner: "Westons", collected: false, bestBefore: dateInDays(30), dates: { ordered: isoDaysAgo(10), delivered: isoDaysAgo(7), vented: null, tapped: null, on: isoDaysAgo(2), off: null } },
-  { id: "l31", beerId: "b31", drinkType: "cider", size: "Bag-in-box 20L", price: "4.80", status: "on", caskOwner: "Sandford Orchards", collected: false, bestBefore: dateInDays(28), dates: { ordered: isoDaysAgo(13), delivered: isoDaysAgo(10), vented: null, tapped: null, on: isoDaysAgo(4), off: null } },
-  { id: "l32", beerId: "b28", drinkType: "cider", size: "Bag-in-box 20L", price: "4.80", status: "in_cellar", caskOwner: "Thistly Cross", collected: false, bestBefore: dateInDays(30), dates: { ordered: isoDaysAgo(3), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
-  { id: "l33", beerId: "b29", drinkType: "cider", size: "Bag-in-box 20L", price: "5.60", status: "in_cellar", caskOwner: "Thistly Cross", collected: false, bestBefore: dateInDays(40), dates: { ordered: isoDaysAgo(4), delivered: isoDaysAgo(2), vented: null, tapped: null, on: null, off: null } },
-  { id: "l34", beerId: "b32", drinkType: "cider", size: "Bag-in-box 20L", price: "5.40", status: "in_cellar", caskOwner: "Dunkertons", collected: false, bestBefore: dateInDays(35), dates: { ordered: isoDaysAgo(3), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
-  { id: "l35", beerId: "b33", drinkType: "cider", size: "Bag-in-box 20L", price: "4.60", status: "in_cellar", caskOwner: "Hawkes", collected: false, bestBefore: dateInDays(30), dates: { ordered: isoDaysAgo(5), delivered: isoDaysAgo(3), vented: null, tapped: null, on: null, off: null } },
+  { id: "l1", beerId: "b1", drinkType: "cask", size: "", price: "4.60", status: "on", caskOwner: "6 Barrells", collected: false, bestBefore: dateInDays(5), dates: { ordered: isoDaysAgo(12), delivered: isoDaysAgo(9), racked: isoDaysAgo(9), vented: isoDaysAgo(3), tapped: isoDaysAgo(2), on: isoDaysAgo(2), off: null } },
+  { id: "l2", beerId: "b4", drinkType: "cask", size: "", price: "3.70", status: "on", caskOwner: "6 Barrells", collected: false, bestBefore: dateInDays(1), dates: { ordered: isoDaysAgo(14), delivered: isoDaysAgo(10), racked: isoDaysAgo(10), vented: isoDaysAgo(4), tapped: isoDaysAgo(3), on: isoDaysAgo(3), off: null } },
+  { id: "l3", beerId: "b7", drinkType: "cask", size: "", price: "3.90", status: "on", caskOwner: "LWC", collected: false, bestBefore: dateInDays(4), dates: { ordered: isoDaysAgo(11), delivered: isoDaysAgo(8), racked: isoDaysAgo(8), vented: isoDaysAgo(3), tapped: isoDaysAgo(2), on: isoDaysAgo(2), off: null } },
+  { id: "l4", beerId: "b11", drinkType: "cask", size: "", price: "4.00", status: "on", caskOwner: "6 Barrells", collected: false, bestBefore: dateInDays(6), dates: { ordered: isoDaysAgo(10), delivered: isoDaysAgo(7), racked: isoDaysAgo(7), vented: isoDaysAgo(2), tapped: isoDaysAgo(1), on: isoDaysAgo(1), off: null } },
+  { id: "l5", beerId: "b2", drinkType: "cask", size: "", price: "4.20", status: "tapped", caskOwner: "LWC", collected: false, bestBefore: dateInDays(8), dates: { ordered: isoDaysAgo(6), delivered: isoDaysAgo(4), racked: isoDaysAgo(4), vented: isoDaysAgo(2), tapped: isoDaysAgo(1), on: null, off: null } },
+  { id: "l6", beerId: "b3", drinkType: "cask", size: "", price: "3.60", status: "racked", caskOwner: "HB Clark", collected: false, bestBefore: dateInDays(7), dates: { ordered: isoDaysAgo(5), delivered: isoDaysAgo(3), racked: isoDaysAgo(2), vented: null, tapped: null, on: null, off: null } },
+  { id: "l7", beerId: "b5", drinkType: "cask", size: "", price: "4.60", status: "tapped", caskOwner: "HB Clark", collected: false, bestBefore: dateInDays(9), dates: { ordered: isoDaysAgo(6), delivered: isoDaysAgo(4), racked: isoDaysAgo(4), vented: isoDaysAgo(2), tapped: isoDaysAgo(1), on: null, off: null } },
+  { id: "l8", beerId: "b6", drinkType: "cask", size: "", price: "3.80", status: "vented", caskOwner: "HB Clark", collected: false, bestBefore: dateInDays(6), dates: { ordered: isoDaysAgo(4), delivered: isoDaysAgo(2), racked: isoDaysAgo(2), vented: isoDaysAgo(1), tapped: null, on: null, off: null } },
+  { id: "l9", beerId: "b8", drinkType: "cask", size: "", price: "3.70", status: "tapped", caskOwner: "LWC", collected: false, bestBefore: dateInDays(5), dates: { ordered: isoDaysAgo(5), delivered: isoDaysAgo(3), racked: isoDaysAgo(3), vented: isoDaysAgo(1), tapped: isoDaysAgo(1), on: null, off: null } },
+  { id: "l10", beerId: "b12", drinkType: "cask", size: "", price: "4.40", status: "tapped", caskOwner: "6 Barrells", collected: false, bestBefore: dateInDays(12), dates: { ordered: isoDaysAgo(7), delivered: isoDaysAgo(5), racked: isoDaysAgo(5), vented: isoDaysAgo(2), tapped: isoDaysAgo(1), on: null, off: null } },
+  { id: "l11", beerId: "b9", drinkType: "cask", size: "", price: "4.10", status: "in_cellar", caskOwner: "LWC", collected: false, bestBefore: dateInDays(20), dates: { ordered: isoDaysAgo(3), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
+  { id: "l12", beerId: "b10", drinkType: "cask", size: "", price: "4.00", status: "in_cellar", caskOwner: "HB Clark", collected: false, bestBefore: dateInDays(25), dates: { ordered: isoDaysAgo(4), delivered: isoDaysAgo(2), vented: null, tapped: null, on: null, off: null } },
+  { id: "l13", beerId: "b13", drinkType: "cask", size: "", price: "5.20", status: "in_cellar", caskOwner: "LWC", collected: false, bestBefore: dateInDays(45), dates: { ordered: isoDaysAgo(3), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
+  { id: "l14", beerId: "b14", drinkType: "cask", size: "", price: "3.80", status: "in_cellar", caskOwner: "HB Clark", collected: false, bestBefore: dateInDays(15), dates: { ordered: isoDaysAgo(5), delivered: isoDaysAgo(3), vented: null, tapped: null, on: null, off: null } },
+  { id: "l15", beerId: "b15", drinkType: "cask", size: "", price: "4.00", status: "off", caskOwner: "6 Barrells", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(18), delivered: isoDaysAgo(15), racked: isoDaysAgo(15), vented: isoDaysAgo(12), tapped: isoDaysAgo(11), on: isoDaysAgo(10), off: isoDaysAgo(1) } },
+  { id: "l16", beerId: "b1", drinkType: "cask", size: "", price: "4.60", status: "off", caskOwner: "HB Clark", collected: true, bestBefore: "", dates: { ordered: isoDaysAgo(30), delivered: isoDaysAgo(27), racked: isoDaysAgo(27), vented: isoDaysAgo(24), tapped: isoDaysAgo(23), on: isoDaysAgo(22), off: isoDaysAgo(3) } },
+  { id: "l17", beerId: "b16", drinkType: "keg", size: "Keg 30L", price: "5.20", status: "on", caskOwner: "HB Clark", collected: false, bestBefore: dateInDays(30), dates: { ordered: isoDaysAgo(12), delivered: isoDaysAgo(9), vented: null, tapped: null, on: isoDaysAgo(4), off: null } },
+  { id: "l18", beerId: "b18", drinkType: "keg", size: "Keg 30L", price: "5.00", status: "on", caskOwner: "LWC", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(10), delivered: isoDaysAgo(7), vented: null, tapped: null, on: isoDaysAgo(2), off: null } },
+  { id: "l19", beerId: "b19", drinkType: "keg", size: "Keg 50L", price: "4.80", status: "on", caskOwner: "6 Barrells", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(11), delivered: isoDaysAgo(8), vented: null, tapped: null, on: isoDaysAgo(3), off: null } },
+  { id: "l20", beerId: "b17", drinkType: "keg", size: "Keg 30L", price: "5.20", status: "in_cellar", caskOwner: "HB Clark", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(3), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
+  { id: "l21", beerId: "b20", drinkType: "keg", size: "Keg 30L", price: "5.40", status: "in_cellar", caskOwner: "HB Clark", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(4), delivered: isoDaysAgo(2), vented: null, tapped: null, on: null, off: null } },
+  { id: "l22", beerId: "b21", drinkType: "keg", size: "Keg 30L", price: "5.30", status: "in_cellar", caskOwner: "LWC", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(3), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
+  { id: "l23", beerId: "b22", drinkType: "keg", size: "Keg 50L", price: "4.60", status: "in_cellar", caskOwner: "6 Barrells", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(4), delivered: isoDaysAgo(2), vented: null, tapped: null, on: null, off: null } },
+  { id: "l24", beerId: "b23", drinkType: "keg", size: "Keg 30L", price: "5.80", status: "in_cellar", caskOwner: "HB Clark", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(3), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
+  { id: "l25", beerId: "b24", drinkType: "keg", size: "Keg 30L", price: "5.60", status: "in_cellar", caskOwner: "LWC", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(5), delivered: isoDaysAgo(3), vented: null, tapped: null, on: null, off: null } },
+  { id: "l26", beerId: "b25", drinkType: "keg", size: "Keg 50L", price: "4.80", status: "in_cellar", caskOwner: "HB Clark", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(4), delivered: isoDaysAgo(2), vented: null, tapped: null, on: null, off: null } },
+  { id: "l27", beerId: "b26", drinkType: "keg", size: "Keg 50L", price: "4.50", status: "in_cellar", caskOwner: "6 Barrells", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(3), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
+  { id: "l28", beerId: "b16", drinkType: "keg", size: "Keg 30L", price: "5.20", status: "in_cellar", caskOwner: "HB Clark", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
+  { id: "l29", beerId: "b27", drinkType: "cider", size: "Bag-in-box 20L", price: "5.00", status: "on", caskOwner: "LWC", collected: false, bestBefore: dateInDays(25), dates: { ordered: isoDaysAgo(12), delivered: isoDaysAgo(9), vented: null, tapped: null, on: isoDaysAgo(3), off: null } },
+  { id: "l30", beerId: "b30", drinkType: "cider", size: "Bag-in-box 20L", price: "5.20", status: "on", caskOwner: "LWC", collected: false, bestBefore: dateInDays(30), dates: { ordered: isoDaysAgo(10), delivered: isoDaysAgo(7), vented: null, tapped: null, on: isoDaysAgo(2), off: null } },
+  { id: "l31", beerId: "b31", drinkType: "cider", size: "Bag-in-box 20L", price: "4.80", status: "on", caskOwner: "6 Barrells", collected: false, bestBefore: dateInDays(28), dates: { ordered: isoDaysAgo(13), delivered: isoDaysAgo(10), vented: null, tapped: null, on: isoDaysAgo(4), off: null } },
+  { id: "l32", beerId: "b28", drinkType: "cider", size: "Bag-in-box 20L", price: "4.80", status: "in_cellar", caskOwner: "6 Barrells", collected: false, bestBefore: dateInDays(30), dates: { ordered: isoDaysAgo(3), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
+  { id: "l33", beerId: "b29", drinkType: "cider", size: "Bag-in-box 20L", price: "5.60", status: "in_cellar", caskOwner: "6 Barrells", collected: false, bestBefore: dateInDays(40), dates: { ordered: isoDaysAgo(4), delivered: isoDaysAgo(2), vented: null, tapped: null, on: null, off: null } },
+  { id: "l34", beerId: "b32", drinkType: "cider", size: "Bag-in-box 20L", price: "5.40", status: "in_cellar", caskOwner: "LWC", collected: false, bestBefore: dateInDays(35), dates: { ordered: isoDaysAgo(3), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
+  { id: "l35", beerId: "b33", drinkType: "cider", size: "Bag-in-box 20L", price: "4.60", status: "in_cellar", caskOwner: "LWC", collected: false, bestBefore: dateInDays(30), dates: { ordered: isoDaysAgo(5), delivered: isoDaysAgo(3), vented: null, tapped: null, on: null, off: null } },
+  { id: "l36", beerId: "b3", drinkType: "cask", size: "", price: "3.80", status: "off", caskOwner: "LWC", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(16), delivered: isoDaysAgo(13), racked: isoDaysAgo(13), vented: isoDaysAgo(10), tapped: isoDaysAgo(9), on: isoDaysAgo(8), off: isoDaysAgo(1) } },
+  { id: "l37", beerId: "b8", drinkType: "cask", size: "", price: "3.70", status: "off", caskOwner: "6 Barrells", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(20), delivered: isoDaysAgo(17), racked: isoDaysAgo(17), vented: isoDaysAgo(13), tapped: isoDaysAgo(12), on: isoDaysAgo(11), off: isoDaysAgo(2) } },
+  { id: "l38", beerId: "b16", drinkType: "keg", size: "Keg 50L", price: "5.20", status: "off", caskOwner: "HB Clark", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(22), delivered: isoDaysAgo(19), vented: null, tapped: null, on: isoDaysAgo(14), off: isoDaysAgo(1) } },
+  { id: "l39", beerId: "b12", drinkType: "cask", size: "", price: "4.10", status: "off", caskOwner: "HB Clark", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(19), delivered: isoDaysAgo(16), racked: isoDaysAgo(16), vented: isoDaysAgo(12), tapped: isoDaysAgo(11), on: isoDaysAgo(10), off: isoDaysAgo(2) } },
 ];
 
-const seedDistributors = ["HB Clark & Co", "6B", "LWC"];
+const seedDistributors = ["HB Clark", "LWC", "6 Barrells"];
 
 const emptyForm = {
   drinkType: "cask", brewery: "", location: "", name: "", style: "", abv: "",
@@ -270,7 +305,7 @@ const Eyebrow = ({ children, count }) => (
 // ---------- Main ----------
 export default function TheCurfewCellar() {
   const [library, setLibrary] = useState(seedLibrary);
-  const [lines, setLines] = useState(seedLines);
+  const [lines, setLines] = useState(() => assignPumps(seedLines, catFromLib(seedLibrary)));
   const [view, setView] = useState("cellar");
   const [form, setForm] = useState(emptyForm);
   const [fillNote, setFillNote] = useState(null);
@@ -280,6 +315,7 @@ export default function TheCurfewCellar() {
   const [editNote, setEditNote] = useState(null);
   const [lineDetails, setLineDetails] = useState(false);
   const [swap, setSwap] = useState(null);
+  const [swapPreviewId, setSwapPreviewId] = useState(null);
   const [prefs, setPrefs] = useState({ on: true, racked: true, store: false, empties: {} });
   const toggleSection = (k) => setPrefs((p) => ({ ...p, [k]: !p[k] }));
   const [loading, setLoading] = useState(false);
@@ -327,7 +363,7 @@ export default function TheCurfewCellar() {
           const data = JSON.parse(r.value);
           // console.log(data);
           if (Array.isArray(data.library)) setLibrary(data.library);
-          if (Array.isArray(data.lines)) setLines(data.lines.map((l) => l.status === "en_route" ? { ...l, status: "in_cellar", dates: { ...l.dates, delivered: l.dates && l.dates.delivered ? l.dates.delivered : (l.dates && l.dates.ordered) || new Date().toISOString() } } : l));
+          if (Array.isArray(data.lines)) { const lib = Array.isArray(data.library) ? data.library : library; setLines(assignPumps(data.lines.map((l) => l.status === "en_route" ? { ...l, status: "in_cellar", dates: { ...l.dates, delivered: l.dates && l.dates.delivered ? l.dates.delivered : (l.dates && l.dates.ordered) || new Date().toISOString() } } : l), catFromLib(lib))); }
           if (Array.isArray(data.distributors)) setDistributors(data.distributors);
           if (data.prefs) setPrefs((p) => ({ ...p, ...data.prefs, empties: data.prefs.empties || {} }));
         }
@@ -368,7 +404,7 @@ export default function TheCurfewCellar() {
 
   const resetDemo = () => {
     setLibrary(clone(seedLibrary));
-    setLines(clone(seedLines));
+    setLines(assignPumps(clone(seedLines), catFromLib(seedLibrary)));
     setDistributors(clone(seedDistributors));
     setOpenId(null); setHistoryOpen({}); setLibrarySearch(""); setForm(emptyForm); setFillNote(null); setView("cellar"); setConfirmReset(false);
   };
@@ -414,7 +450,7 @@ export default function TheCurfewCellar() {
   };
 
   const autoFill = async () => {
-    if (!form.name.trim()) { setFillNote({ type: "warn", text: "Type a name first." }); return; }
+    if (!form.name.trim()) { setFillNote({ type: "warn", text: "Add a name first." }); return; }
     const saved = form.brewery.trim() ? findSavedBeer(form.brewery, form.name) : null;
     if (saved) {
       setF({ style: saved.style, abv: saved.abv, clarity: saved.clarity, glutenStatus: saved.glutenStatus, vegan: saved.vegan, allergens: saved.allergens, notes: saved.notes, allergensVerified: saved.allergensVerified, category: form.drinkType === "cask" ? categorise(saved.style, saved.abv) : saved.category });
@@ -473,7 +509,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
         allergensVerified: false,
         category: form.drinkType === "cask" ? categorise(style, abv) : form.category,
       });
-      setFillNote({ type: "ai", text: "Draft filled in. Check everything, and confirm allergens and dietary status against the producer's own info before serving." });
+      setFillNote({ type: "ai", text: "Draft filled in. Check everything, then confirm allergens and dietary status against the producer's own information before serving." });
     } catch (err) {
       const d = aiDraft(form.name);
       setF({ ...d, category: form.drinkType === "cask" ? categorise(d.style, d.abv) : form.category });
@@ -497,55 +533,80 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
     const entry = { date: new Date().toISOString(), abv: form.abv.trim(), price: form.price.trim() };
     const saved = findSavedBeer(form.brewery, form.name);
     let beerId;
-    if (saved) { beerId = saved.id; setLibrary((lib) => lib.map((b) => (b.id === saved.id ? { ...b, ...beerFields, history: [...(b.history || []), entry] } : b))); }
-    else { beerId = uid(); setLibrary((lib) => [...lib, { id: beerId, ...beerFields, history: [entry] }]); }
-    const dates = { ordered: null, delivered: null, vented: null, tapped: null, on: null, off: null };
+    if (saved) { beerId = saved.id; setLibrary((lib) => lib.map((b) => (b.id === saved.id ? { ...b, ...beerFields, history: [...(b.history || []), entry], justAdded: false } : b))); }
+    else { beerId = uid(); setLibrary((lib) => [...lib, { id: beerId, ...beerFields, history: [entry], justAdded: false }]); }
+    const dates = { ordered: null, delivered: null, racked: null, vented: null, tapped: null, on: null, off: null };
     dates[STATUSES[STATUS_INDEX[form.status]].dateKey] = new Date().toISOString();
     const id = uid();
     setLines((ls) => [...ls, { id, beerId, drinkType: form.drinkType, size: form.size, price: form.price.trim(), status: form.status, caskOwner: form.caskOwner.trim() || form.brewery.trim(), collected: false, bestBefore: form.bestBefore, dates }]);
     setForm(emptyForm); setFillNote(null); setAddMode("pick"); setShowMore(false); setView("cellar"); setOpenId(id);
   };
 
-  const advance = (id) => setLines((ls) => ls.map((c) => {
-    if (c.id !== id) return c;
-    const idx = STATUS_INDEX[c.status];
-    if (idx >= STATUSES.length - 1) return c;
-    const next = STATUSES[idx + 1];
-    const dates = { ...c.dates };
-    if (!dates[next.dateKey]) dates[next.dateKey] = new Date().toISOString();
-    return { ...c, status: next.key, dates };
-  }));
+  const catOfLine = (l) => beerById[l.beerId]?.category || "Misc";
+  const freePumpFor = (ls, line, excludeId) => {
+    const drink = line.drinkType;
+    const taken = new Set(ls.filter((x) => x.status === "on" && x.drinkType === drink && x.id !== line.id && x.id !== excludeId).map((x) => x.slot));
+    if (drink === "cask") { const p = caskPrefPumps(catOfLine(line)).find((x) => !taken.has(x)); if (p) return p; }
+    return PUMPS[drink].find((x) => !taken.has(x)) || null;
+  };
+  const advance = (id) => setLines((ls) => {
+    const cur = ls.find((x) => x.id === id);
+    if (!cur) return ls;
+    const flow = flowFor(cur.drinkType);
+    const i = flow.indexOf(cur.status);
+    if (i < 0 || i >= flow.length - 1) return ls;
+    const nextKey = flow[i + 1];
+    const next = STATUS_BY_KEY[nextKey];
+    const slot = nextKey === "on" ? freePumpFor(ls, cur, id) : cur.slot || null;
+    return ls.map((c) => {
+      if (c.id !== id) return c;
+      const dates = { ...c.dates };
+      if (!dates[next.dateKey]) dates[next.dateKey] = new Date().toISOString();
+      return { ...c, status: nextKey, dates, slot };
+    });
+  });
   const goBack = (id) => setLines((ls) => ls.map((c) => {
     if (c.id !== id) return c;
-    const idx = STATUS_INDEX[c.status];
-    if (idx <= FIRST_IDX) return c;
+    const flow = flowFor(c.drinkType);
+    const i = flow.indexOf(c.status);
+    if (i <= 0) return c;
     const dates = { ...c.dates };
-    dates[STATUSES[idx].dateKey] = null;
-    return { ...c, status: STATUSES[idx - 1].key, dates };
+    dates[STATUS_BY_KEY[c.status].dateKey] = null;
+    return { ...c, status: flow[i - 1], dates, slot: c.status === "on" ? null : c.slot };
   }));
   const setBestBefore = (id, v) => setLines((ls) => ls.map((c) => (c.id === id ? { ...c, bestBefore: v } : c)));
   const finishAndChoose = (line) => {
     const beer = beerById[line.beerId];
     snapshotUndo("Line finished");
     const now = new Date().toISOString();
-    setLines((ls) => ls.map((c) => (c.id === line.id ? { ...c, status: "off", dates: { ...c.dates, off: now } } : c)));
+    setLines((ls) => ls.map((c) => (c.id === line.id ? { ...c, status: "off", slot: null, dates: { ...c.dates, off: now } } : c)));
     setOpenId(null);
-    setSwap({ drink: line.drinkType, category: line.drinkType === "cask" ? (beer ? (beer.category || "Misc") : null) : null, oldId: null });
+    setSwap({ drink: line.drinkType, category: line.drinkType === "cask" ? (beer ? (beer.category || "Misc") : null) : null, oldId: null, slot: line.slot || null });
   };
-  const doSwap = (newId, oldId) => {
+  const openPump = (slot) => {
+    const cat = slot.drink === "cask" ? (slot.slot === "cask2" ? "Bitter" : slot.slot === "cask3" ? "Stout/Porter" : "IPA") : null;
+    setSwap({ drink: slot.drink, category: cat, oldId: null, slot: slot.slot });
+  };
+  const doSwap = (newId, oldId, slot) => {
     snapshotUndo("Beer changed");
     const now = new Date().toISOString();
-    setLines((ls) => ls.map((c) => {
-      if (oldId && c.id === oldId) return { ...c, status: "off", dates: { ...c.dates, off: now } };
-      if (c.id === newId) return { ...c, status: "on", dates: { ...c.dates, on: c.dates.on || now } };
-      return c;
-    }));
+    setLines((ls) => {
+      const newLine = ls.find((c) => c.id === newId);
+      const pump = slot || (newLine ? freePumpFor(ls, newLine, oldId) : null);
+      return ls.map((c) => {
+        if (oldId && c.id === oldId) return { ...c, status: "off", slot: null, dates: { ...c.dates, off: now } };
+        if (c.id === newId) return { ...c, status: "on", slot: pump, dates: { ...c.dates, on: c.dates.on || now } };
+        return c;
+      });
+    });
     setSwap(null);
+    setSwapPreviewId(null);
   };
   const setLineCategory = (id, beerId, cat) => { setLibrary((lib) => lib.map((b) => (b.id === beerId ? { ...b, category: cat } : b))); };
   const setOnDate = (id, v) => setLines((ls) => ls.map((c) => { if (c.id !== id) return c; const d = new Date(v); d.setHours(12, 0, 0, 0); return { ...c, dates: { ...c.dates, on: d.toISOString() } }; }));
   const verify = (beerId) => setLibrary((lib) => lib.map((b) => (b.id === beerId ? { ...b, allergensVerified: true } : b)));
   const updateBeer = (id, patch) => setLibrary((lib) => lib.map((b) => (b.id === id ? { ...b, ...patch } : b)));
+  const markChecked = (id) => setLibrary((lib) => lib.map((b) => (b.id === id ? { ...b, justAdded: false } : b)));
   const updateBeerPrice = (id, v) => { setLibrary((lib) => lib.map((b) => (b.id === id ? { ...b, price: v } : b))); setLines((ls) => ls.map((c) => (c.beerId === id ? { ...c, price: v } : c))); };
   const toggleBeerAllergen = (id, a) => setLibrary((lib) => lib.map((b) => (b.id === id ? { ...b, allergens: b.allergens.includes(a) ? b.allergens.filter((x) => x !== a) : [...b.allergens, a] } : b)));
   const autoFillBeer = async (beer) => {
@@ -594,9 +655,9 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
         allergensVerified: false,
         category: beer.category || categorise(style, abv),
       });
-      setEditNote({ type: "ai", text: "Draft filled in. Check it, and confirm allergens before serving." });
+      setEditNote({ type: "ai", text: "Draft filled in. Check it, then confirm allergens before serving." });
     } catch (err) {
-      setEditNote({ type: "warn", text: "Could not auto-fill just now. Add the details by hand." });
+      setEditNote({ type: "warn", text: "Couldn't auto-fill just now. Add the details by hand." });
     } finally { setEditBusy(false); }
   };
   const removeLine = (id) => { snapshotUndo("Removed from cellar"); setLines((ls) => ls.filter((c) => c.id !== id)); setOpenId(null); };
@@ -742,19 +803,15 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
     const chosen = (invoiceItems || []).filter((x) => x.include && x.name.trim());
     if (!chosen.length) return;
     const nowIso = new Date().toISOString();
-    
     let lib = [...library];
-    const newLines = [];
     chosen.forEach((x) => {
       const existing = lib.find((b) => b.brewery.trim().toLowerCase() === x.brewery.trim().toLowerCase() && b.name.trim().toLowerCase() === x.name.trim().toLowerCase());
       const entry = { date: nowIso, abv: x.abv, price: x.price };
-      let beerId;
-      if (existing) { beerId = existing.id; lib = lib.map((b) => (b.id === existing.id ? { ...b, abv: x.abv || b.abv, history: [...(b.history || []), entry] } : b)); }
-      else { beerId = uid(); lib = [...lib, { id: beerId, brewery: x.brewery.trim(), location: x.location || "", name: x.name.trim(), style: x.style || "", abv: x.abv, clarity: x.clarity || "Clear", glutenStatus: x.glutenStatus || "Standard", vegan: x.vegan || false, allergens: x.allergens || [], notes: x.notes || "", allergensVerified: false, category: x.category || (x.drinkType === "cask" ? categorise(x.style || "", x.abv) : "Misc"), history: [entry] }]; }
-      newLines.push({ id: uid(), beerId, drinkType: x.drinkType, size: x.drinkType === "cider" ? "Bag-in-box 20L" : x.drinkType === "keg" ? "Keg 50L" : "", price: x.price, status: "in_cellar", caskOwner: invoiceOwner.trim() || x.caskOwner || x.brewery.trim(), collected: false, bestBefore: x.bestBefore || "", dates: { ordered: null, delivered: nowIso, vented: null, tapped: null, on: null, off: null } });
+      if (existing) { lib = lib.map((b) => (b.id === existing.id ? { ...b, abv: x.abv || b.abv, history: [...(b.history || []), entry], justAdded: true } : b)); }
+      else { lib = [...lib, { id: uid(), brewery: x.brewery.trim(), location: x.location || "", name: x.name.trim(), style: x.style || "", abv: x.abv, clarity: x.clarity || "Clear", glutenStatus: x.glutenStatus || "Standard", vegan: x.vegan || false, allergens: x.allergens || [], notes: x.notes || "", allergensVerified: false, category: x.category || (x.drinkType === "cask" ? categorise(x.style || "", x.abv) : "Misc"), history: [entry], justAdded: true }]; }
     });
-    setLibrary(lib); setLines((ls) => [...ls, ...newLines]);
-    setInvoiceItems(null); setInvoiceOwner(""); setAddMode("pick"); setFillNote(null); setView("cellar");
+    setLibrary(lib);
+    setInvoiceItems(null); setInvoiceOwner(""); setAddMode("pick"); setFillNote(null); setLibrarySearch(""); setView("library");
   };
   const snapshotUndo = (label) => { setUndoState({ lines, label }); if (undoTimer.current) clearTimeout(undoTimer.current); undoTimer.current = setTimeout(() => setUndoState(null), 7000); };
   const doUndo = () => { if (!undoState) return; setLines(undoState.lines); setUndoState(null); if (undoTimer.current) clearTimeout(undoTimer.current); };
@@ -774,15 +831,16 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
 
   const buildOnSlots = () => {
     const onAll = lines.filter((l) => l.status === "on");
-    const used = new Set();
-    const takeCat = (pool, cat) => { const m = pool.find((l) => !used.has(l.id) && (beerById[l.beerId]?.category || "Misc") === cat); if (m) used.add(m.id); return m || null; };
-    const takeNext = (pool) => { const m = pool.find((l) => !used.has(l.id)); if (m) used.add(m.id); return m || null; };
-    const onCask = onAll.filter((l) => l.drinkType === "cask");
-    const onKeg = onAll.filter((l) => l.drinkType === "keg").sort(byBB);
-    const onCider = onAll.filter((l) => l.drinkType === "cider").sort(byBB);
-    const cask = [["IPA", "IPA"], ["Pale", "Pale"], ["Bitter", "Bitter"], ["Stout", "Stout/Porter"]].map(([label, cat]) => ({ label, cat, drink: "cask", line: takeCat(onCask, cat) }));
-    const keg = [1, 2, 3].map((n) => ({ label: `Keg ${n}`, drink: "keg", line: takeNext(onKeg) }));
-    const cider = [1, 2, 3].map((n) => ({ label: `Cider ${n}`, drink: "cider", line: takeNext(onCider) }));
+    const build = (drink) => {
+      const pool = onAll.filter((l) => l.drinkType === drink);
+      const slots = PUMPS[drink].map((p) => ({ slot: p, label: PUMP_LABELS[p], drink, line: pool.find((l) => l.slot === p) || null }));
+      const placed = new Set(slots.map((s) => s.line && s.line.id).filter(Boolean));
+      pool.filter((l) => !placed.has(l.id)).sort(byBB).forEach((l) => { const empty = slots.find((s) => !s.line); if (empty) empty.line = l; });
+      return slots;
+    };
+    const cask = build("cask");
+    const keg = build("keg");
+    const cider = build("cider");
     return { cask, keg, cider, all: [...cask, ...keg, ...cider] };
   };
 
@@ -790,34 +848,32 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
   const cardSignal = (line) => {
     const bb = bbStatus(line);
     const f = freshness(line);
-    if (line.status === "off") return { text: "Finished", warn: false };
-    if (bb && bb.level === "past") return { text: "Best before passed", warn: true };
-    if (bb && bb.level === "soon") return { text: bb.text, warn: false };
-    if (line.status === "on" && f && f.level === "check") return { text: f.text, warn: false };
-    if (line.status === "on") return { text: f ? f.text : "Pouring", warn: false };
-    if (line.status === "tapped") return { text: "Ready", warn: false };
-    return { text: STATUSES[STATUS_INDEX[line.status]].label, warn: false };
+    if (line.status === "off") return { text: "Finished", warn: false, alert: false };
+    if (bb && bb.level === "past") return { text: "Best before passed", warn: true, alert: true };
+    if (bb && bb.level === "soon") return { text: bb.text, warn: false, alert: true };
+    if (line.status === "on" && f && f.level === "check") return { text: f.text, warn: false, alert: true };
+    if (line.status === "on") return { text: f ? f.text : "On", warn: false, alert: false };
+    if (line.status === "tapped") return { text: "Tapped", warn: false, alert: false };
+    return { text: STATUSES[STATUS_INDEX[line.status]].label, warn: false, alert: false };
   };
 
-  const LineRow = ({ line }) => {
+  const LineRow = ({ line, context }) => {
     const beer = beerById[line.beerId];
     if (!beer) return null;
     const sig = cardSignal(line);
+    const showBadge = context === "racked" || sig.alert;
     return (
       <button onClick={() => setOpenId(line.id)} className="w-full rounded-2xl border bg-white p-3 text-left transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-amber-300 active:scale-95" style={{ borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[line.drinkType] || C.line, boxShadow: "0 1px 2px rgba(27,34,48,0.04), 0 2px 8px -4px rgba(27,34,48,0.10)" }}>
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="truncate text-base font-semibold leading-snug" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{beer.name}</p>
-            <p className="truncate text-sm text-slate-500">{beer.brewery} · {beer.location}</p>
-          </div>
-          <div className="shrink-0 text-right">
-            <p className="text-sm font-medium text-slate-700">{beer.style}</p>
-            <p className="text-xs text-slate-500">{beer.abv}% · £{line.price || "—"}</p>
+            <p className="truncate text-sm font-medium text-slate-600">{beer.style} · {beer.abv}% · £{line.price || "—"}</p>
+            <p className="truncate text-xs text-slate-400">{beer.brewery} · {beer.location}</p>
           </div>
         </div>
-        <div className="mt-1.5 flex items-center gap-2">
-          <Badge className={`whitespace-nowrap ${sig.warn ? "bg-red-50 text-red-700 border-red-200" : "bg-slate-100 text-slate-600 border-slate-200"}`}>{sig.text}</Badge>
-          {!beer.allergensVerified && <span title="Allergens not verified" className="inline-flex items-center text-amber-600"><AlertTriangle size={14} /></span>}
+        <div className="mt-1.5 flex items-center gap-2" style={{ minHeight: 24 }}>
+          {showBadge && <Badge className={`whitespace-nowrap ${sig.warn ? "bg-red-50 text-red-700 border-red-200" : "bg-slate-100 text-slate-600 border-slate-200"}`}>{sig.text}</Badge>}
+          {!beer.allergensVerified && <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600"><AlertTriangle size={14} /> Not staff verified</span>}
           <span className="ml-auto"><DietaryMini beer={beer} /></span>
         </div>
       </button>
@@ -853,13 +909,22 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
     const onCiderSlots = onS.cider;
     const onFilled = onS.all.filter((s) => s.line).length;
 
-    const used = new Set();
-    const takeCat = (pool, cat) => { const m = pool.find((l) => !used.has(l.id) && (beerById[l.beerId]?.category || "Misc") === cat); if (m) used.add(m.id); return m || null; };
-
-    const rackedCask = live.filter((l) => l.drinkType === "cask" && (l.status === "tapped" || l.status === "vented"));
-    const rackedSlots = [["IPA", "IPA"], ["IPA", "IPA"], ["Pale", "Pale"], ["Pale", "Pale"], ["Bitter", "Bitter"], ["Stout", "Stout/Porter"]].map(([label, cat]) => ({ label, line: takeCat(rackedCask, cat) }));
+    const catOf = (l) => beerById[l.beerId]?.category || "Misc";
+    const rackedCask = live.filter((l) => l.drinkType === "cask" && (l.status === "racked" || l.status === "vented" || l.status === "tapped"));
+    const rIpaPale = rackedCask.filter((l) => catOf(l) === "IPA" || catOf(l) === "Pale").sort(byBB);
+    const rBitter = rackedCask.filter((l) => catOf(l) === "Bitter").sort(byBB);
+    const rStout = rackedCask.filter((l) => catOf(l) === "Stout/Porter").sort(byBB);
+    const rackedSlots = [
+      { label: "IPA", line: rIpaPale[0] || null },
+      { label: "IPA", line: rIpaPale[1] || null },
+      { label: "Pale", line: rIpaPale[2] || null },
+      { label: "Pale", line: rIpaPale[3] || null },
+      { label: "Bitter", line: rBitter[0] || null },
+      { label: "Stout", line: rStout[0] || null },
+    ];
     const rackedFilled = rackedSlots.filter((s) => s.line).length;
-    const rackedOverflow = rackedCask.filter((l) => !used.has(l.id)).sort(byBB);
+    const placed = new Set(rackedSlots.map((s) => s.line && s.line.id).filter(Boolean));
+    const rackedOverflow = rackedCask.filter((l) => !placed.has(l.id)).sort(byBB);
 
     const store = lines.filter((l) => l.status === "in_cellar");
     const STYLE_ORDER = ["IPA", "Pale", "Bitter", "Stout/Porter", "Misc"];
@@ -873,9 +938,9 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
     const renderSlot = (slot, k, urgent) => (
       <div key={k}>
         <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{slot.label}</p>
-        {slot.line ? <LineRow line={slot.line} /> : (
+        {slot.line ? <LineRow line={slot.line} context={urgent ? "on" : "racked"} /> : (
           urgent
-            ? <button onClick={() => go("add")} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed text-sm font-medium transition hover:bg-amber-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ borderColor: "#e2c98a", color: "#b45309", minHeight: 56 }}><AlertTriangle size={15} /> Empty</button>
+            ? <button onClick={() => openPump(slot)} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed text-sm font-medium transition hover:bg-amber-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ borderColor: "#e2c98a", color: "#b45309", minHeight: 56 }}><Plus size={15} /> Empty</button>
             : <button onClick={() => go("add")} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed text-sm font-medium text-slate-400 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line, minHeight: 56 }}>Empty</button>
         )}
       </div>
@@ -893,15 +958,8 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
         </div>
       );
     }
-    const anyOpen = prefs.on || prefs.racked || prefs.store;
-    const setAllSections = (v) => setPrefs((p) => ({ ...p, on: v, racked: v, store: v }));
     return (
       <div className="space-y-6">
-        <div className="flex justify-end">
-          <button onClick={() => setAllSections(!anyOpen)} className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 transition hover:text-slate-700 focus:outline-none">
-            <ChevronDown size={14} style={{ transform: anyOpen ? "rotate(180deg)" : "none", transition: "transform .2s" }} /> {anyOpen ? "Collapse all" : "Expand all"}
-          </button>
-        </div>
         <section>
           <button onClick={() => toggleSection("on")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
             <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>On <span className="text-sm font-normal text-slate-400">· {onFilled}/10</span></h2>
@@ -926,7 +984,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
               {rackedOverflow.map((l) => (
                 <div key={l.id}>
                   <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{beerById[l.beerId]?.category || "Misc"}</p>
-                  <LineRow line={l} />
+                  <LineRow line={l} context="racked" />
                 </div>
               ))}
             </div>
@@ -943,7 +1001,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
                 {storeGroups.map((g) => (
                   <div key={g.label}>
                     <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{g.label}</p>
-                    <div className="grid gap-2.5 sm:grid-cols-2">{g.items.map((l) => <LineRow key={l.id} line={l} />)}</div>
+                    <div className="grid gap-2.5 sm:grid-cols-2">{g.items.map((l) => <LineRow key={l.id} line={l} context="store" />)}</div>
                   </div>
                 ))}
               </div>
@@ -973,10 +1031,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
           <button onClick={() => { setAddMode("pick"); setInvoiceItems(null); }} className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"><ArrowRight size={14} className="rotate-180" /> Back</button>
           <div className="rounded-xl border bg-white p-4" style={{ borderColor: C.line }}>
             <p className="text-base font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{batchSource === "labels" ? "Scanned labels" : batchSource === "list" ? "From your list" : "Delivery items"}</p>
-            <div className="mt-3">
-              <label className="block text-sm font-medium text-slate-700">Supplied by</label>
-              <input value={invoiceOwner} onChange={(e) => setInvoiceOwner(e.target.value)} placeholder="Leave blank to use each beer's brewery" className="mt-1 w-full rounded-lg border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
-            </div>
+            <p className="mt-1 text-sm text-slate-500">These go to your library under "Just added" for you to check. Nothing reaches the cellar until you add them there.</p>
             <div className="mt-3 space-y-2">
               {items.length === 0 && <p className="py-3 text-center text-sm text-slate-400">Nothing found.</p>}
               {items.map((x, idx) => (
@@ -996,7 +1051,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
             </div>
           </div>
           <div className="flex gap-2">
-            <button onClick={importInvoice} disabled={!count} className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:opacity-50" style={{ background: C.ink }}><Plus size={16} /> Add {count} to cellar</button>
+            <button onClick={importInvoice} disabled={!count} className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:opacity-50" style={{ background: C.ink }}><Plus size={16} /> Save {count} to library</button>
             <button onClick={() => { setAddMode("pick"); setInvoiceItems(null); }} className="rounded-lg border px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50" style={{ borderColor: C.line }}>Cancel</button>
           </div>
         </div>
@@ -1010,7 +1065,8 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
         <button key={b.id} onClick={() => pickBeer(b)} className="flex w-full items-center justify-between gap-2 rounded-lg border bg-white p-2.5 text-left transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line, borderLeftWidth: 3, borderLeftColor: CAT_ACCENT[b.category] || C.line }}>
           <span className="min-w-0">
             <span className="block truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{b.name}</span>
-            <span className="block truncate text-xs text-slate-500">{b.brewery} · {b.style} · {b.abv}%</span>
+            <span className="block truncate text-xs font-medium text-slate-600">{b.style} · {b.abv}%</span>
+            <span className="block truncate text-xs text-slate-400">{b.brewery}{b.location ? ` · ${b.location}` : ""}</span>
           </span>
           <span className="shrink-0 text-xs text-slate-400">{latestPrice(b) ? `last £${latestPrice(b)} ` : ""}→</span>
         </button>
@@ -1022,7 +1078,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
           <div className="rounded-xl border bg-white p-4" style={{ borderColor: C.line }}>
             <p className="text-base font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>Scan it in</p>
             <div className="mt-3 flex flex-wrap gap-2">
-              <button onClick={() => labelRef.current && labelRef.current.click()} disabled={scanning} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:opacity-60" style={{ background: C.ink }}><Camera size={16} /> Scan labels</button>
+              <button onClick={() => labelRef.current && labelRef.current.click()} disabled={scanning} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:opacity-60" style={{ background: C.ink }}><Camera size={16} /> Scan a cask label / pump clip</button>
               <button onClick={() => invoiceRef.current && invoiceRef.current.click()} disabled={scanning} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-60" style={{ borderColor: C.line }}><FileText size={16} /> Scan an invoice</button>
               <button onClick={() => setShowList((v) => !v)} disabled={scanning} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-60" style={{ borderColor: C.line }}><ClipboardList size={16} /> Paste a list</button>
             </div>
@@ -1041,7 +1097,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
             <p className="text-base font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>Add from your library</p>
             <div className="relative mt-3">
               <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input value={addPickSearch} onChange={(e) => setAddPickSearch(e.target.value)} placeholder="Search saved beers…" className="w-full rounded-xl border bg-white py-2.5 pl-10 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
+              <input value={addPickSearch} onChange={(e) => setAddPickSearch(e.target.value)} placeholder="Search ales, breweries, styles…" className="w-full rounded-xl border bg-white py-2.5 pl-10 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
               {addPickSearch && <button onClick={() => setAddPickSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 hover:bg-slate-100"><X size={16} /></button>}
             </div>
             {q ? (
@@ -1152,7 +1208,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
                   ))}
                 </div>
               </Field>
-              <label className="flex items-center gap-2 rounded-lg bg-slate-50 p-2.5 text-sm"><input type="checkbox" checked={form.allergensVerified} onChange={(e) => setF({ allergensVerified: e.target.checked })} className="h-4 w-4" /><span className="text-slate-700">Allergens verified against the producer's own info</span></label>
+              <label className="flex items-center gap-2 rounded-lg bg-slate-50 p-2.5 text-sm"><input type="checkbox" checked={form.allergensVerified} onChange={(e) => setF({ allergensVerified: e.target.checked })} className="h-4 w-4" /><span className="text-slate-700">Allergens verified against the producer's own information</span></label>
               <Field label="Tasting notes (knowledge card)"><textarea className={`${inputCls} h-20 resize-none`} value={form.notes} onChange={(e) => setF({ notes: e.target.value })} placeholder="How would you describe this to a customer?" /></Field>
             </div>
           )}
@@ -1169,8 +1225,9 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
   const Library = () => {
     const q = librarySearch.trim().toLowerCase();
     const match = (b) => [b.name, b.brewery, b.style, b.category, b.location].some((x) => (x || "").toLowerCase().includes(q));
+    const justAddedBeers = library.filter((b) => b.justAdded);
     const results = q ? library.filter(match) : [];
-    const recent = library.slice(-6).reverse();
+    const recent = library.filter((b) => !b.justAdded).slice(-6).reverse();
     const histChrono = (b) => (b.history || []).slice().sort((x, y) => new Date(x.date) - new Date(y.date));
     const libRow = (b) => {
       const h = histChrono(b);
@@ -1180,7 +1237,8 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{b.name}</p>
-              <p className="truncate text-xs text-slate-500">{b.brewery} · {b.style} · {b.abv}%</p>
+              <p className="truncate text-xs font-medium text-slate-600">{b.style} · {b.abv}%</p>
+              <p className="truncate text-xs text-slate-400">{b.brewery}{b.location ? ` · ${b.location}` : ""}</p>
             </div>
             <div className="flex shrink-0 items-center gap-1">
               <button onClick={() => addLineOfBeer(b)} title="Add to cellar" className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Plus size={13} /> Add</button>
@@ -1190,7 +1248,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
           </div>
           {open && (
             <div className="mt-2.5 rounded-lg border p-2.5" style={{ borderColor: C.line, background: "#FAFAF8" }}>
-              {!h.length ? <p className="text-xs text-slate-400">No history yet. It builds up each time you re-add this over time.</p> : (
+              {!h.length ? <p className="text-xs text-slate-400">No history yet. It builds up each time you re-add this beer.</p> : (
                 <>
                   <div className="mb-1 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-slate-400"><span>When</span><span className="flex gap-4"><span>ABV</span><span>Price</span></span></div>
                   <ul className="space-y-1">
@@ -1239,6 +1297,28 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
           )
         ) : (
           <>
+            {justAddedBeers.length > 0 && (
+              <div className="rounded-xl border p-3" style={{ borderColor: "#e2c98a", background: "#fffbeb" }}>
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold" style={{ color: "#92400e" }}>Just added · check details · {justAddedBeers.length}</p>
+                  <button onClick={() => setLibrary((lib) => lib.map((b) => (b.justAdded ? { ...b, justAdded: false } : b)))} className="shrink-0 text-xs font-medium text-amber-800 hover:underline focus:outline-none">Mark all checked</button>
+                </div>
+                <div className="space-y-2">
+                  {justAddedBeers.map((b) => (
+                    <div key={b.id} className="rounded-lg border bg-white p-2.5" style={{ borderColor: C.line, borderLeftWidth: 3, borderLeftColor: CAT_ACCENT[b.category] || C.line }}>
+                      <p className="truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{b.name}</p>
+                      <p className="truncate text-xs font-medium text-slate-600">{b.style ? b.style : "—"}{b.abv ? ` · ${b.abv}%` : ""}{!b.allergensVerified ? " · not staff verified" : ""}</p>
+                      <p className="truncate text-xs text-slate-400">{b.brewery}{b.location ? ` · ${b.location}` : ""}</p>
+                      <div className="mt-2 flex items-center gap-1.5">
+                        <button onClick={() => setEditBeerId(b.id)} className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50 focus:outline-none" style={{ borderColor: C.line }}><Pencil size={13} /> Check &amp; edit</button>
+                        <button onClick={() => addLineOfBeer(b)} className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition hover:bg-amber-50 focus:outline-none" style={{ borderColor: C.brass, color: C.brass }}><Plus size={13} /> Add to cellar</button>
+                        <button onClick={() => markChecked(b.id)} className="ml-auto inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-white transition hover:opacity-90 focus:outline-none" style={{ background: "#3f7d4f" }}><Check size={13} /> Done</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="rounded-xl border border-dashed bg-white p-6 text-center" style={{ borderColor: C.line }}>
               <Search size={22} className="mx-auto mb-2 text-slate-300" />
               <p className="font-semibold" style={{ color: C.ink }}>Search your library</p>
@@ -1276,7 +1356,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
           <div className="mt-3 flex flex-wrap gap-2">
             <button onClick={() => fileRef.current && fileRef.current.click()} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><Upload size={16} /> Choose a file</button>
           </div>
-          <textarea value={importText} onChange={(e) => setImportText(e.target.value)} placeholder="…or paste backup text here" className={`mt-3 ${taCls}`} />
+          <textarea value={importText} onChange={(e) => setImportText(e.target.value)} placeholder="Or paste backup text here" className={`mt-3 ${taCls}`} />
           <button onClick={() => prepareImport(importText)} disabled={!importText.trim()} className="mt-2 inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-50" style={{ borderColor: C.line }}>Check pasted text</button>
           {backupMsg && (
             <div className={`mt-3 rounded-lg border p-2.5 text-sm ${backupMsg.type === "ok" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : backupMsg.type === "warn" ? "border-amber-200 bg-amber-50 text-amber-800" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
@@ -1326,7 +1406,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
                       <li key={l.id} className="flex items-center justify-between gap-2 rounded-lg border px-2.5 py-2" style={{ borderColor: C.line }}>
                         <span className="min-w-0">
                           <span className="block truncate text-sm font-medium" style={{ color: C.ink }}>{beer ? beer.name : "Unknown"}</span>
-                          <span className="block truncate text-xs text-slate-500">{l.size} · off {l.dates.off ? fmtDate(l.dates.off.slice(0, 10)) : "—"}</span>
+                          <span className="block truncate text-xs text-slate-500">{l.size} · finished {l.dates.off ? fmtDate(l.dates.off.slice(0, 10)) : "—"}</span>
                         </span>
                         <button onClick={() => markCollected(l.id)} className="inline-flex shrink-0 items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><Check size={13} /> Collected</button>
                       </li>
@@ -1476,7 +1556,8 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
             <p className="text-lg font-semibold" style={{ color: C.cream, fontFamily: "Fraunces, Georgia, serif" }}>{beer.name}</p>
             <p className="shrink-0 text-lg font-semibold" style={{ color: C.brassSoft, fontFamily: "Fraunces, Georgia, serif" }}>£{line.price || "—"}</p>
           </div>
-          <p className="text-sm" style={{ color: "rgba(243,239,230,0.7)" }}>{beer.brewery} · {beer.style} · {beer.abv}%{beer.clarity ? ` · ${beer.clarity}` : ""}</p>
+          <p className="text-sm font-medium" style={{ color: "rgba(243,239,230,0.85)" }}>{beer.style} · {beer.abv}%{beer.clarity ? ` · ${beer.clarity}` : ""}</p>
+          <p className="text-xs" style={{ color: "rgba(243,239,230,0.5)" }}>{beer.brewery}{beer.location ? ` · ${beer.location}` : ""}</p>
           {beer.notes && <p className="mt-1 text-sm italic" style={{ color: faint }}>{beer.notes}</p>}
           <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
             {diet.map((d) => <span key={d} className="text-xs font-semibold uppercase tracking-wide" style={{ color: C.brassSoft }}>{d}</span>)}
@@ -1501,7 +1582,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
           </div>
 
           <div className="mt-8">
-            {on.length === 0 && <p className="py-12 text-center" style={{ color: "rgba(243,239,230,0.6)" }}>Nothing pouring just now. Back shortly.</p>}
+            {on.length === 0 && <p className="py-12 text-center" style={{ color: "rgba(243,239,230,0.6)" }}>Nothing on just now. Back shortly.</p>}
 
             {caskByCat.length > 0 && (
               <section className="mb-7">
@@ -1556,12 +1637,12 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
 
   const Tutorial = () => {
     const steps = [
-      [Plus, "Add stock", "Scan a pump clip, or pick from your saved library."],
-      [ArrowRight, "Move it along", "Advance each line as it goes: Store, Vented, Tapped and Ready, Pouring, Finished."],
+      [Plus, "Add stock", "Scan a cask label or pump clip, or pick from your saved library."],
+      [ArrowRight, "Move it along", "Advance each line as it goes: In Store, Racked, Vented, Tapped and Ready, On, Finished."],
       [Calendar, "Watch the dates", "The cellar flags best-before dates so nothing slips past."],
       [AlertTriangle, "Confirm allergens", "Scanned details start unverified. Check them, then tap Verify before serving."],
-      [Package, "Return empties", "When a cask goes off it moves to Empties, grouped by who collects it."],
-      [QrCode, "Show what's on", "A tap list for the bar, and an allergen sheet for customers."],
+      [Package, "Return empties", "When a cask is finished it moves to Empties, grouped by who collects it."],
+      [QrCode, "Show what's on", "A tap list for the bar and an allergen sheet for customers."],
     ];
     return (
       <div className="mx-auto max-w-2xl space-y-4">
@@ -1587,40 +1668,92 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
 
   const SwapChooser = () => {
     if (!swap) return null;
-    const close = () => setSwap(null);
-    const readyStatus = swap.drink === "cask" ? "tapped" : "in_cellar";
-    const readyKey = swap.drink === "cask" ? "tapped" : "delivered";
-    const pool = lines.filter((l) => l.drinkType === swap.drink && l.status === readyStatus).sort((a, b) => ((a.dates[readyKey]) || "").localeCompare((b.dates[readyKey]) || ""));
-    const matching = swap.category ? pool.filter((l) => (beerById[l.beerId]?.category || "Misc") === swap.category) : pool;
-    const list = matching.length ? matching : pool;
-    const emptyMsg = swap.drink === "cask" ? "Nothing tapped and ready. Vent and tap a cask in the store to get it ready." : `Nothing in the store to put on. Add ${swap.drink === "keg" ? "a keg" : "a cider"} first.`;
+    const close = () => { setSwap(null); setSwapPreviewId(null); };
+    const isCask = swap.drink === "cask";
+    const allowedCats = (!isCask || !swap.category) ? null : (swap.category === "IPA" || swap.category === "Pale") ? ["IPA", "Pale"] : [swap.category];
+    const catLabel = allowedCats ? (allowedCats.length > 1 ? "IPA or Pale" : allowedCats[0]) : null;
+    const candStatuses = isCask ? ["tapped", "vented", "racked"] : ["in_cellar"];
+    const statusRank = { tapped: 0, vented: 1, racked: 2, in_cellar: 3 };
+    const dateForStatus = (l) => l.status === "tapped" ? l.dates.tapped : l.status === "vented" ? l.dates.vented : l.status === "racked" ? l.dates.racked : l.dates.delivered;
+    const pool = lines.filter((l) => l.drinkType === swap.drink && candStatuses.includes(l.status));
+    const matching = allowedCats ? pool.filter((l) => allowedCats.includes(beerById[l.beerId]?.category || "Misc")) : pool;
+    const base = matching.length ? matching : pool;
+    const list = base.slice().sort((a, b) => (statusRank[a.status] - statusRank[b.status]) || ((dateForStatus(a) || "").localeCompare(dateForStatus(b) || "")));
+    const groupDefs = isCask ? [["tapped", "Tapped and Ready"], ["vented", "Vented"], ["racked", "Racked"]] : [["in_cellar", "Ready to go on"]];
+    const groups = groupDefs.map(([k, label]) => ({ k, label, items: list.filter((l) => l.status === k) })).filter((g) => g.items.length);
+    const emptyMsg = isCask ? "Nothing racked, vented or tapped yet. Rack and vent a cask to get one ready." : `Nothing in the store to put on. Add ${swap.drink === "keg" ? "a keg" : "a cider"} first.`;
+    const previewLine = swapPreviewId ? lines.find((l) => l.id === swapPreviewId) : null;
+    const previewBeer = previewLine ? beerById[previewLine.beerId] : null;
+    const pmeta = previewBeer ? [DRINK_TYPES.find((t) => t.key === previewLine.drinkType)?.label, previewBeer.style, `${previewBeer.abv}%`, `£${previewLine.price || "—"}`, previewLine.size ? previewLine.size.replace("Bag-in-box ", "").replace("Keg ", "") : ""].filter(Boolean).join("  ·  ") : "";
     return (
       <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(27,34,48,0.45)" }} onClick={close}>
-        <div className="w-full max-w-md overflow-y-auto rounded-t-2xl bg-white sm:rounded-2xl cc-pop" style={{ maxHeight: "85vh" }} onClick={(e) => e.stopPropagation()}>
-          <div className="sticky top-0 flex items-center justify-between gap-2 border-b bg-white p-4" style={{ borderColor: C.line }}>
-            <div className="min-w-0">
-              <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>Put one on</h2>
-              {swap.category && <p className="truncate text-xs text-slate-500">{matching.length ? `${swap.category}, tapped and ready` : `Nothing ${swap.category} ready, showing all ready casks`}</p>}
-            </div>
-            <button onClick={close} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400"><X size={18} /></button>
-          </div>
-          <div className="space-y-2 p-4">
-            {list.length ? list.map((l) => {
-              const beer = beerById[l.beerId];
-              if (!beer) return null;
-              return (
-                <button key={l.id} onClick={() => doSwap(l.id, swap.oldId)} className="flex w-full items-center justify-between gap-2 rounded-xl border bg-white p-3 text-left transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[swap.drink] || C.line }}>
-                  <span className="min-w-0">
-                    <span className="block truncate font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{beer.name}</span>
-                    <span className="block truncate text-sm text-slate-500">{beer.brewery} · {beer.style} · {beer.abv}%</span>
-                  </span>
-                  <span className="shrink-0 text-xs text-slate-400">ready {fmt(l.dates[readyKey])}</span>
-                </button>
-              );
-            }) : (
-              <div className="rounded-xl border border-dashed p-5 text-center text-sm text-slate-500" style={{ borderColor: C.line }}>{emptyMsg}</div>
-            )}
-          </div>
+        <div className="flex w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-white sm:rounded-2xl cc-pop" style={{ maxHeight: "85vh" }} onClick={(e) => e.stopPropagation()}>
+          {previewBeer ? (
+            <>
+              <div className="sticky top-0 flex items-center justify-between gap-2 border-b bg-white p-4" style={{ borderColor: C.line }}>
+                <button onClick={() => setSwapPreviewId(null)} className="inline-flex items-center gap-1 text-sm font-medium text-slate-500 transition hover:text-slate-700 focus:outline-none"><ArrowRight size={15} className="rotate-180" /> Back</button>
+                <button onClick={close} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400"><X size={18} /></button>
+              </div>
+              <div className="flex-1 space-y-4 overflow-y-auto p-4">
+                <div>
+                  <h2 className="text-xl font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{previewBeer.name}</h2>
+                  <p className="text-sm text-slate-500">{previewBeer.brewery} · {previewBeer.location}</p>
+                </div>
+                <div className="space-y-2.5">
+                  <p className="text-base font-medium text-slate-700">{pmeta}</p>
+                  <DietaryBadges beer={previewBeer} />
+                </div>
+                <div>
+                  <p className="mb-2 text-sm font-medium text-slate-500">Allergens</p>
+                  {previewBeer.allergens.length ? <div className="flex flex-wrap gap-1.5">{previewBeer.allergens.map((a) => <Badge key={a} className="bg-slate-100 text-slate-700 border-slate-200">{a}</Badge>)}</div> : <p className="text-sm text-slate-500">None recorded.</p>}
+                  {!previewBeer.allergensVerified ? (
+                    <div className="mt-2 flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-sm text-amber-800">
+                      <span className="flex items-center gap-1.5"><AlertTriangle size={15} /> Not staff verified yet</span>
+                      <button onClick={() => verify(previewBeer.id)} className="shrink-0 rounded-md bg-amber-800 px-2.5 py-1 text-xs font-medium text-white hover:bg-amber-900">Verify</button>
+                    </div>
+                  ) : <p className="mt-2 flex items-center gap-1.5 text-sm text-emerald-700"><CheckCircle2 size={15} /> Verified by staff</p>}
+                </div>
+                {previewBeer.notes && <div><p className="mb-2 text-sm font-medium text-slate-500">Tasting notes</p><p className="text-sm leading-relaxed text-slate-600">{previewBeer.notes}</p></div>}
+              </div>
+              <div className="sticky bottom-0 border-t bg-white p-4" style={{ borderColor: C.line }}>
+                <button onClick={() => doSwap(previewLine.id, swap.oldId, swap.slot)} className="flex w-full items-center justify-center gap-1.5 rounded-lg px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Check size={16} /> Put on</button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="sticky top-0 flex items-center justify-between gap-2 border-b bg-white p-4" style={{ borderColor: C.line }}>
+                <div className="min-w-0">
+                  <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>Choose next</h2>
+                  {catLabel && <p className="truncate text-xs text-slate-500">{matching.length ? catLabel : `No ${catLabel} ready, showing all casks`}</p>}
+                </div>
+                <button onClick={close} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400"><X size={18} /></button>
+              </div>
+              <div className="flex-1 space-y-3 overflow-y-auto p-4">
+                {groups.length ? groups.map((g) => (
+                  <div key={g.k} className="space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{g.label}</p>
+                    {g.items.map((l) => {
+                      const beer = beerById[l.beerId];
+                      if (!beer) return null;
+                      const when = dateForStatus(l);
+                      return (
+                        <button key={l.id} onClick={() => setSwapPreviewId(l.id)} className="flex w-full items-center justify-between gap-2 rounded-xl border bg-white p-3 text-left transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[swap.drink] || C.line }}>
+                          <span className="min-w-0">
+                            <span className="block truncate font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{beer.name}</span>
+                            <span className="block truncate text-sm font-medium text-slate-600">{beer.style} · {beer.abv}%</span>
+                            <span className="block truncate text-xs text-slate-400">{beer.brewery} · {beer.location}</span>
+                          </span>
+                          <span className="flex shrink-0 items-center gap-1 text-xs text-slate-400">{when ? fmt(when) : ""} <ArrowRight size={14} /></span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )) : (
+                  <div className="rounded-xl border border-dashed p-5 text-center text-sm text-slate-500" style={{ borderColor: C.line }}>{emptyMsg}</div>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
     );
@@ -1694,7 +1827,8 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
     const beer = beerById[openLine.beerId];
     const f = freshness(openLine);
     const bb = bbStatus(openLine);
-    const idx = STATUS_INDEX[openLine.status];
+    const flow = flowFor(openLine.drinkType);
+    const stageIdx = flow.indexOf(openLine.status);
     const alert = (f && openLine.status === "on" && f.level === "check") ? { cls: FRESH_STYLE.check, Icon: Clock, text: f.text } : null;
     const AlertIcon = alert ? alert.Icon : null;
     const bbCls = bb && bb.level === "past" ? "text-red-700" : bb && bb.level === "soon" ? "text-amber-700" : "text-slate-700";
@@ -1712,32 +1846,45 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
           </div>
           <div className="space-y-5 p-5">
             <div className="space-y-2.5">
-              <p className="text-sm text-slate-500">{meta}</p>
+              <p className="text-base font-medium text-slate-700">{meta}</p>
               <DietaryBadges beer={beer} />
               {openLine.bestBefore && <p className={`text-sm font-medium ${bbCls}`}>Best before {fmtDate(openLine.bestBefore)}{bb && bb.level === "past" ? " · passed" : ""}</p>}
             </div>
 
-            <div className="rounded-xl p-3" style={{ background: "#F4F1E9", border: `1px solid ${C.line}` }}>
+            <div>
+              <p className="mb-2 text-sm font-medium text-slate-500">Allergens</p>
+              {beer.allergens.length ? <div className="flex flex-wrap gap-1.5">{beer.allergens.map((a) => <Badge key={a} className="bg-slate-100 text-slate-700 border-slate-200">{a}</Badge>)}</div> : <p className="text-sm text-slate-500">None recorded.</p>}
+              {!beer.allergensVerified ? (
+                <div className="mt-2 flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-sm text-amber-800">
+                  <span className="flex items-center gap-1.5"><AlertTriangle size={15} /> Not staff verified yet</span>
+                  <button onClick={() => verify(beer.id)} className="shrink-0 rounded-md bg-amber-800 px-2.5 py-1 text-xs font-medium text-white hover:bg-amber-900">Verify</button>
+                </div>
+              ) : <p className="mt-2 flex items-center gap-1.5 text-sm text-emerald-700"><CheckCircle2 size={15} /> Verified by staff</p>}
+            </div>
+
+            {beer.notes && <div><p className="mb-2 text-sm font-medium text-slate-500">Tasting notes</p><p className="text-sm leading-relaxed text-slate-600">{beer.notes}</p></div>}
+
+            <div className="border-t pt-4" style={{ borderColor: C.line }}>
               <div className="flex gap-1.5">
-                {VISIBLE_STATUSES.map((s, i) => {
-                  const vIdx = idx - FIRST_IDX;
-                  const done = i <= vIdx;
-                  const cur = i === vIdx;
+                {flow.map((key, i) => {
+                  const s = STATUS_BY_KEY[key];
+                  const done = i <= stageIdx;
+                  const cur = i === stageIdx;
                   return (
                     <div key={s.key} className="flex-1 text-center">
-                      <div className="h-1.5 rounded-full" style={{ background: done ? C.brass : "#E0DCD2" }} />
-                      <p className="mt-1 text-xs leading-tight" style={{ color: cur ? C.ink : "#9aa1ac", fontWeight: cur ? 700 : 400 }}>{s.key === "tapped" ? "Tapped" : s.label}</p>
+                      <div className="h-1 rounded-full" style={{ background: done ? C.brass : "#E6E2D8" }} />
+                      <p className="mt-1 text-xs leading-tight" style={{ color: cur ? C.ink : "#A8AEB8", fontWeight: cur ? 600 : 400 }}>{s.key === "tapped" ? "Tapped" : s.label}</p>
                     </div>
                   );
                 })}
               </div>
               {alert && <p className="mt-2.5 inline-flex items-center gap-1 text-xs font-semibold text-amber-700">{AlertIcon && <AlertIcon size={13} />} {alert.text}</p>}
               <div className="mt-3 flex gap-2">
-                {idx > FIRST_IDX && <button onClick={() => goBack(openLine.id)} className="inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-lg border bg-white px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><ArrowRight size={15} className="rotate-180" /> Back</button>}
+                {stageIdx > 0 && <button onClick={() => goBack(openLine.id)} className="inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-lg border bg-white px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><ArrowRight size={15} className="rotate-180" /> Back</button>}
                 {openLine.status === "on"
                   ? <button onClick={() => finishAndChoose(openLine)} className="inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Check size={16} /> Line finished</button>
-                  : idx < STATUSES.length - 1
-                    ? <button onClick={() => advance(openLine.id)} className="inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}>Advance to {STATUSES[idx + 1].key === "tapped" ? "Tapped" : STATUSES[idx + 1].label} <ArrowRight size={15} /></button>
+                  : stageIdx < flow.length - 1
+                    ? <button onClick={() => advance(openLine.id)} className="inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}>Advance to {flow[stageIdx + 1] === "tapped" ? "Tapped" : STATUS_BY_KEY[flow[stageIdx + 1]].label} <ArrowRight size={15} /></button>
                     : null}
               </div>
               {openLine.status === "off" && openLine.drinkType !== "cider" && (openLine.collected
@@ -1747,8 +1894,9 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
               {lineDetails && (
                 <div className="mt-3 space-y-3 border-t pt-3" style={{ borderColor: C.line }}>
                   <ol className="space-y-1.5">
-                    {STATUSES.map((s, i) => {
-                      const done = i <= idx;
+                    {flow.map((key, i) => {
+                      const s = STATUS_BY_KEY[key];
+                      const done = i <= stageIdx;
                       return (
                         <li key={s.key} className="flex items-center justify-between text-sm">
                           <span className={`flex items-center gap-2 ${done ? "text-slate-800" : "text-slate-400"}`}>{done ? <CheckCircle2 size={15} className="text-emerald-600" /> : <span className="h-3.5 w-3.5 rounded-full border border-slate-300" />}{s.label}</span>
@@ -1765,19 +1913,6 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
                 </div>
               )}
             </div>
-
-            <div>
-              <p className="mb-2 text-sm font-medium text-slate-500">Allergens</p>
-              {beer.allergens.length ? <div className="flex flex-wrap gap-1.5">{beer.allergens.map((a) => <Badge key={a} className="bg-slate-100 text-slate-700 border-slate-200">{a}</Badge>)}</div> : <p className="text-sm text-slate-500">None recorded.</p>}
-              {!beer.allergensVerified ? (
-                <div className="mt-2 flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-sm text-amber-800">
-                  <span className="flex items-center gap-1.5"><AlertTriangle size={15} /> Not verified yet</span>
-                  <button onClick={() => verify(beer.id)} className="shrink-0 rounded-md bg-amber-800 px-2.5 py-1 text-xs font-medium text-white hover:bg-amber-900">Verify</button>
-                </div>
-              ) : <p className="mt-2 flex items-center gap-1.5 text-sm text-emerald-700"><CheckCircle2 size={15} /> Verified by staff</p>}
-            </div>
-
-            {beer.notes && <div><p className="mb-2 text-sm font-medium text-slate-500">Tasting notes</p><p className="text-sm leading-relaxed text-slate-600">{beer.notes}</p></div>}
 
             <div className="flex items-center justify-between border-t pt-4" style={{ borderColor: C.line }}>
               <button onClick={() => { setEditBeerId(beer.id); setOpenId(null); }} className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 transition hover:text-slate-900"><Pencil size={15} /> Edit details</button>
@@ -1861,7 +1996,7 @@ body { touch-action: manipulation; overscroll-behavior-y: contain; }
         <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-slate-400">
           <span className="inline-flex items-center gap-1.5">{storageOk === false ? <><AlertTriangle size={13} /> Not saving here</> : <><Check size={13} /> Saved</>}</span>
           {!confirmReset ? (
-            <button onClick={() => setConfirmReset(true)} title="Reset to the original lineup" className="inline-flex items-center gap-1 font-medium text-slate-500 hover:text-slate-700"><RotateCcw size={13} /> Reset</button>
+            <button onClick={() => setConfirmReset(true)} title="Reset to the original line-up" className="inline-flex items-center gap-1 font-medium text-slate-500 hover:text-slate-700"><RotateCcw size={13} /> Reset</button>
           ) : (
             <span className="inline-flex items-center gap-2">
               <span className="text-slate-500">Reset everything?</span>
