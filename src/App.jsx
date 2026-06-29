@@ -1004,7 +1004,9 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     const beer = beerById[line.beerId];
     if (!beer) return null;
     const sig = cardSignal(line);
-    const showBadge = context === "racked" || sig.alert;
+    const storeBB = context === "store" && line.bestBefore && !sig.alert;
+    const showBadge = context === "racked" || sig.alert || storeBB;
+    const badgeText = storeBB ? `Best before ${fmtDate(line.bestBefore)}` : sig.text;
     return (
       <button onClick={() => setOpenId(line.id)} className="w-full rounded-2xl border bg-white p-3 text-left transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-amber-300 active:scale-95" style={{ borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[line.drinkType] || C.line, boxShadow: "0 1px 2px rgba(27,34,48,0.04), 0 2px 8px -4px rgba(27,34,48,0.10)" }}>
         <div className="flex items-start justify-between gap-2">
@@ -1015,7 +1017,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           </div>
         </div>
         <div className="mt-1.5 flex items-center gap-2" style={{ minHeight: 24 }}>
-          {showBadge && <Badge className={`whitespace-nowrap ${sig.warn ? "bg-red-50 text-red-700 border-red-200" : "bg-slate-100 text-slate-600 border-slate-200"}`}>{sig.text}</Badge>}
+          {showBadge && <Badge className={`whitespace-nowrap ${sig.warn ? "bg-red-50 text-red-700 border-red-200" : "bg-slate-100 text-slate-600 border-slate-200"}`}>{badgeText}</Badge>}
           {!beer.allergensVerified && <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600"><AlertTriangle size={14} /> Not staff verified</span>}
           <span className="ml-auto"><DietaryMini beer={beer} /></span>
         </div>
@@ -1753,14 +1755,14 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
       return (
         <div className="py-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
           <div className="flex items-baseline justify-between gap-3">
-            <p className="text-lg font-semibold" style={{ color: C.cream, fontFamily: "Fraunces, Georgia, serif" }}>{beer.name}</p>
+            <p className="text-lg font-semibold" style={{ color: C.cream, fontFamily: "Fraunces, Georgia, serif" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</p>
             <div className="shrink-0 text-right">
               <p className="text-lg font-semibold" style={{ color: C.brassSoft, fontFamily: "Fraunces, Georgia, serif" }}>{tlp ? tlp.pint : `£${line.price || "—"}`}</p>
               {tlp && <p className="text-xs" style={{ color: "rgba(243,239,230,0.55)" }}>Half {tlp.half} · Schooner {tlp.schooner}</p>}
             </div>
           </div>
           <p className="text-sm font-medium" style={{ color: "rgba(243,239,230,0.85)" }}>{beer.style} · {beer.abv}%{beer.clarity ? ` · ${beer.clarity}` : ""}</p>
-          <p className="text-xs" style={{ color: "rgba(243,239,230,0.5)" }}>{beer.brewery}{beer.location ? ` · ${beer.location}` : ""}</p>
+          {beer.location && <p className="text-xs" style={{ color: "rgba(243,239,230,0.5)" }}>{beer.location}</p>}
           {beer.notes && <p className="mt-1 text-sm italic" style={{ color: faint }}>{beer.notes}</p>}
           <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
             {diet.map((d) => <span key={d} className="text-xs font-semibold uppercase tracking-wide" style={{ color: C.brassSoft }}>{d}</span>)}
