@@ -10,7 +10,7 @@ const C = {
   ink: "#1B2230", inkSoft: "#2B3445", brass: "#A9791F", brassSoft: "#C79A3E",
   stone: "#E8E7E2", surface: "#FCFBF9", line: "#DBD8D0", cream: "#F3EFE6",
 };
-const TYPE_ACCENT = { cask: "#A9791F", keg: "#3F6E8C", cider: "#5E8C4F" };
+const TYPE_ACCENT = { cask: "#A9791F", keg: "#3F6E8C", keykeg: "#3F6E8C", cider: "#5E8C4F" };
 const CAT_ACCENT = { IPA: "#A9791F", Pale: "#C79A3E", Bitter: "#9C6B2E", "Stout/Porter": "#4E3B30", Stout: "#4E3B30", Porter: "#4E3B30", Misc: "#9AA1AC" };
 const STORE_KEY = "curfew-cellar:data:v1";
 const MODEL = "claude-sonnet-4-6";
@@ -103,7 +103,7 @@ const assignPumps = (ls, catOf) => {
   place(onCask.filter((l) => catOf(l) === "Stout/Porter"), ["cask3"]);
   place(onCask.filter((l) => !l.slot), PUMPS.cask);
   ["keg", "cider"].forEach((drink) => {
-    const on = out.filter((l) => l.status === "on" && l.drinkType === drink);
+    const on = out.filter((l) => l.status === "on" && PUMP_DRINK(l.drinkType) === drink);
     const tk = new Set();
     on.forEach((l) => { if (l.slot && PUMPS[drink].includes(l.slot) && !tk.has(l.slot)) tk.add(l.slot); else l.slot = null; });
     const free = PUMPS[drink].filter((p) => !tk.has(p));
@@ -132,8 +132,11 @@ const STATUS_STYLE = {
 const DRINK_TYPES = [
   { key: "cask", label: "Cask ale" },
   { key: "keg", label: "Keg" },
+  { key: "keykeg", label: "Key Keg" },
   { key: "cider", label: "Draught cider" },
 ];
+// Key kegs run through the keg taps, so they share the keg pump group.
+const PUMP_DRINK = (dt) => (dt === "keykeg" ? "keg" : dt);
 const CATEGORIES = ["IPA", "Pale", "Bitter", "Stout/Porter", "Misc"];
 const CAT_STYLE = {
   IPA: "bg-amber-50 text-amber-800 border-amber-200",
@@ -233,89 +236,107 @@ const aiDraft = (name) => {
 
 // ---------- Demo data ----------
 const seedLibrary = [
-  { id: "b1", brewery: "Wylam", location: "Newcastle upon Tyne", name: "Jakehead IPA", style: "IPA", abv: "6.3", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Wheat (gluten)"], notes: "Heavyweight West Coast IPA, resinous pine and grapefruit.", allergensVerified: true, category: "IPA", history: [{ date: isoDaysAgo(120), abv: "6.0", price: "4.20" }, { date: isoDaysAgo(40), abv: "6.3", price: "4.40" }, { date: isoDaysAgo(3), abv: "6.3", price: "4.60" }] },
-  { id: "b2", brewery: "Mordue", location: "North Shields", name: "Radgie Gadgie", style: "IPA", abv: "4.8", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)", "Fish (isinglass finings)"], notes: "Strong, hoppy amber IPA with a firm bitter finish.", allergensVerified: false, category: "IPA" },
-  { id: "b3", brewery: "Stewart Brewing", location: "Edinburgh", name: "Pentland IPA", style: "Session IPA", abv: "3.9", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Light, hoppy session IPA, citrus and a dry close.", allergensVerified: true, category: "IPA" },
-  { id: "b4", brewery: "Allendale", location: "Allendale, Northumberland", name: "Pennine Pale", style: "Pale Ale", abv: "3.7", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Easy-going pale, lemon and soft floral hops.", allergensVerified: true, category: "Pale", history: [{ date: isoDaysAgo(180), abv: "3.6", price: "3.40" }, { date: isoDaysAgo(50), abv: "3.7", price: "3.60" }, { date: isoDaysAgo(4), abv: "3.7", price: "3.70" }] },
-  { id: "b5", brewery: "Tempest Brewing Co", location: "Tweedbank, Scottish Borders", name: "Long White Cloud", style: "Pale Ale", abv: "5.6", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Oats (gluten)"], notes: "NZ-hopped pale, tropical fruit and a juicy body.", allergensVerified: true, category: "Pale" },
-  { id: "b6", brewery: "Hadrian Border", location: "Newcastle upon Tyne", name: "Farne Island Pale Ale", style: "Pale Ale", abv: "4.0", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)", "Fish (isinglass finings)"], notes: "Well-balanced golden pale, biscuit malt and citrus.", allergensVerified: false, category: "Pale" },
-  { id: "b7", brewery: "Mordue", location: "North Shields", name: "Workie Ticket", style: "Best Bitter", abv: "4.5", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)", "Fish (isinglass finings)"], notes: "Complex, multi-hopped bitter. A North East classic.", allergensVerified: false, category: "Bitter", history: [{ date: isoDaysAgo(160), abv: "4.5", price: "3.70" }, { date: isoDaysAgo(40), abv: "4.5", price: "3.85" }, { date: isoDaysAgo(2), abv: "4.5", price: "3.90" }] },
-  { id: "b8", brewery: "Broughton Ales", location: "Broughton, Scottish Borders", name: "Greenmantle Ale", style: "Best Bitter", abv: "3.9", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Traditional Borders amber bitter, malty and rounded.", allergensVerified: true, category: "Bitter" },
-  { id: "b9", brewery: "Big Lamp", location: "Newburn, Newcastle", name: "Prince Bishop Ale", style: "Best Bitter", abv: "4.8", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)", "Fish (isinglass finings)"], notes: "Pale, refreshing strong bitter with a hoppy lift.", allergensVerified: false, category: "Bitter" },
-  { id: "b10", brewery: "Maxim Brewery", location: "Houghton-le-Spring", name: "Double Maxim", style: "Brown Ale", abv: "4.7", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)"], notes: "Legendary North East brown ale, nutty and smooth.", allergensVerified: true, category: "Bitter" },
-  { id: "b11", brewery: "Big Lamp", location: "Newburn, Newcastle", name: "Summerhill Stout", style: "Stout", abv: "4.4", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Oats (gluten)"], notes: "Dry Irish-style stout, roast coffee and dark chocolate.", allergensVerified: true, category: "Stout/Porter", history: [{ date: isoDaysAgo(150), abv: "4.4", price: "3.80" }, { date: isoDaysAgo(30), abv: "4.4", price: "3.95" }, { date: isoDaysAgo(1), abv: "4.4", price: "4.00" }] },
-  { id: "b12", brewery: "Allendale", location: "Allendale, Northumberland", name: "Tar Bar'l", style: "Smoked Porter", abv: "5.4", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Rich smoked porter, treacle, roast and a wisp of smoke.", allergensVerified: true, category: "Stout/Porter" },
-  { id: "b13", brewery: "Traquair House", location: "Innerleithen, Scottish Borders", name: "Jacobite Ale", style: "Strong Ale", abv: "8.0", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Oak-aged strong ale spiced with coriander. A sipper.", allergensVerified: true, category: "Stout/Porter" },
-  { id: "b14", brewery: "Born in the Borders", location: "Jedburgh, Scottish Borders", name: "Foxy Blonde", style: "Blonde Ale", abv: "4.0", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Light blonde ale, honeyed malt and gentle hops.", allergensVerified: true, category: "Pale" },
-  { id: "b15", brewery: "Firebrick", location: "Blaydon", name: "Blaydon Brick", style: "Amber Ale", abv: "4.6", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)", "Fish (isinglass finings)"], notes: "Malty amber ale, caramel and a balanced bitterness.", allergensVerified: false, category: "Bitter" },
-  { id: "b16", brewery: "Donzoko", location: "Hartlepool", name: "Northern Helles", style: "Helles Lager", abv: "4.7", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Crisp, clean German-style Helles. Pure refreshment.", allergensVerified: true, category: "Misc", history: [{ date: isoDaysAgo(90), abv: "4.7", price: "5.00" }, { date: isoDaysAgo(20), abv: "4.7", price: "5.20" }] },
-  { id: "b17", brewery: "Tempest Brewing Co", location: "Tweedbank, Scottish Borders", name: "Modern Helles", style: "Helles Lager", abv: "4.6", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Soft, bready lager with a delicate noble-hop finish.", allergensVerified: true, category: "Misc" },
-  { id: "b18", brewery: "Two by Two", location: "Wallsend", name: "Leap Frog", style: "Pale Ale", abv: "4.2", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Oats (gluten)"], notes: "Smooth, juicy pale, stone fruit and citrus.", allergensVerified: true, category: "Misc" },
-  { id: "b19", brewery: "Anarchy Brew Co", location: "Newcastle upon Tyne", name: "Blonde Star", style: "Blonde Ale", abv: "4.0", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Zesty, sessionable blonde with a clean snap.", allergensVerified: true, category: "Misc" },
-  { id: "b20", brewery: "Wylam", location: "Newcastle upon Tyne", name: "Hickey the Rake", style: "Saison", abv: "4.2", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Wheat (gluten)"], notes: "Belgian-inspired saison, peppery and dry.", allergensVerified: true, category: "Misc" },
-  { id: "b21", brewery: "Stewart Brewing", location: "Edinburgh", name: "Ka Pai", style: "Pale Ale", abv: "4.5", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Oats (gluten)"], notes: "New-world pale bursting with passionfruit.", allergensVerified: true, category: "Misc" },
-  { id: "b22", brewery: "Cross Borders", location: "Dalkeith", name: "Heavy", style: "Scottish Ale", abv: "4.0", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Malt-forward Scottish heavy, toffee and a dry finish.", allergensVerified: true, category: "Misc" },
-  { id: "b23", brewery: "Vault City", location: "Edinburgh", name: "Strawberry Skies", style: "Sour", abv: "5.0", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Wheat (gluten)"], notes: "Bright modern fruited sour, jammy strawberry.", allergensVerified: true, category: "Misc" },
-  { id: "b24", brewery: "Northern Monk", location: "Leeds", name: "Faith", style: "Pale Ale", abv: "5.4", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Wheat (gluten)", "Oats (gluten)"], notes: "Flagship hazy pale, soft and tropical.", allergensVerified: true, category: "Misc" },
-  { id: "b25", brewery: "Lost & Grounded", location: "Bristol", name: "Keller Pils", style: "Pilsner", abv: "4.8", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Unfiltered keller pils, crisp and herbal.", allergensVerified: true, category: "Misc" },
-  { id: "b26", brewery: "Donzoko", location: "Hartlepool", name: "Northern Lager", style: "Lager", abv: "4.2", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Everyday lager done properly, clean and dry.", allergensVerified: true, category: "Misc" },
-  { id: "b27", brewery: "Thistly Cross", location: "Dunbar, East Lothian", name: "Original Cider", style: "Medium Cider", abv: "4.4", clarity: "Clear", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Scotland's flagship cider, medium and easy-drinking.", allergensVerified: true, category: "Misc" },
-  { id: "b28", brewery: "Thistly Cross", location: "Dunbar, East Lothian", name: "Traditional Scottish", style: "Dry Cider", abv: "4.0", clarity: "Clear", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Bone-dry traditional cider, sharp and rustic.", allergensVerified: true, category: "Misc" },
-  { id: "b29", brewery: "Thistly Cross", location: "Dunbar, East Lothian", name: "Whisky Cask", style: "Cider", abv: "6.9", clarity: "Clear", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Aged in Scotch casks, rich with vanilla and oak.", allergensVerified: true, category: "Misc" },
-  { id: "b30", brewery: "Westons", location: "Much Marcle, Herefordshire", name: "Old Rosie", style: "Cloudy Scrumpy", abv: "7.3", clarity: "Hazy", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Cloudy scrumpy with a powerful, fruity punch.", allergensVerified: true, category: "Misc" },
-  { id: "b31", brewery: "Sandford Orchards", location: "Crediton, Devon", name: "Devon Red", style: "Medium Cider", abv: "4.5", clarity: "Clear", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Classic Devon medium cider, smooth and orchard-fresh.", allergensVerified: true, category: "Misc" },
-  { id: "b32", brewery: "Dunkertons", location: "Pembridge, Herefordshire", name: "Black Fox", style: "Organic Cider", abv: "7.0", clarity: "Clear", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Organic still-ish cider, dry and characterful.", allergensVerified: true, category: "Misc" },
-  { id: "b33", brewery: "Hawkes", location: "London", name: "Urban Orchard", style: "Cider", abv: "4.5", clarity: "Clear", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Bright, crunchy apple cider from rescued fruit.", allergensVerified: true, category: "Misc" },
-  { id: "b34", brewery: "Hop Back", location: "Salisbury, Wiltshire", name: "Summer Lightning", style: "Golden Ale", abv: "5.0", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)"], notes: "Straw-coloured golden ale. Fresh, hoppy aroma, clean bitterness and a long dry finish.", allergensVerified: true, category: "Pale" },
-  { id: "b35", brewery: "Tempest Brewing Co", location: "Tweedbank, Scottish Borders", name: "Pale Armadillo", style: "Session IPA", abv: "3.8", clarity: "Hazy", glutenStatus: "Gluten-free", vegan: true, allergens: ["Barley (gluten)", "Oats (gluten)"], notes: "Session IPA. Orange citrus and tropical fruit over light malt, with a dry hoppy finish.", allergensVerified: true, category: "Pale" },
-  { id: "b36", brewery: "Marble", location: "Manchester", name: "Manchester Bitter", style: "Bitter", abv: "4.2", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Wheat (gluten)"], notes: "Pale, hoppy Manchester-style bitter. Crisp bitterness with a floral, lemony aroma.", allergensVerified: true, category: "Bitter" },
-  { id: "b37", brewery: "Titanic", location: "Stoke-on-Trent", name: "Plum Porter", style: "Porter", abv: "4.9", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)", "Wheat (gluten)"], notes: "Dark ruby porter. Rich plum and stone fruit over roasted, chocolate malt with a gentle hop finish.", allergensVerified: true, category: "Stout/Porter" },
-  { id: "b38", brewery: "Verdant", location: "Falmouth, Cornwall", name: "Lightbulb", style: "Pale Ale", abv: "4.5", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Oats (gluten)"], notes: "Hazy extra pale. Juicy citrus and tropical hops over a biscuity malt base.", allergensVerified: true, category: "Pale" },
-  { id: "b39", brewery: "Pilot", location: "Leith, Edinburgh", name: "Peach Melba Sour", style: "Sour", abv: "4.3", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Wheat (gluten)", "Oats (gluten)"], notes: "Fruited sour. Peach, raspberry and vanilla with an ice-cream-like sweetness.", allergensVerified: true, category: "Misc" },
-  { id: "b40", brewery: "Brasserie de la Senne", location: "Brussels, Belgium", name: "Stouterik", style: "Dry Stout", abv: "5.0", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)"], notes: "Belgian dry stout. Deep black with roasted malt, coffee and chocolate, finishing dry.", allergensVerified: true, category: "Stout/Porter" },
-  { id: "b41", brewery: "Turners Cider", location: "Marden, Kent", name: "Rhubarb", style: "Fruit Cider", abv: "4.0", clarity: "Hazy", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Kentish apple cider blended with fresh-pressed rhubarb. Sweet, tart and refreshing.", allergensVerified: true, category: "Misc" },
-  { id: "b42", brewery: "Dudda's Tun", location: "Doddington, Kent", name: "Wild Haze", style: "Cider", abv: "5.4", clarity: "Hazy", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Medium, semi-cloudy Kentish cider. Smooth, juicy and easy-drinking.", allergensVerified: true, category: "Misc" },
+  { id: "b1", brewery: "Ampersand", location: "", name: "Extra Pale Ale", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Pale" },
+  { id: "b2", brewery: "Bank Top", location: "", name: "Harlequin", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Pale" },
+  { id: "b3", brewery: "Timothy Taylor", location: "", name: "Landlord", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Bitter" },
+  { id: "b4", brewery: "Durham", location: "", name: "Dark Angel", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Stout/Porter" },
+  { id: "b5", brewery: "Blackjack", location: "", name: "Spring and Axle", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "IPA" },
+  { id: "b6", brewery: "Fyne", location: "", name: "Hurricane Jack", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "IPA" },
+  { id: "b7", brewery: "Ossett", location: "", name: "White Rat", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Pale" },
+  { id: "b8", brewery: "Cheviot", location: "", name: "Upland Ale", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Bitter" },
+  { id: "b9", brewery: "Marble", location: "", name: "Whitehead's", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Stout/Porter" },
+  { id: "b10", brewery: "Ossett", location: "", name: "Butterley", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Misc" },
+  { id: "b11", brewery: "Oakham", location: "", name: "Citra", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Misc" },
+  { id: "b12", brewery: "Castle Rock", location: "", name: "Preservation", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Misc" },
+  { id: "b13", brewery: "Black Isle", location: "", name: "Porter", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Misc" },
+  { id: "b14", brewery: "Timothy Taylor", location: "", name: "Golden Best", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Misc" },
+  { id: "b15", brewery: "Tempest", location: "", name: "Long White Cloud", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Misc" },
+  { id: "b16", brewery: "Hop Back", location: "", name: "Crop Circle", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Misc" },
+  { id: "b17", brewery: "Hop Back", location: "", name: "Summer Lightning", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Misc" },
+  { id: "b18", brewery: "Burton Bridge", location: "", name: "Sunshine Pale", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Misc" },
+  { id: "b19", brewery: "Arbor", location: "", name: "Oyster Stout", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Misc" },
+  { id: "b20", brewery: "Burning Sky", location: "", name: "Plateau", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Misc" },
+  { id: "b21", brewery: "Fyne", location: "", name: "Avalanche", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Misc" },
+  { id: "b22", brewery: "The Kernel", location: "", name: "Summer Pale Krush", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Misc" },
+  { id: "b23", brewery: "Hop Back", location: "", name: "Citra", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Misc" },
+  { id: "b24", brewery: "Fyne", location: "", name: "Jarl", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Misc" },
+  { id: "b25", brewery: "Neptune", location: "", name: "Abyss", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Misc" },
+  { id: "b26", brewery: "Loch Lomond", location: "", name: "Silkie Stout", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Misc" },
+  { id: "b27", brewery: "Loch Lomond", location: "", name: "Lost in Mosaic", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Misc" },
+  { id: "b28", brewery: "Tempest", location: "", name: "Cresta", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Misc" },
+  { id: "b29", brewery: "Cheviot", location: "", name: "Black Hag", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Misc" },
+  { id: "b30", brewery: "Fyne", location: "", name: "Like Clockwork", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Misc" },
+  { id: "b31", brewery: "Two by Two", location: "", name: "Strata Pale", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Misc" },
+  { id: "b32", brewery: "Rodenbach", location: "", name: "Fruitage", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Misc" },
+  { id: "b33", brewery: "Wylam", location: "", name: "State of Mind", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Misc" },
+  { id: "b34", brewery: "Burning Sky", location: "", name: "Three Arms", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Misc" },
+  { id: "b35", brewery: "The Kernel", location: "", name: "Pale Ale Citra", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Misc" },
+  { id: "b36", brewery: "Deya", location: "", name: "Steady Rolling Man", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Misc" },
+  { id: "b37", brewery: "Tempest", location: "", name: "Daisy Age", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Misc" },
+  { id: "b38", brewery: "Tempest", location: "", name: "Graceland Pilsner", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Misc" },
+  { id: "b39", brewery: "Polly's", location: "", name: "The Ritual Continues", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Misc" },
+  { id: "b40", brewery: "Burning Sky", location: "", name: "Le Coeur Framboise", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Misc" },
+  { id: "b41", brewery: "Schneider Weisse", location: "", name: "Hefeweissbier", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Misc" },
+  { id: "b42", brewery: "Weston's", location: "", name: "Old Rosie", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Misc" },
+  { id: "b43", brewery: "Broadoak", location: "", name: "Rhubarb", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Misc" },
+  { id: "b44", brewery: "Dudda's Tun", location: "", name: "Wild Haze", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Misc" },
+  { id: "b45", brewery: "Thistly Cross", location: "", name: "Cloudy", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Misc" },
+  { id: "b46", brewery: "Sandford Orchards", location: "", name: "Blackberry", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Misc" },
+  { id: "b47", brewery: "Celtic Marches", location: "", name: "Wild Berries", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Misc" },
+  { id: "b48", brewery: "Dudda's Tun", location: "", name: "Disco", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", allergensVerified: false, category: "Misc" },
 ];
 const seedLines = [
-  { id: "l1", beerId: "b34", drinkType: "cask", size: "", price: "4.90", status: "on", slot: "cask0", caskOwner: "6 Barrells", collected: false, bestBefore: dateInDays(5), dates: { ordered: isoDaysAgo(12), delivered: isoDaysAgo(9), racked: isoDaysAgo(9), vented: isoDaysAgo(3), tapped: isoDaysAgo(2), on: isoDaysAgo(2), off: null } },
-  { id: "l2", beerId: "b35", drinkType: "cask", size: "", price: "4.60", status: "on", slot: "cask1", caskOwner: "6 Barrells", collected: false, bestBefore: dateInDays(1), dates: { ordered: isoDaysAgo(14), delivered: isoDaysAgo(10), racked: isoDaysAgo(10), vented: isoDaysAgo(4), tapped: isoDaysAgo(3), on: isoDaysAgo(3), off: null } },
-  { id: "l3", beerId: "b36", drinkType: "cask", size: "", price: "4.50", status: "on", slot: "cask2", caskOwner: "LWC", collected: false, bestBefore: dateInDays(4), dates: { ordered: isoDaysAgo(11), delivered: isoDaysAgo(8), racked: isoDaysAgo(8), vented: isoDaysAgo(3), tapped: isoDaysAgo(2), on: isoDaysAgo(2), off: null } },
-  { id: "l4", beerId: "b37", drinkType: "cask", size: "", price: "4.90", status: "on", slot: "cask3", caskOwner: "6 Barrells", collected: false, bestBefore: dateInDays(6), dates: { ordered: isoDaysAgo(10), delivered: isoDaysAgo(7), racked: isoDaysAgo(7), vented: isoDaysAgo(2), tapped: isoDaysAgo(1), on: isoDaysAgo(1), off: null } },
-  { id: "l5", beerId: "b6", drinkType: "cask", size: "", price: "3.80", status: "tapped", caskOwner: "LWC", collected: false, bestBefore: dateInDays(8), dates: { ordered: isoDaysAgo(6), delivered: isoDaysAgo(4), racked: isoDaysAgo(4), vented: isoDaysAgo(2), tapped: isoDaysAgo(1), on: null, off: null } },
-  { id: "l6", beerId: "b5", drinkType: "cask", size: "", price: "4.60", status: "racked", caskOwner: "HB Clark", collected: false, bestBefore: dateInDays(7), dates: { ordered: isoDaysAgo(5), delivered: isoDaysAgo(3), racked: isoDaysAgo(2), vented: null, tapped: null, on: null, off: null } },
-  { id: "l7", beerId: "b3", drinkType: "cask", size: "", price: "3.60", status: "tapped", caskOwner: "HB Clark", collected: false, bestBefore: dateInDays(9), dates: { ordered: isoDaysAgo(6), delivered: isoDaysAgo(4), racked: isoDaysAgo(4), vented: isoDaysAgo(2), tapped: isoDaysAgo(1), on: null, off: null } },
-  { id: "l8", beerId: "b2", drinkType: "cask", size: "", price: "4.20", status: "vented", caskOwner: "HB Clark", collected: false, bestBefore: dateInDays(6), dates: { ordered: isoDaysAgo(4), delivered: isoDaysAgo(2), racked: isoDaysAgo(2), vented: isoDaysAgo(1), tapped: null, on: null, off: null } },
-  { id: "l9", beerId: "b8", drinkType: "cask", size: "", price: "3.70", status: "tapped", caskOwner: "LWC", collected: false, bestBefore: dateInDays(5), dates: { ordered: isoDaysAgo(5), delivered: isoDaysAgo(3), racked: isoDaysAgo(3), vented: isoDaysAgo(1), tapped: isoDaysAgo(1), on: null, off: null } },
-  { id: "l10", beerId: "b12", drinkType: "cask", size: "", price: "4.40", status: "tapped", caskOwner: "6 Barrells", collected: false, bestBefore: dateInDays(12), dates: { ordered: isoDaysAgo(7), delivered: isoDaysAgo(5), racked: isoDaysAgo(5), vented: isoDaysAgo(2), tapped: isoDaysAgo(1), on: null, off: null } },
-  { id: "l11", beerId: "b9", drinkType: "cask", size: "", price: "4.10", status: "in_cellar", caskOwner: "LWC", collected: false, bestBefore: dateInDays(20), dates: { ordered: isoDaysAgo(3), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
-  { id: "l12", beerId: "b10", drinkType: "cask", size: "", price: "4.00", status: "in_cellar", caskOwner: "HB Clark", collected: false, bestBefore: dateInDays(25), dates: { ordered: isoDaysAgo(4), delivered: isoDaysAgo(2), vented: null, tapped: null, on: null, off: null } },
-  { id: "l13", beerId: "b13", drinkType: "cask", size: "", price: "5.20", status: "in_cellar", caskOwner: "LWC", collected: false, bestBefore: dateInDays(45), dates: { ordered: isoDaysAgo(3), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
-  { id: "l14", beerId: "b14", drinkType: "cask", size: "", price: "3.80", status: "in_cellar", caskOwner: "HB Clark", collected: false, bestBefore: dateInDays(15), dates: { ordered: isoDaysAgo(5), delivered: isoDaysAgo(3), vented: null, tapped: null, on: null, off: null } },
-  { id: "l15", beerId: "b15", drinkType: "cask", size: "", price: "4.00", status: "off", caskOwner: "6 Barrells", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(18), delivered: isoDaysAgo(15), racked: isoDaysAgo(15), vented: isoDaysAgo(12), tapped: isoDaysAgo(11), on: isoDaysAgo(10), off: isoDaysAgo(1) } },
-  { id: "l16", beerId: "b1", drinkType: "cask", size: "", price: "4.60", status: "off", caskOwner: "HB Clark", collected: true, bestBefore: "", dates: { ordered: isoDaysAgo(30), delivered: isoDaysAgo(27), racked: isoDaysAgo(27), vented: isoDaysAgo(24), tapped: isoDaysAgo(23), on: isoDaysAgo(22), off: isoDaysAgo(3) } },
-  { id: "l17", beerId: "b38", drinkType: "keg", size: "Keg 30L", price: "5.60", status: "on", slot: "keg0", caskOwner: "HB Clark", collected: false, bestBefore: dateInDays(30), dates: { ordered: isoDaysAgo(12), delivered: isoDaysAgo(9), vented: null, tapped: null, on: isoDaysAgo(4), off: null } },
-  { id: "l18", beerId: "b39", drinkType: "keg", size: "Keg 30L", price: "5.50", status: "on", slot: "keg1", caskOwner: "LWC", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(10), delivered: isoDaysAgo(7), vented: null, tapped: null, on: isoDaysAgo(2), off: null } },
-  { id: "l19", beerId: "b40", drinkType: "keg", size: "Keg 50L", price: "6.00", status: "on", slot: "keg2", caskOwner: "6 Barrells", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(11), delivered: isoDaysAgo(8), vented: null, tapped: null, on: isoDaysAgo(3), off: null } },
-  { id: "l20", beerId: "b17", drinkType: "keg", size: "Keg 30L", price: "5.20", status: "in_cellar", caskOwner: "HB Clark", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(3), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
-  { id: "l21", beerId: "b20", drinkType: "keg", size: "Keg 30L", price: "5.40", status: "in_cellar", caskOwner: "HB Clark", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(4), delivered: isoDaysAgo(2), vented: null, tapped: null, on: null, off: null } },
-  { id: "l22", beerId: "b21", drinkType: "keg", size: "Keg 30L", price: "5.30", status: "in_cellar", caskOwner: "LWC", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(3), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
-  { id: "l23", beerId: "b22", drinkType: "keg", size: "Keg 50L", price: "4.60", status: "in_cellar", caskOwner: "6 Barrells", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(4), delivered: isoDaysAgo(2), vented: null, tapped: null, on: null, off: null } },
-  { id: "l24", beerId: "b23", drinkType: "keg", size: "Keg 30L", price: "5.80", status: "in_cellar", caskOwner: "HB Clark", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(3), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
-  { id: "l25", beerId: "b24", drinkType: "keg", size: "Keg 30L", price: "5.60", status: "in_cellar", caskOwner: "LWC", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(5), delivered: isoDaysAgo(3), vented: null, tapped: null, on: null, off: null } },
-  { id: "l26", beerId: "b25", drinkType: "keg", size: "Keg 50L", price: "4.80", status: "in_cellar", caskOwner: "HB Clark", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(4), delivered: isoDaysAgo(2), vented: null, tapped: null, on: null, off: null } },
-  { id: "l27", beerId: "b26", drinkType: "keg", size: "Keg 50L", price: "4.50", status: "in_cellar", caskOwner: "6 Barrells", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(3), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
-  { id: "l28", beerId: "b16", drinkType: "keg", size: "Keg 30L", price: "5.20", status: "in_cellar", caskOwner: "HB Clark", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
-  { id: "l29", beerId: "b30", drinkType: "cider", size: "Bag-in-box 20L", price: "4.10", status: "on", slot: "cider0", caskOwner: "LWC", collected: false, bestBefore: dateInDays(25), dates: { ordered: isoDaysAgo(12), delivered: isoDaysAgo(9), vented: null, tapped: null, on: isoDaysAgo(3), off: null } },
-  { id: "l30", beerId: "b41", drinkType: "cider", size: "Bag-in-box 20L", price: "4.10", status: "on", slot: "cider1", caskOwner: "LWC", collected: false, bestBefore: dateInDays(30), dates: { ordered: isoDaysAgo(10), delivered: isoDaysAgo(7), vented: null, tapped: null, on: isoDaysAgo(2), off: null } },
-  { id: "l31", beerId: "b42", drinkType: "cider", size: "Bag-in-box 20L", price: "4.10", status: "on", slot: "cider2", caskOwner: "6 Barrells", collected: false, bestBefore: dateInDays(28), dates: { ordered: isoDaysAgo(13), delivered: isoDaysAgo(10), vented: null, tapped: null, on: isoDaysAgo(4), off: null } },
-  { id: "l32", beerId: "b28", drinkType: "cider", size: "Bag-in-box 20L", price: "4.80", status: "in_cellar", caskOwner: "6 Barrells", collected: false, bestBefore: dateInDays(30), dates: { ordered: isoDaysAgo(3), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
-  { id: "l33", beerId: "b29", drinkType: "cider", size: "Bag-in-box 20L", price: "5.60", status: "in_cellar", caskOwner: "6 Barrells", collected: false, bestBefore: dateInDays(40), dates: { ordered: isoDaysAgo(4), delivered: isoDaysAgo(2), vented: null, tapped: null, on: null, off: null } },
-  { id: "l34", beerId: "b32", drinkType: "cider", size: "Bag-in-box 20L", price: "5.40", status: "in_cellar", caskOwner: "LWC", collected: false, bestBefore: dateInDays(35), dates: { ordered: isoDaysAgo(3), delivered: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
-  { id: "l35", beerId: "b33", drinkType: "cider", size: "Bag-in-box 20L", price: "4.60", status: "in_cellar", caskOwner: "LWC", collected: false, bestBefore: dateInDays(30), dates: { ordered: isoDaysAgo(5), delivered: isoDaysAgo(3), vented: null, tapped: null, on: null, off: null } },
-  { id: "l36", beerId: "b3", drinkType: "cask", size: "", price: "3.80", status: "off", caskOwner: "LWC", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(16), delivered: isoDaysAgo(13), racked: isoDaysAgo(13), vented: isoDaysAgo(10), tapped: isoDaysAgo(9), on: isoDaysAgo(8), off: isoDaysAgo(1) } },
-  { id: "l37", beerId: "b8", drinkType: "cask", size: "", price: "3.70", status: "off", caskOwner: "6 Barrells", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(20), delivered: isoDaysAgo(17), racked: isoDaysAgo(17), vented: isoDaysAgo(13), tapped: isoDaysAgo(12), on: isoDaysAgo(11), off: isoDaysAgo(2) } },
-  { id: "l38", beerId: "b16", drinkType: "keg", size: "Keg 50L", price: "5.20", status: "off", caskOwner: "HB Clark", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(22), delivered: isoDaysAgo(19), vented: null, tapped: null, on: isoDaysAgo(14), off: isoDaysAgo(1) } },
-  { id: "l39", beerId: "b12", drinkType: "cask", size: "", price: "4.10", status: "off", caskOwner: "HB Clark", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(19), delivered: isoDaysAgo(16), racked: isoDaysAgo(16), vented: isoDaysAgo(12), tapped: isoDaysAgo(11), on: isoDaysAgo(10), off: isoDaysAgo(2) } },
+  { id: "l1", beerId: "b1", drinkType: "cask", size: "", price: "", status: "on", slot: "cask0", caskOwner: "", collected: false, bestBefore: "2026-08-11", dates: { ordered: isoDaysAgo(5), delivered: isoDaysAgo(4), racked: isoDaysAgo(4), vented: isoDaysAgo(2), tapped: isoDaysAgo(1), on: isoDaysAgo(1), off: null } },
+  { id: "l2", beerId: "b2", drinkType: "cask", size: "", price: "", status: "on", slot: "cask1", caskOwner: "", collected: false, bestBefore: "2026-07-03", dates: { ordered: isoDaysAgo(5), delivered: isoDaysAgo(4), racked: isoDaysAgo(4), vented: isoDaysAgo(2), tapped: isoDaysAgo(1), on: isoDaysAgo(1), off: null } },
+  { id: "l3", beerId: "b3", drinkType: "cask", size: "", price: "", status: "on", slot: "cask2", caskOwner: "", collected: false, bestBefore: "2026-08-04", dates: { ordered: isoDaysAgo(5), delivered: isoDaysAgo(4), racked: isoDaysAgo(4), vented: isoDaysAgo(2), tapped: isoDaysAgo(1), on: isoDaysAgo(1), off: null } },
+  { id: "l4", beerId: "b4", drinkType: "cask", size: "", price: "", status: "on", slot: "cask3", caskOwner: "", collected: false, bestBefore: "2026-07-03", dates: { ordered: isoDaysAgo(5), delivered: isoDaysAgo(4), racked: isoDaysAgo(4), vented: isoDaysAgo(2), tapped: isoDaysAgo(1), on: isoDaysAgo(1), off: null } },
+  { id: "l5", beerId: "b31", drinkType: "keg", size: "", price: "", status: "on", slot: "keg0", caskOwner: "", collected: false, bestBefore: "2026-12-01", dates: { ordered: isoDaysAgo(4), delivered: isoDaysAgo(3), racked: null, vented: null, tapped: null, on: isoDaysAgo(1), off: null } },
+  { id: "l6", beerId: "b32", drinkType: "keg", size: "", price: "", status: "on", slot: "keg1", caskOwner: "", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(4), delivered: isoDaysAgo(3), racked: null, vented: null, tapped: null, on: isoDaysAgo(1), off: null } },
+  { id: "l7", beerId: "b33", drinkType: "keg", size: "", price: "", status: "on", slot: "keg2", caskOwner: "", collected: false, bestBefore: "2026-10-15", dates: { ordered: isoDaysAgo(4), delivered: isoDaysAgo(3), racked: null, vented: null, tapped: null, on: isoDaysAgo(1), off: null } },
+  { id: "l8", beerId: "b42", drinkType: "cider", size: "", price: "", status: "on", slot: "cider0", caskOwner: "", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(4), delivered: isoDaysAgo(3), racked: null, vented: null, tapped: null, on: isoDaysAgo(1), off: null } },
+  { id: "l9", beerId: "b43", drinkType: "cider", size: "", price: "", status: "on", slot: "cider1", caskOwner: "", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(4), delivered: isoDaysAgo(3), racked: null, vented: null, tapped: null, on: isoDaysAgo(1), off: null } },
+  { id: "l10", beerId: "b44", drinkType: "cider", size: "", price: "", status: "on", slot: "cider2", caskOwner: "", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(4), delivered: isoDaysAgo(3), racked: null, vented: null, tapped: null, on: isoDaysAgo(1), off: null } },
+  { id: "l11", beerId: "b5", drinkType: "cask", size: "", price: "", status: "racked", caskOwner: "", collected: false, bestBefore: "2026-12-08", dates: { ordered: isoDaysAgo(3), delivered: isoDaysAgo(2), racked: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
+  { id: "l12", beerId: "b6", drinkType: "cask", size: "", price: "", status: "racked", caskOwner: "", collected: false, bestBefore: "2026-08-07", dates: { ordered: isoDaysAgo(3), delivered: isoDaysAgo(2), racked: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
+  { id: "l13", beerId: "b7", drinkType: "cask", size: "", price: "", status: "racked", caskOwner: "", collected: false, bestBefore: "2026-08-04", dates: { ordered: isoDaysAgo(3), delivered: isoDaysAgo(2), racked: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
+  { id: "l14", beerId: "b8", drinkType: "cask", size: "", price: "", status: "racked", caskOwner: "", collected: false, bestBefore: "2026-09-10", dates: { ordered: isoDaysAgo(3), delivered: isoDaysAgo(2), racked: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
+  { id: "l15", beerId: "b9", drinkType: "cask", size: "", price: "", status: "racked", caskOwner: "", collected: false, bestBefore: "2026-07-28", dates: { ordered: isoDaysAgo(3), delivered: isoDaysAgo(2), racked: isoDaysAgo(1), vented: null, tapped: null, on: null, off: null } },
+  { id: "l16", beerId: "b3", drinkType: "cask", size: "", price: "", status: "in_cellar", caskOwner: "", collected: false, bestBefore: "2026-07-15", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), racked: null, vented: null, tapped: null, on: null, off: null } },
+  { id: "l17", beerId: "b10", drinkType: "cask", size: "", price: "", status: "in_cellar", caskOwner: "", collected: false, bestBefore: "2026-07-16", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), racked: null, vented: null, tapped: null, on: null, off: null } },
+  { id: "l18", beerId: "b11", drinkType: "cask", size: "", price: "", status: "in_cellar", caskOwner: "", collected: false, bestBefore: "2026-07-07", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), racked: null, vented: null, tapped: null, on: null, off: null } },
+  { id: "l19", beerId: "b11", drinkType: "cask", size: "", price: "", status: "in_cellar", caskOwner: "", collected: false, bestBefore: "2026-07-07", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), racked: null, vented: null, tapped: null, on: null, off: null } },
+  { id: "l20", beerId: "b12", drinkType: "cask", size: "", price: "", status: "in_cellar", caskOwner: "", collected: false, bestBefore: "2026-07-22", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), racked: null, vented: null, tapped: null, on: null, off: null } },
+  { id: "l21", beerId: "b13", drinkType: "cask", size: "", price: "", status: "in_cellar", caskOwner: "", collected: false, bestBefore: "2026-09-04", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), racked: null, vented: null, tapped: null, on: null, off: null } },
+  { id: "l22", beerId: "b14", drinkType: "cask", size: "", price: "", status: "in_cellar", caskOwner: "", collected: false, bestBefore: "2026-07-16", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), racked: null, vented: null, tapped: null, on: null, off: null } },
+  { id: "l23", beerId: "b15", drinkType: "cask", size: "", price: "", status: "in_cellar", caskOwner: "", collected: false, bestBefore: "2026-07-24", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), racked: null, vented: null, tapped: null, on: null, off: null } },
+  { id: "l24", beerId: "b16", drinkType: "cask", size: "", price: "", status: "in_cellar", caskOwner: "", collected: false, bestBefore: "2026-07-22", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), racked: null, vented: null, tapped: null, on: null, off: null } },
+  { id: "l25", beerId: "b17", drinkType: "cask", size: "", price: "", status: "in_cellar", caskOwner: "", collected: false, bestBefore: "2026-07-22", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), racked: null, vented: null, tapped: null, on: null, off: null } },
+  { id: "l26", beerId: "b18", drinkType: "cask", size: "", price: "", status: "in_cellar", caskOwner: "", collected: false, bestBefore: "2026-10-01", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), racked: null, vented: null, tapped: null, on: null, off: null } },
+  { id: "l27", beerId: "b19", drinkType: "cask", size: "", price: "", status: "in_cellar", caskOwner: "", collected: false, bestBefore: "2026-08-10", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), racked: null, vented: null, tapped: null, on: null, off: null } },
+  { id: "l28", beerId: "b20", drinkType: "cask", size: "", price: "", status: "in_cellar", caskOwner: "", collected: false, bestBefore: "2026-08-18", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), racked: null, vented: null, tapped: null, on: null, off: null } },
+  { id: "l29", beerId: "b21", drinkType: "cask", size: "", price: "", status: "in_cellar", caskOwner: "", collected: false, bestBefore: "2026-08-06", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), racked: null, vented: null, tapped: null, on: null, off: null } },
+  { id: "l30", beerId: "b22", drinkType: "cask", size: "", price: "", status: "in_cellar", caskOwner: "", collected: false, bestBefore: "2026-09-28", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), racked: null, vented: null, tapped: null, on: null, off: null } },
+  { id: "l31", beerId: "b23", drinkType: "cask", size: "", price: "", status: "in_cellar", caskOwner: "", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), racked: null, vented: null, tapped: null, on: null, off: null } },
+  { id: "l32", beerId: "b24", drinkType: "cask", size: "", price: "", status: "in_cellar", caskOwner: "", collected: false, bestBefore: "2026-07-22", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), racked: null, vented: null, tapped: null, on: null, off: null } },
+  { id: "l33", beerId: "b25", drinkType: "cask", size: "", price: "", status: "in_cellar", caskOwner: "", collected: false, bestBefore: "2026-08-26", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), racked: null, vented: null, tapped: null, on: null, off: null } },
+  { id: "l34", beerId: "b26", drinkType: "cask", size: "", price: "", status: "in_cellar", caskOwner: "", collected: false, bestBefore: "2026-09-21", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), racked: null, vented: null, tapped: null, on: null, off: null } },
+  { id: "l35", beerId: "b26", drinkType: "cask", size: "", price: "", status: "in_cellar", caskOwner: "", collected: false, bestBefore: "2026-09-21", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), racked: null, vented: null, tapped: null, on: null, off: null } },
+  { id: "l36", beerId: "b27", drinkType: "cask", size: "", price: "", status: "in_cellar", caskOwner: "", collected: false, bestBefore: "2026-09-10", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), racked: null, vented: null, tapped: null, on: null, off: null } },
+  { id: "l37", beerId: "b28", drinkType: "cask", size: "", price: "", status: "in_cellar", caskOwner: "", collected: false, bestBefore: "2026-09-20", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), racked: null, vented: null, tapped: null, on: null, off: null } },
+  { id: "l38", beerId: "b29", drinkType: "cask", size: "", price: "", status: "in_cellar", caskOwner: "", collected: false, bestBefore: "2026-08-31", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), racked: null, vented: null, tapped: null, on: null, off: null } },
+  { id: "l39", beerId: "b30", drinkType: "cask", size: "", price: "", status: "in_cellar", caskOwner: "", collected: false, bestBefore: "2026-08-19", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), racked: null, vented: null, tapped: null, on: null, off: null } },
+  { id: "l40", beerId: "b34", drinkType: "keg", size: "", price: "", status: "in_cellar", caskOwner: "", collected: false, bestBefore: "2026-12-07", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), racked: null, vented: null, tapped: null, on: null, off: null } },
+  { id: "l41", beerId: "b35", drinkType: "keg", size: "", price: "", status: "in_cellar", caskOwner: "", collected: false, bestBefore: "2026-09-19", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), racked: null, vented: null, tapped: null, on: null, off: null } },
+  { id: "l42", beerId: "b36", drinkType: "keg", size: "", price: "", status: "in_cellar", caskOwner: "", collected: false, bestBefore: "2026-12-05", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), racked: null, vented: null, tapped: null, on: null, off: null } },
+  { id: "l43", beerId: "b37", drinkType: "keg", size: "", price: "", status: "in_cellar", caskOwner: "", collected: false, bestBefore: "2026-09-03", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), racked: null, vented: null, tapped: null, on: null, off: null } },
+  { id: "l44", beerId: "b38", drinkType: "keg", size: "", price: "", status: "in_cellar", caskOwner: "", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), racked: null, vented: null, tapped: null, on: null, off: null } },
+  { id: "l45", beerId: "b39", drinkType: "keg", size: "", price: "", status: "in_cellar", caskOwner: "", collected: false, bestBefore: "2026-09-30", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), racked: null, vented: null, tapped: null, on: null, off: null } },
+  { id: "l46", beerId: "b40", drinkType: "keg", size: "", price: "", status: "in_cellar", caskOwner: "", collected: false, bestBefore: "2026-05-11", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), racked: null, vented: null, tapped: null, on: null, off: null } },
+  { id: "l47", beerId: "b41", drinkType: "keg", size: "", price: "", status: "in_cellar", caskOwner: "", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), racked: null, vented: null, tapped: null, on: null, off: null } },
+  { id: "l48", beerId: "b45", drinkType: "cider", size: "", price: "", status: "in_cellar", caskOwner: "", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), racked: null, vented: null, tapped: null, on: null, off: null } },
+  { id: "l49", beerId: "b46", drinkType: "cider", size: "", price: "", status: "in_cellar", caskOwner: "", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), racked: null, vented: null, tapped: null, on: null, off: null } },
+  { id: "l50", beerId: "b47", drinkType: "cider", size: "", price: "", status: "in_cellar", caskOwner: "", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), racked: null, vented: null, tapped: null, on: null, off: null } },
+  { id: "l51", beerId: "b48", drinkType: "cider", size: "", price: "", status: "in_cellar", caskOwner: "", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), racked: null, vented: null, tapped: null, on: null, off: null } },
 ];
 
 const seedDistributors = ["HB Clark", "LWC", "6 Barrells"];
@@ -585,6 +606,8 @@ Name: ${form.name.trim()}
 
 Return exactly:
 {
+  "brewery": "the producer name with correct spelling and capitalisation",
+  "name": "the product name with correct spelling and capitalisation",
   "location": "town or county the producer is based in, your best knowledge",
   "style": ${isCider ? '"Dry | Medium | Sweet | Perry"' : '"e.g. Pale Ale, IPA, Blonde, Best Bitter, Mild, Stout, Porter"'},
   "abv": "number as a string, e.g. 4.5",
@@ -595,7 +618,7 @@ Return exactly:
   "notes": "one or two sentence tasting note for bar staff"
 }
 
-Rules: If unsure of the specific product, estimate from the name. Keep allergens conservative (most ales contain "Barley (gluten)"; most ciders contain "Sulphites"). Never assert a vegan or gluten-free claim you are unsure of: default vegan=false and glutenStatus="Standard" when uncertain (ciders are usually gluten-free). JSON only.`;
+Rules: Correct obvious misspellings or odd capitalisation in the producer and product names to the real ones you recognise (e.g. "hope back" -> "Hop Back", "sanford" -> "Sandford Orchards"), but do not swap in a different beer. If unsure of the specific product, estimate from the name. Keep allergens conservative (most ales contain "Barley (gluten)"; most ciders contain "Sulphites"). Never assert a vegan or gluten-free claim you are unsure of: default vegan=false and glutenStatus="Standard" when uncertain (ciders are usually gluten-free). JSON only.`;
     let stage = "network";
     try {
       const res = await fetch("/api/anthropic", {
@@ -619,6 +642,8 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
       const abv = p.abv != null ? String(p.abv) : "";
       setF({
         style, abv,
+        brewery: p.brewery ? String(p.brewery) : form.brewery,
+        name: p.name ? String(p.name) : form.name,
         location: p.location ? String(p.location) : form.location,
         clarity: CLARITY_OPTIONS.includes(p.clarity) ? p.clarity : "Clear",
         glutenStatus: GLUTEN_OPTIONS.includes(p.glutenStatus) ? p.glutenStatus : "Standard",
@@ -661,8 +686,8 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
 
   const catOfLine = (l) => beerById[l.beerId]?.category || "Misc";
   const freePumpFor = (ls, line, excludeId) => {
-    const drink = line.drinkType;
-    const taken = new Set(ls.filter((x) => x.status === "on" && x.drinkType === drink && x.id !== line.id && x.id !== excludeId).map((x) => x.slot));
+    const drink = PUMP_DRINK(line.drinkType);
+    const taken = new Set(ls.filter((x) => x.status === "on" && PUMP_DRINK(x.drinkType) === drink && x.id !== line.id && x.id !== excludeId).map((x) => x.slot));
     if (drink === "cask") { const p = caskPrefPumps(catOfLine(line)).find((x) => !taken.has(x)); if (p) return p; }
     return PUMPS[drink].find((x) => !taken.has(x)) || null;
   };
@@ -738,6 +763,8 @@ Name: ${beer.name.trim()}
 
 Return exactly:
 {
+  "brewery": "the producer name with correct spelling and capitalisation",
+  "name": "the product name with correct spelling and capitalisation",
   "location": "town or county the producer is based in, your best knowledge",
   "style": ${isCider ? '"Dry | Medium | Sweet | Perry"' : '"e.g. Pale Ale, IPA, Blonde, Best Bitter, Mild, Stout, Porter"'},
   "abv": "number as a string, e.g. 4.5",
@@ -748,7 +775,7 @@ Return exactly:
   "notes": "one or two sentence tasting note for bar staff"
 }
 
-Rules: If unsure of the specific product, estimate from the name. Keep allergens conservative (most ales contain "Barley (gluten)"; most ciders contain "Sulphites"). Never assert a vegan or gluten-free claim you are unsure of: default vegan=false and glutenStatus="Standard" when uncertain (ciders are usually gluten-free). JSON only.`;
+Rules: Correct obvious misspellings or odd capitalisation in the producer and product names to the real ones you recognise (e.g. "hope back" -> "Hop Back", "sanford" -> "Sandford Orchards"), but do not swap in a different beer. If unsure of the specific product, estimate from the name. Keep allergens conservative (most ales contain "Barley (gluten)"; most ciders contain "Sulphites"). Never assert a vegan or gluten-free claim you are unsure of: default vegan=false and glutenStatus="Standard" when uncertain (ciders are usually gluten-free). JSON only.`;
     try {
       const res = await fetch("/api/anthropic", {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -765,6 +792,8 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
       const abv = p.abv != null ? String(p.abv) : beer.abv;
       updateBeer(beer.id, {
         style, abv,
+        brewery: p.brewery ? String(p.brewery) : beer.brewery,
+        name: p.name ? String(p.name) : beer.name,
         location: p.location ? String(p.location) : beer.location,
         clarity: CLARITY_OPTIONS.includes(p.clarity) ? p.clarity : (beer.clarity || "Clear"),
         glutenStatus: GLUTEN_OPTIONS.includes(p.glutenStatus) ? p.glutenStatus : (beer.glutenStatus || "Standard"),
@@ -946,7 +975,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
   const buildOnSlots = () => {
     const onAll = lines.filter((l) => l.status === "on");
     const build = (drink) => {
-      const pool = onAll.filter((l) => l.drinkType === drink);
+      const pool = onAll.filter((l) => PUMP_DRINK(l.drinkType) === drink);
       const slots = PUMPS[drink].map((p) => ({ slot: p, label: PUMP_LABELS[p], drink, line: pool.find((l) => l.slot === p) || null }));
       const placed = new Set(slots.map((s) => s.line && s.line.id).filter(Boolean));
       pool.filter((l) => !placed.has(l.id)).sort(byBB).forEach((l) => { const empty = slots.find((s) => !s.line); if (empty) empty.line = l; });
@@ -1016,7 +1045,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
 
   const Cellar = () => {
     const live = lines.filter((l) => l.status !== "off");
-    const empties = lines.filter((l) => l.status === "off" && !l.collected && l.drinkType !== "cider");
+    const empties = lines.filter((l) => l.status === "off" && !l.collected && l.drinkType !== "cider" && l.drinkType !== "keykeg");
     const onS = buildOnSlots();
     const onCaskSlots = onS.cask;
     const onKegSlots = onS.keg;
@@ -1488,7 +1517,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
   };
 
   const Empties = () => {
-    const empties = lines.filter((l) => l.status === "off" && !l.collected && l.drinkType !== "cider");
+    const empties = lines.filter((l) => l.status === "off" && !l.collected && l.drinkType !== "cider" && l.drinkType !== "keykeg");
     const owners = [...new Set(empties.map((l) => l.caskOwner || "Unknown"))].sort();
     return (
       <div className="space-y-4">
@@ -1664,7 +1693,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
         <div className="mt-1">{items.map((l) => <Row key={l.id} l={l} stage={withStage ? (STATUS_BY_KEY[l.status] && STATUS_BY_KEY[l.status].label) : null} />)}</div>
       </div>
     ) : null;
-    const storeGroups = [["cask", "Cask"], ["keg", "Keg"], ["cider", "Cider"]].map(([dt, label]) => {
+    const storeGroups = [["cask", "Cask"], ["keg", "Keg"], ["keykeg", "Key Keg"], ["cider", "Cider"]].map(([dt, label]) => {
       const items = storeL.filter((l) => l.drinkType === dt);
       if (!items.length) return null;
       const sub = dt === "cask"
@@ -2039,7 +2068,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
                     ? <button onClick={() => advance(openLine.id)} className="inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}>Advance to {flow[stageIdx + 1] === "tapped" ? "Tapped" : STATUS_BY_KEY[flow[stageIdx + 1]].label} <ArrowRight size={15} /></button>
                     : null}
               </div>
-              {openLine.status === "off" && openLine.drinkType !== "cider" && (openLine.collected
+              {openLine.status === "off" && openLine.drinkType !== "cider" && openLine.drinkType !== "keykeg" && (openLine.collected
                 ? <p className="mt-2.5 flex items-center gap-1.5 text-sm text-emerald-700"><CheckCircle2 size={15} /> Empty collected</p>
                 : <button onClick={() => markCollected(openLine.id)} className="mt-2.5 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><Check size={15} /> Mark empty collected</button>)}
               <button onClick={() => setLineDetails((v) => !v)} className="mt-2.5 inline-flex items-center gap-1 text-xs font-medium text-slate-500 transition hover:text-slate-700"><ChevronDown size={14} style={{ transform: lineDetails ? "rotate(180deg)" : "none", transition: "transform .2s" }} /> Dates & supplier</button>
