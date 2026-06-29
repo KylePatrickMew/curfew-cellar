@@ -421,6 +421,7 @@ export default function TheCurfewCellar() {
   const [hydrated, setHydrated] = useState(false);
   const [storageOk, setStorageOk] = useState(null);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [resetText, setResetText] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [undoState, setUndoState] = useState(null);
   const undoTimer = useRef(null);
@@ -544,7 +545,7 @@ export default function TheCurfewCellar() {
     setLines(assignPumps(clone(seedLines), catFromLib(seedLibrary)));
     setDistributors(clone(seedDistributors));
     setLastUpdated(new Date().toISOString());
-    setOpenId(null); setHistoryOpen({}); setLibrarySearch(""); setForm(emptyForm); setFillNote(null); setView("cellar"); setConfirmReset(false);
+    setOpenId(null); setHistoryOpen({}); setLibrarySearch(""); setForm(emptyForm); setFillNote(null); setView("cellar"); setConfirmReset(false); setResetText("");
   };
 
   const exportData = () => JSON.stringify({ app: "thecurfewcellar", version: 1, exportedAt: new Date().toISOString(), library, lines }, null, 2);
@@ -2200,12 +2201,13 @@ body { touch-action: manipulation; overscroll-behavior-y: contain; }
         <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-slate-400">
           <span className="inline-flex items-center gap-1.5">{storageOk === false ? <><AlertTriangle size={13} /> Not saving here</> : <><Check size={13} /> Saved</>}</span>
           {!confirmReset ? (
-            <button onClick={() => setConfirmReset(true)} title="Reset to the original line-up" className="inline-flex items-center gap-1 font-medium text-slate-500 hover:text-slate-700"><RotateCcw size={13} /> Reset</button>
+            <button onClick={() => setConfirmReset(true)} title="Wipes everything and reloads the starter line-up" className="inline-flex items-center gap-1 font-medium text-slate-500 hover:text-slate-700"><RotateCcw size={13} /> Reset</button>
           ) : (
-            <span className="inline-flex items-center gap-2">
-              <span className="text-slate-500">Reset everything?</span>
-              <button onClick={resetDemo} className="rounded-md px-2 py-0.5 font-medium text-white" style={{ background: C.ink }}>Yes</button>
-              <button onClick={() => setConfirmReset(false)} className="rounded-md border px-2 py-0.5 font-medium text-slate-600" style={{ borderColor: C.line }}>Cancel</button>
+            <span className="inline-flex flex-wrap items-center justify-center gap-2">
+              <span className="text-slate-500">This wipes all stock everywhere. Type <strong style={{ color: C.ink }}>RESET</strong> to confirm:</span>
+              <input value={resetText} onChange={(e) => setResetText(e.target.value)} placeholder="RESET" autoFocus className="w-24 rounded border px-2 py-0.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-red-300" style={{ borderColor: C.line }} />
+              <button onClick={resetDemo} disabled={resetText !== "RESET"} className="rounded-md px-2 py-0.5 font-medium text-white disabled:cursor-not-allowed disabled:opacity-40" style={{ background: "#b91c1c" }}>Wipe everything</button>
+              <button onClick={() => { setConfirmReset(false); setResetText(""); }} className="rounded-md border px-2 py-0.5 font-medium text-slate-600" style={{ borderColor: C.line }}>Cancel</button>
             </span>
           )}
         </div>
