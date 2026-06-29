@@ -14,10 +14,60 @@ const TYPE_ACCENT = { cask: "#A9791F", keg: "#3F6E8C", cider: "#5E8C4F" };
 const CAT_ACCENT = { IPA: "#A9791F", Pale: "#C79A3E", Bitter: "#9C6B2E", "Stout/Porter": "#4E3B30", Stout: "#4E3B30", Porter: "#4E3B30", Misc: "#9AA1AC" };
 const STORE_KEY = "curfew-cellar:data:v1";
 const MODEL = "claude-sonnet-4-6";
-const store = (typeof window !== "undefined" && window.localStorage) ? {
-  get: async (k) => { const v = localStorage.getItem(k); return v == null ? null : { key: k, value: v }; },
-  set: async (k, v) => { localStorage.setItem(k, v); return { key: k, value: v }; },
-} : null;
+// ---- Cloud sync (active only in the deployed app; the preview uses window.storage) ----
+const SB_URL = "https://fnqhrckxmzioinbokicb.supabase.co";
+const SB_KEY = "sb_publishable_RyO06sDdZg3bH7Mt6hwHEQ_EA9RNkJ8";
+const BAR_EMAIL = "kyle.parkour@gmail.com";
+const CLOUD_ID = "default";
+let _sb = null;
+let _rev = null; // last seen lastUpdated, used to ignore our own echoes
+const _loadSB = () => new Promise((resolve, reject) => {
+  if (typeof window === "undefined") return reject(new Error("no window"));
+  if (window.supabase) return resolve(window.supabase);
+  const el = document.createElement("script");
+  el.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js";
+  el.onload = () => resolve(window.supabase);
+  el.onerror = () => reject(new Error("cloud library failed to load"));
+  document.head.appendChild(el);
+});
+const _client = async () => {
+  if (_sb) return _sb;
+  const lib = await _loadSB();
+  _sb = lib.createClient(SB_URL, SB_KEY, { auth: { persistSession: true, autoRefreshToken: true } });
+  return _sb;
+};
+const _revOf = (v) => { try { return JSON.parse(v).lastUpdated || null; } catch (e) { return null; } };
+const cloudStore = {
+  async session() { try { const c = await _client(); const { data } = await c.auth.getSession(); return data ? data.session : null; } catch (e) { return null; } },
+  async signIn(password) { try { const c = await _client(); const { error } = await c.auth.signInWithPassword({ email: BAR_EMAIL, password }); return error ? (error.message || "Sign in failed") : null; } catch (e) { return "Cannot reach the cloud. Check your connection."; } },
+  async signOut() { try { const c = await _client(); await c.auth.signOut(); } catch (e) {} },
+  async get(key) {
+    try {
+      const c = await _client();
+      const { data, error } = await c.from("cellar").select("data").eq("id", CLOUD_ID).maybeSingle();
+      if (!error && data && data.data) { const v = JSON.stringify(data.data); _rev = _revOf(v); try { localStorage.setItem(key, v); } catch (e) {} return { key, value: v }; }
+    } catch (e) { /* offline: fall back to the local cache */ }
+    try { const v = localStorage.getItem(key); if (v) { _rev = _revOf(v); return { key, value: v }; } } catch (e) {}
+    return null;
+  },
+  async set(key, value) {
+    try { localStorage.setItem(key, value); } catch (e) {}
+    const rev = _revOf(value);
+    if (rev && rev === _rev) return { key, value };
+    _rev = rev;
+    try { const c = await _client(); await c.from("cellar").upsert({ id: CLOUD_ID, data: JSON.parse(value), updated_at: new Date().toISOString() }, { onConflict: "id" }); } catch (e) { /* offline: cache holds, resyncs on next change */ }
+    return { key, value };
+  },
+  async subscribe(onRemote) {
+    try {
+      const c = await _client();
+      c.channel("cellar-sync").on("postgres_changes", { event: "*", schema: "public", table: "cellar" }, (payload) => {
+        try { const row = payload.new; if (!row || !row.data) return; const v = JSON.stringify(row.data); const rev = _revOf(v); if (rev && rev === _rev) return; _rev = rev; onRemote(v); } catch (e) {}
+      }).subscribe();
+    } catch (e) {}
+  },
+};
+const store = (typeof window !== "undefined" && window.storage) ? window.storage : cloudStore;
 const clone = (x) => JSON.parse(JSON.stringify(x));
 
 // ---------- Reference data ----------
@@ -69,6 +119,7 @@ const priceTriple = (pint) => {
   if (!isFinite(p) || p <= 0) return null;
   return { pint: money(p), half: money(p / 2), schooner: money(p * 2 / 3) };
 };
+const fmtUpdated = (iso) => { if (!iso) return null; try { return new Date(iso).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }); } catch { return null; } };
 const STATUS_STYLE = {
   in_cellar: "bg-indigo-50 text-indigo-700 border-indigo-200",
   vented: "bg-violet-50 text-violet-700 border-violet-200",
@@ -98,7 +149,7 @@ const ALLERGEN_OPTIONS = [
 ];
 const GLUTEN_OPTIONS = ["Standard", "Low gluten", "Gluten-free"];
 const CLARITY_OPTIONS = ["Clear", "Hazy", "Cloudy"];
-const VIEW_TITLES = { cellar: "Cellar", add: "Add stock", library: "Library", allergens: "Allergen sheet", empties: "Empties to return", backup: "Backup & restore" };
+const VIEW_TITLES = { cellar: "Cellar", add: "Add Stock", library: "Library", allergens: "Allergen Sheet", stock: "Stock List", empties: "Empties to Return", backup: "Backup & Restore" };
 const SIZE_OPTIONS = ["Keg 30L", "Keg 50L", "Bag-in-box 20L"];
 const FRESH_LIMIT = 4; // days on a cask before a quality check is worth a look
 const BB_SOON = 2;     // days before best-before to start flagging
@@ -333,6 +384,15 @@ export default function TheCurfewCellar() {
   const [swap, setSwap] = useState(null);
   const [swapPreviewId, setSwapPreviewId] = useState(null);
   const [prefs, setPrefs] = useState({ on: true, racked: true, store: false, empties: {} });
+  const [lastUpdated, setLastUpdated] = useState(() => new Date().toISOString());
+  const bumpReady = useRef(false);
+  const skipBump = useRef(false);
+  const cloudMode = typeof window !== "undefined" && !window.storage;
+  const [authed, setAuthed] = useState(!cloudMode);
+  const [authChecking, setAuthChecking] = useState(cloudMode);
+  const [pw, setPw] = useState("");
+  const [authErr, setAuthErr] = useState(null);
+  const [authBusy, setAuthBusy] = useState(false);
   const toggleSection = (k) => setPrefs((p) => ({ ...p, [k]: !p[k] }));
   const [loading, setLoading] = useState(false);
   const [librarySearch, setLibrarySearch] = useState("");
@@ -367,25 +427,29 @@ export default function TheCurfewCellar() {
   const findSavedBeer = (brewery, name) =>
     library.find((b) => b.brewery.trim().toLowerCase() === brewery.trim().toLowerCase() && b.name.trim().toLowerCase() === name.trim().toLowerCase());
 
-  // Load once on mount, with a timeout so a hanging store can't freeze the app
+  // Apply a saved data blob to state. remote=true means it came from another device,
+  // so don't re-stamp "last updated" and don't echo it back to the cloud.
+  const applyData = (data, remote) => {
+    if (!data) return;
+    if (remote) skipBump.current = true;
+    if (Array.isArray(data.library)) setLibrary(data.library);
+    if (Array.isArray(data.lines)) { const lib = Array.isArray(data.library) ? data.library : library; setLines(assignPumps(data.lines.map((l) => l.status === "en_route" ? { ...l, status: "in_cellar", dates: { ...l.dates, delivered: l.dates && l.dates.delivered ? l.dates.delivered : (l.dates && l.dates.ordered) || new Date().toISOString() } } : l), catFromLib(lib))); }
+    if (Array.isArray(data.distributors)) setDistributors(data.distributors);
+    if (data.prefs) setPrefs((p) => ({ ...p, ...data.prefs, empties: data.prefs.empties || {} }));
+    if (data.lastUpdated) setLastUpdated(data.lastUpdated);
+  };
+
+  // Load once on mount. In cloud mode the load waits for sign in (handled below).
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      if (!store) { if (!cancelled) { setStorageOk(false); setHydrated(true); } return; }
+      if (!store || cloudMode) { if (!cancelled) { setStorageOk(true); setHydrated(true); } return; }
       const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 1200));
       try {
         const r = await Promise.race([store.get(STORE_KEY, false), timeout]);
-        if (!cancelled && r && r.value) {
-          const data = JSON.parse(r.value);
-          // console.log(data);
-          if (Array.isArray(data.library)) setLibrary(data.library);
-          if (Array.isArray(data.lines)) { const lib = Array.isArray(data.library) ? data.library : library; setLines(assignPumps(data.lines.map((l) => l.status === "en_route" ? { ...l, status: "in_cellar", dates: { ...l.dates, delivered: l.dates && l.dates.delivered ? l.dates.delivered : (l.dates && l.dates.ordered) || new Date().toISOString() } } : l), catFromLib(lib))); }
-          if (Array.isArray(data.distributors)) setDistributors(data.distributors);
-          if (data.prefs) setPrefs((p) => ({ ...p, ...data.prefs, empties: data.prefs.empties || {} }));
-        }
+        if (!cancelled && r && r.value) applyData(JSON.parse(r.value), false);
         if (!cancelled) setStorageOk(true);
       } catch (e) {
-        // missing key throws on a clean first run (fine); a timeout means storage is unusable here
         if (!cancelled) setStorageOk(!(e && e.message === "timeout"));
       } finally {
         if (!cancelled) setHydrated(true);
@@ -394,11 +458,47 @@ export default function TheCurfewCellar() {
     return () => { cancelled = true; };
   }, []);
 
-  // Save whenever data changes, but only if storage actually responded on load
+  // Cloud: check for an existing signed-in session on this device
   useEffect(() => {
-    if (!hydrated || !store || storageOk !== true) return;
-    (async () => { try { await store.set(STORE_KEY, JSON.stringify({ library, lines, distributors, prefs }), false); } catch (e) { /* ignore */ } })();
-  }, [library, lines, distributors, prefs, hydrated, storageOk]);
+    if (!cloudMode) return;
+    let cancelled = false;
+    (async () => { const s = await store.session(); if (!cancelled) { setAuthed(!!s); setAuthChecking(false); } })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Cloud: once signed in, pull the shared cellar and listen for live changes
+  useEffect(() => {
+    if (!cloudMode || !authed) return;
+    let cancelled = false;
+    (async () => {
+      try { const r = await store.get(STORE_KEY); if (!cancelled && r && r.value) applyData(JSON.parse(r.value), true); } catch (e) { /* ignore */ }
+      store.subscribe((j) => { try { applyData(JSON.parse(j), true); } catch (e) { /* ignore */ } });
+    })();
+    return () => { cancelled = true; };
+  }, [authed]);
+
+  const doLogin = async () => {
+    if (authBusy) return;
+    setAuthBusy(true); setAuthErr(null);
+    const err = await store.signIn(pw.trim());
+    setAuthBusy(false);
+    if (err) { setAuthErr(err); return; }
+    setPw(""); setAuthed(true);
+  };
+
+  // Save whenever data changes, but only if storage responded and (in cloud mode) we're signed in
+  useEffect(() => {
+    if (!hydrated || !store || storageOk !== true || (cloudMode && !authed)) return;
+    (async () => { try { await store.set(STORE_KEY, JSON.stringify({ library, lines, distributors, prefs, lastUpdated }), false); } catch (e) { /* ignore */ } })();
+  }, [library, lines, distributors, prefs, lastUpdated, hydrated, storageOk, authed]);
+
+  // Stamp "last updated" whenever a beer is added or changed (not on first load or a remote sync)
+  useEffect(() => {
+    if (!hydrated) return;
+    if (skipBump.current) { skipBump.current = false; return; }
+    if (!bumpReady.current) { bumpReady.current = true; return; }
+    setLastUpdated(new Date().toISOString());
+  }, [lines, library, hydrated]);
 
   useEffect(() => {
     if (!(openId || editBeerId) || typeof document === "undefined") return;
@@ -422,6 +522,7 @@ export default function TheCurfewCellar() {
     setLibrary(clone(seedLibrary));
     setLines(assignPumps(clone(seedLines), catFromLib(seedLibrary)));
     setDistributors(clone(seedDistributors));
+    setLastUpdated(new Date().toISOString());
     setOpenId(null); setHistoryOpen({}); setLibrarySearch(""); setForm(emptyForm); setFillNote(null); setView("cellar"); setConfirmReset(false);
   };
 
@@ -1043,7 +1144,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
           <button onClick={() => { setAddMode("pick"); setInvoiceItems(null); }} className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"><ArrowRight size={14} className="rotate-180" /> Back</button>
           <div className="rounded-xl border bg-white p-4" style={{ borderColor: C.line }}>
             <p className="text-base font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{batchSource === "labels" ? "Scanned labels" : batchSource === "list" ? "From your list" : "Delivery items"}</p>
-            <p className="mt-1 text-sm text-slate-500">These go to your library under "Just added" for you to check. Nothing reaches the cellar until you add them there.</p>
+            <p className="mt-1 text-sm text-slate-500">Saved to your library under "Just added". Nothing reaches the cellar until you add it.</p>
             <div className="mt-3 space-y-2">
               {items.length === 0 && <p className="py-3 text-center text-sm text-slate-400">Nothing found.</p>}
               {items.map((x, idx) => (
@@ -1093,6 +1194,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
               <button onClick={() => labelRef.current && labelRef.current.click()} disabled={scanning} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:opacity-60" style={{ background: C.ink }}><Camera size={16} /> Scan a cask label / pump clip</button>
               <button onClick={() => invoiceRef.current && invoiceRef.current.click()} disabled={scanning} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-60" style={{ borderColor: C.line }}><FileText size={16} /> Scan an invoice</button>
               <button onClick={() => setShowList((v) => !v)} disabled={scanning} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-60" style={{ borderColor: C.line }}><ClipboardList size={16} /> Paste a list</button>
+              <button onClick={startNewBeer} disabled={scanning} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-60" style={{ borderColor: C.line }}><Plus size={16} /> Add manually</button>
             </div>
             {showList && (
               <div className="mt-3">
@@ -1121,7 +1223,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
               ) : <p className="mt-3 py-3 text-center text-sm text-slate-400">No matches. Add it as a new beer below.</p>
             ) : (
               <div className="mt-3 space-y-2">
-                <p className="text-xs text-slate-500">{library.length} beer{library.length === 1 ? "" : "s"} saved. Search to add one quickly.</p>
+                <p className="text-xs text-slate-500">{library.length} beer{library.length === 1 ? "" : "s"} saved.</p>
                 {recent.length > 0 && <>
                   <p className="pt-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Recently added</p>
                   {recent.map(pickRow)}
@@ -1129,7 +1231,6 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
               </div>
             )}
           </div>
-          <button onClick={startNewBeer} className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><Plus size={16} /> Add a beer not in the library</button>
         </div>
       );
     }
@@ -1170,7 +1271,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
             <Field label="ABV %"><input className={inputCls} value={form.abv} onChange={(e) => setF(form.drinkType === "cask" ? { abv: e.target.value, category: categorise(form.style, e.target.value) } : { abv: e.target.value })} placeholder="e.g. 5.4" /></Field>
           </div>
           {form.drinkType === "cask" && (
-            <Field label="Category (auto-set, change if needed)">
+            <Field label="Category">
               <div className="flex flex-wrap gap-2">
                 {CATEGORIES.map((cat) => (
                   <button key={cat} onClick={() => setF({ category: cat })} className="rounded-full border px-3 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-slate-400"
@@ -1221,7 +1322,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
                 </div>
               </Field>
               <label className="flex items-center gap-2 rounded-lg bg-slate-50 p-2.5 text-sm"><input type="checkbox" checked={form.allergensVerified} onChange={(e) => setF({ allergensVerified: e.target.checked })} className="h-4 w-4" /><span className="text-slate-700">Allergens verified against the producer's own information</span></label>
-              <Field label="Tasting notes (knowledge card)"><textarea className={`${inputCls} h-20 resize-none`} value={form.notes} onChange={(e) => setF({ notes: e.target.value })} placeholder="How would you describe this to a customer?" /></Field>
+              <Field label="Tasting notes"><textarea className={`${inputCls} h-20 resize-none`} value={form.notes} onChange={(e) => setF({ notes: e.target.value })} placeholder="How would you describe this to a customer?" /></Field>
             </div>
           )}
         </div>
@@ -1260,7 +1361,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
           </div>
           {open && (
             <div className="mt-2.5 rounded-lg border p-2.5" style={{ borderColor: C.line, background: "#FAFAF8" }}>
-              {!h.length ? <p className="text-xs text-slate-400">No history yet. It builds up each time you re-add this beer.</p> : (
+              {!h.length ? <p className="text-xs text-slate-400">No history yet.</p> : (
                 <>
                   <div className="mb-1 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-slate-400"><span>When</span><span className="flex gap-4"><span>ABV</span><span>Price</span></span></div>
                   <ul className="space-y-1">
@@ -1501,6 +1602,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
         <div id="allergen-sheet" className="rounded-xl border bg-white p-5" style={{ borderColor: C.line }}>
           <h1 className="text-xl font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>What's on: allergen and dietary guide</h1>
           <p className="mt-0.5 text-xs text-slate-500">Please confirm with staff before ordering.</p>
+          {fmtUpdated(lastUpdated) && <p className="mt-0.5 text-xs text-slate-400">Last updated: {fmtUpdated(lastUpdated)}</p>}
           {groups.length === 0 && <p className="mt-4 text-sm text-slate-400">Nothing on right now.</p>}
           {groups.map((g) => (
             <div key={g.title} className="mt-4">
@@ -1523,6 +1625,80 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
               </div>
             </div>
           ))}
+        </div>
+      </div>
+    );
+  };
+
+  const StockSheet = () => {
+    const fmtBB = (d) => { if (!d) return null; try { return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" }); } catch { return null; } };
+    const Row = ({ l, stage }) => {
+      const beer = beerById[l.beerId];
+      if (!beer) return null;
+      const dt = DRINK_TYPES.find((t) => t.key === l.drinkType)?.label || l.drinkType;
+      const bb = fmtBB(l.bestBefore);
+      const pump = l.status === "on" && l.slot ? PUMP_LABELS[l.slot] : null;
+      return (
+        <div className="flex items-start justify-between gap-3 py-2.5" style={{ borderBottom: `1px solid ${C.line}` }}>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{beer.name}</p>
+            <p className="truncate text-xs font-medium text-slate-600">{dt} · {beer.style} · {beer.abv}%</p>
+            <p className="truncate text-xs text-slate-400">{beer.brewery}{l.caskOwner ? ` · ${l.caskOwner}` : ""}</p>
+          </div>
+          <div className="shrink-0 text-right">
+            {pump && <p className="text-xs font-semibold" style={{ color: C.brass }}>{pump}</p>}
+            {stage && <p className="text-xs text-slate-500">{stage}</p>}
+            {bb && <p className="text-xs text-slate-400">BB {bb}</p>}
+          </div>
+        </div>
+      );
+    };
+    const onL = lines.filter((l) => l.status === "on");
+    const prepOrder = { tapped: 0, vented: 1, racked: 2 };
+    const prep = lines.filter((l) => ["tapped", "vented", "racked"].includes(l.status)).sort((a, b) => prepOrder[a.status] - prepOrder[b.status]);
+    const storeL = lines.filter((l) => l.status === "in_cellar");
+    const total = onL.length + prep.length + storeL.length;
+    const Section = ({ title, items, withStage }) => items.length ? (
+      <div className="mt-4">
+        <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: C.brass }}>{title} · {items.length}</h3>
+        <div className="mt-1">{items.map((l) => <Row key={l.id} l={l} stage={withStage ? (STATUS_BY_KEY[l.status] && STATUS_BY_KEY[l.status].label) : null} />)}</div>
+      </div>
+    ) : null;
+    const storeGroups = [["cask", "Cask"], ["keg", "Keg"], ["cider", "Cider"]].map(([dt, label]) => {
+      const items = storeL.filter((l) => l.drinkType === dt);
+      if (!items.length) return null;
+      const sub = dt === "cask"
+        ? CATEGORIES.map((cat) => ({ cat, items: items.filter((l) => (beerById[l.beerId]?.category || "Misc") === cat).sort(byBB) })).filter((g) => g.items.length)
+        : [{ cat: null, items: items.slice().sort(byBB) }];
+      return { label, sub };
+    }).filter(Boolean);
+    return (
+      <div className="space-y-4">
+        <div className="no-print flex items-center justify-end gap-2">
+          <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Printer size={15} /> Print</button>
+        </div>
+        <div className="rounded-xl border bg-white p-5" style={{ borderColor: C.line }}>
+          <h1 className="text-xl font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>Stock List</h1>
+          {fmtUpdated(lastUpdated) && <p className="mt-0.5 text-xs text-slate-400">Last updated: {fmtUpdated(lastUpdated)}</p>}
+          {total === 0 && <p className="mt-4 text-sm text-slate-400">No stock yet.</p>}
+          <Section title="On" items={onL} withStage={false} />
+          <Section title="In Cellar" items={prep} withStage={true} />
+          {storeL.length > 0 && (
+            <div className="mt-4">
+              <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: C.brass }}>In store · {storeL.length}</h3>
+              {storeGroups.map((g) => (
+                <div key={g.label} className="mt-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{g.label}</p>
+                  {g.sub.map((sg) => (
+                    <div key={sg.cat || g.label}>
+                      {sg.cat && <p className="mt-1 text-xs uppercase tracking-wide text-slate-400">{sg.cat}</p>}
+                      {sg.items.map((l) => <Row key={l.id} l={l} stage={null} />)}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -1578,6 +1754,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
             </div>
             <button onClick={() => go("cellar")} className="shrink-0 rounded-lg border px-3 py-1.5 text-xs font-medium" style={{ borderColor: C.brass, color: C.brassSoft }}>Exit preview</button>
           </div>
+          {fmtUpdated(lastUpdated) && <p className="mt-3 text-xs" style={{ color: "rgba(243,239,230,0.5)" }}>Last updated: {fmtUpdated(lastUpdated)}</p>}
 
           <div className="mt-8">
             {on.length === 0 && <p className="py-12 text-center" style={{ color: "rgba(243,239,230,0.6)" }}>Nothing on just now. Back shortly.</p>}
@@ -1626,7 +1803,7 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
               </section>
             )}
 
-            <p className="mt-10 text-center text-xs" style={{ color: "rgba(243,239,230,0.4)" }}>Allergen and dietary information is prepared with care, but please confirm with staff before ordering.</p>
+            <p className="mt-10 text-center text-xs" style={{ color: "rgba(243,239,230,0.4)" }}>Please confirm allergens with staff before ordering.</p>
           </div>
         </div>
       </div>
@@ -1899,6 +2076,28 @@ Rules: If unsure of the specific product, estimate from the name. Keep allergens
     );
   };
 
+  if (cloudMode && (authChecking || !authed)) {
+    return (
+      <div className="flex min-h-screen w-full items-center justify-center p-6" style={{ background: C.ink }}>
+        <div className="w-full max-w-xs">
+          <div className="mb-6 text-center">
+            <p className="text-2xl font-bold" style={{ color: C.cream, fontFamily: "Fraunces, Georgia, serif" }}>The Curfew</p>
+            <p className="mt-1 text-xs uppercase tracking-widest" style={{ color: C.brassSoft }}>Cellar Management</p>
+          </div>
+          {authChecking ? (
+            <p className="text-center text-sm" style={{ color: C.brassSoft }}>Checking…</p>
+          ) : (
+            <div className="space-y-3">
+              <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") doLogin(); }} placeholder="Pub password" autoFocus className="w-full rounded-lg px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: "rgba(255,255,255,0.08)", color: C.cream, border: `1px solid ${C.brass}` }} />
+              {authErr && <p className="text-xs" style={{ color: "#f3b4b4" }}>{authErr}</p>}
+              <button onClick={doLogin} disabled={authBusy || !pw.trim()} className="w-full rounded-lg px-4 py-3 text-sm font-semibold transition active:scale-95 disabled:opacity-50" style={{ background: C.brass, color: C.ink }}>{authBusy ? "Signing in…" : "Unlock"}</button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen w-full overflow-x-hidden" style={{ background: "linear-gradient(180deg, #EFEDE7 0%, #E8E7E2 60%)", fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif" }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap');
@@ -1934,7 +2133,7 @@ body { touch-action: manipulation; overscroll-behavior-y: contain; }
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
                 <div className="absolute right-0 top-full z-50 mt-1 w-44 overflow-hidden rounded-lg border bg-white shadow-lg" style={{ borderColor: C.line }}>
-                  {[["library", "Library", BookOpen], ["allergens", "Allergen sheet", FileText], ["taplist", "Tap list", QrCode], ["backup", "Backup", Database]].map(([id, label, Icon]) => (
+                  {[["library", "Library", BookOpen], ["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["backup", "Backup", Database]].map(([id, label, Icon]) => (
                     <button key={id} onClick={() => { setMenuOpen(false); go(id); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"><Icon size={15} className="text-slate-400" />{label}</button>
                   ))}
                 </div>
@@ -1959,6 +2158,7 @@ body { touch-action: manipulation; overscroll-behavior-y: contain; }
             {view === "add" && AddForm()}
             {view === "library" && Library()}
             {view === "allergens" && AllergenSheet()}
+            {view === "stock" && StockSheet()}
             {view === "empties" && Empties()}
             {view === "backup" && Backup()}
             </div>
@@ -1999,7 +2199,7 @@ body { touch-action: manipulation; overscroll-behavior-y: contain; }
           <div className="cc-sheet absolute inset-x-0 bottom-0 rounded-t-2xl bg-white p-4" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 16px)" }}>
             <div className="mx-auto mb-3 h-1.5 w-10 rounded-full" style={{ background: C.line }} />
             <div className="grid grid-cols-3 gap-2.5">
-              {[["allergens", "Allergen sheet", FileText], ["taplist", "Tap list", QrCode], ["backup", "Backup", Database]].map(([id, label, Icon]) => (
+              {[["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["backup", "Backup", Database]].map(([id, label, Icon]) => (
                 <button key={id} onClick={() => { setMenuOpen(false); go(id); }} className="flex flex-col items-center gap-1.5 rounded-xl border p-3 transition active:scale-95" style={{ borderColor: C.line, color: C.ink }}>
                   <Icon size={20} style={{ color: C.brass }} />
                   <span className="text-center text-xs font-medium leading-tight">{label}</span>
