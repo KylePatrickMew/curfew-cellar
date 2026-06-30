@@ -680,7 +680,7 @@ export default function TheCurfewCellar() {
         const b = beerById[l.beerId]; if (!b) return;
         const name = `${b.brewery ? b.brewery + " - " : ""}${b.name || ""}`;
         const dt = (DRINK_TYPES.find((t) => t.key === l.drinkType) || {}).label || l.drinkType;
-        const meta = [dt, b.style, b.abv ? b.abv + "%" : "", l.caskOwner || b.location || ""].filter(Boolean).join("  ·  ");
+        const meta = [dt, b.style, b.abv ? b.abv + "%" : "", b.location || "", l.caskOwner ? `Supplier: ${l.caskOwner}` : ""].filter(Boolean).join("  ·  ");
         doc.setFont("helvetica", "bold"); doc.setFontSize(9.5);
         const nameLines = doc.splitTextToSize(name, W - 2 * M - 38);
         doc.setFont("helvetica", "normal"); doc.setFontSize(7.8);
@@ -1982,7 +1982,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</p>
             <p className="truncate text-xs font-medium text-slate-600">{dt} · {beer.style} · {beer.abv}%</p>
-            <p className="truncate text-xs text-slate-400">{l.caskOwner ? l.caskOwner : (beer.location || "")}</p>
+            <p className="truncate text-xs text-slate-400">{beer.location || ""}{l.caskOwner ? `${beer.location ? " · " : ""}Supplier: ${l.caskOwner}` : ""}</p>
           </div>
           <div className="shrink-0 text-right">
             {pump && <p className="text-xs font-semibold" style={{ color: C.brass }}>{pump}</p>}
