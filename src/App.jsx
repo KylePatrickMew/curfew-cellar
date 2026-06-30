@@ -219,6 +219,15 @@ const fmt = (iso) => {
     d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 };
 const fmtDate = (s) => { if (!s) return "--"; return new Date(s + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" }); };
+// Splits a tasting note into a taste line and an optional fun-fact line, so it can be shown
+// as two short bullet-style lines instead of one paragraph, regardless of how it was entered.
+const splitNote = (notes) => {
+  if (!notes) return [];
+  const t = notes.trim();
+  const i = t.indexOf(". ");
+  if (i === -1) return [t.replace(/\.$/, "")];
+  return [t.slice(0, i), t.slice(i + 2).trim()].map((x) => x.replace(/\.$/, "")).filter(Boolean);
+};
 const dayDiff = (aIso, bIso) => { const a = new Date(aIso); a.setHours(0, 0, 0, 0); const b = new Date(bIso); b.setHours(0, 0, 0, 0); return Math.round((b - a) / DAY); };
 const daysUntil = (dateStr) => { if (!dateStr) return null; const a = new Date(); a.setHours(0, 0, 0, 0); const b = new Date(dateStr + "T00:00:00"); return Math.round((b - a) / DAY); };
 const daysOn = (line) => { if (!line.dates.on) return null; return dayDiff(line.dates.on, line.dates.off || new Date().toISOString()); };
@@ -616,6 +625,16 @@ export default function TheCurfewCellar() {
     });
     return { ...data, library: lib, prefs: { ...(data.prefs || {}), notesV1: true }, lastUpdated: new Date().toISOString() };
   };
+  // Follow-up, non-destructive fix: Hurricane Jack got re-autofilled under the old, looser
+  // notes prompt and came back as a long paragraph. Reverts it to the short style, but only
+  // if it still exactly matches that specific long text, so a deliberate edit since is safe.
+  const migrateNotes2 = (data) => {
+    if (!data || (data.prefs && data.prefs.notesV2)) return data;
+    const longText = "A light and refreshing session pale ale from the Scottish Highlands, with gentle citrus and floral hop character. Easy-drinking and well-balanced, named after a character from the classic Scottish TV series 'Para Handy'.";
+    const shortText = "Biscuity blonde, citrus and pear. Named after the legendary sailor in Neil Munro's Para Handy stories.";
+    const lib = (data.library || []).map((b) => (b.id === "b6" && b.notes === longText ? { ...b, notes: shortText } : b));
+    return { ...data, library: lib, prefs: { ...(data.prefs || {}), notesV2: true }, lastUpdated: new Date().toISOString() };
+  };
   const applyData = (data, remote) => {
     if (!data) return;
     if (remote) skipBump.current = true;
@@ -634,7 +653,7 @@ export default function TheCurfewCellar() {
       const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 1200));
       try {
         const r = await Promise.race([store.get(STORE_KEY, false), timeout]);
-        if (!cancelled && r && r.value) applyData(migrateNotes(migrateEmpties2(migrateEmpties(migrateLaunch(JSON.parse(r.value))))), false);
+        if (!cancelled && r && r.value) applyData(migrateNotes2(migrateNotes(migrateEmpties2(migrateEmpties(migrateLaunch(JSON.parse(r.value)))))), false);
         if (!cancelled) setStorageOk(true);
       } catch (e) {
         if (!cancelled) setStorageOk(!(e && e.message === "timeout"));
@@ -662,7 +681,7 @@ export default function TheCurfewCellar() {
       try {
         const r = await store.get(STORE_KEY);
         if (r && r.cloudOk) {
-          if (r.value) applyData(migrateNotes(migrateEmpties2(migrateEmpties(migrateLaunch(JSON.parse(r.value))))), true);
+          if (r.value) applyData(migrateNotes2(migrateNotes(migrateEmpties2(migrateEmpties(migrateLaunch(JSON.parse(r.value)))))), true);
           setCloudReady(true);
           return true;
         }
@@ -677,7 +696,7 @@ export default function TheCurfewCellar() {
     let cancelled = false;
     (async () => {
       const ok = await loadCellar();
-      if (!cancelled && ok) store.subscribe((j) => { try { applyData(migrateNotes(migrateEmpties2(migrateEmpties(migrateLaunch(JSON.parse(j))))), true); } catch (e) { /* ignore */ } });
+      if (!cancelled && ok) store.subscribe((j) => { try { applyData(migrateNotes2(migrateNotes(migrateEmpties2(migrateEmpties(migrateLaunch(JSON.parse(j)))))), true); } catch (e) { /* ignore */ } });
     })();
     return () => { cancelled = true; };
   }, [authed]);
@@ -1163,7 +1182,7 @@ Return exactly:
   "glutenStatus": "Standard | Low gluten | Gluten-free",
   "vegan": true or false,
   "allergens": ["choose ONLY from: ${ALLERGEN_OPTIONS.join(", ")}"],
-  "notes": "a short taste descriptor (3 to 6 words, e.g. \"biscuity blonde, citrus and pear\"), optionally followed by one short, genuinely interesting fun fact about the beer or brewery if you know one (e.g. what the name refers to, an award, a notable first), kept brief enough to read and remember at a glance. Skip the fun fact entirely if you do not know a real one, never invent one"
+  "notes": "STRICT FORMAT, max 2 short sentences, max 18 words total: sentence 1 is a 3 to 6 word taste descriptor with no full stop logic beyond a period at the end (e.g. \"Biscuity blonde, citrus and pear.\"). Sentence 2, ONLY if you know a real, genuinely interesting fun fact about the beer or brewery (what the name refers to, a notable first, an award), written as one short plain sentence under 12 words (e.g. \"Named after a Para Handy character.\"). If you do not know a real fact, output sentence 1 only, never pad it out, never invent a fact, never write a third sentence"
 }
 
 Rules: Correct obvious misspellings or odd capitalisation in the producer and product names to the real ones you recognise (e.g. "hope back" -> "Hop Back", "sanford" -> "Sandford Orchards"), but do not swap in a different beer. For ABV, recall the real, specific, published ABV of that exact named beer from this producer if you know it (most named cask and keg beers have a fixed, well-documented ABV, often not a round number, e.g. 4.1 or 5.3). Only fall back to a style-typical estimate if you genuinely do not recognise the specific beer, and in that case keep the rest of the response otherwise unaffected. Do not default to round numbers like 4.0, 4.5 or 5.0 out of habit. For allergens, vegan status and gluten status, recall the real, specific, published facts about that exact named beer if you know them (many breweries state these explicitly, e.g. "suitable for vegans", "gluten-free", or list malted wheat/oats alongside barley), rather than defaulting to a generic style assumption. Only fall back to a style-typical default if you genuinely do not know the specific beer: most ales then get "Barley (gluten)" and most ciders get "Sulphites", vegan=false, and glutenStatus="Standard" (ciders are usually gluten-free unless fruited with something that changes that). Never state a vegan or gluten-free claim with more confidence than you actually have. JSON only.`;
@@ -1320,7 +1339,7 @@ Return exactly:
   "glutenStatus": "Standard | Low gluten | Gluten-free",
   "vegan": true or false,
   "allergens": ["choose ONLY from: ${ALLERGEN_OPTIONS.join(", ")}"],
-  "notes": "a short taste descriptor (3 to 6 words, e.g. \"biscuity blonde, citrus and pear\"), optionally followed by one short, genuinely interesting fun fact about the beer or brewery if you know one (e.g. what the name refers to, an award, a notable first), kept brief enough to read and remember at a glance. Skip the fun fact entirely if you do not know a real one, never invent one"
+  "notes": "STRICT FORMAT, max 2 short sentences, max 18 words total: sentence 1 is a 3 to 6 word taste descriptor with no full stop logic beyond a period at the end (e.g. \"Biscuity blonde, citrus and pear.\"). Sentence 2, ONLY if you know a real, genuinely interesting fun fact about the beer or brewery (what the name refers to, a notable first, an award), written as one short plain sentence under 12 words (e.g. \"Named after a Para Handy character.\"). If you do not know a real fact, output sentence 1 only, never pad it out, never invent a fact, never write a third sentence"
 }
 
 Rules: Correct obvious misspellings or odd capitalisation in the producer and product names to the real ones you recognise (e.g. "hope back" -> "Hop Back", "sanford" -> "Sandford Orchards"), but do not swap in a different beer. For ABV, recall the real, specific, published ABV of that exact named beer from this producer if you know it (most named cask and keg beers have a fixed, well-documented ABV, often not a round number, e.g. 4.1 or 5.3). Only fall back to a style-typical estimate if you genuinely do not recognise the specific beer, and in that case keep the rest of the response otherwise unaffected. Do not default to round numbers like 4.0, 4.5 or 5.0 out of habit. For allergens, vegan status and gluten status, recall the real, specific, published facts about that exact named beer if you know them (many breweries state these explicitly, e.g. "suitable for vegans", "gluten-free", or list malted wheat/oats alongside barley), rather than defaulting to a generic style assumption. Only fall back to a style-typical default if you genuinely do not know the specific beer: most ales then get "Barley (gluten)" and most ciders get "Sulphites", vegan=false, and glutenStatus="Standard" (ciders are usually gluten-free unless fruited with something that changes that). Never state a vegan or gluten-free claim with more confidence than you actually have. JSON only.`;
@@ -1407,7 +1426,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     return (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("").trim();
   };
   const distHint = distributors.filter((d) => d.trim()).length ? ` Known distributors: ${distributors.filter((d) => d.trim()).join(", ")}. If one of these appears (often after "To:"), set deliveredBy to it, not the brewery.` : "";
-  const labelPrompt = `This image is a beer or cider pump clip, cask end, or bottle/can label. Read what's printed AND use your knowledge of this product (look it up if it helps) to complete the details accurately. Pay close attention to any printed allergen statement, ingredients list, "contains" or "allergy advice" text, or vegan/gluten-free logos on the label itself, cask casks and bottle labels very often state this explicitly. If the label states it, use exactly what it says over any general assumption. Return STRICT JSON only:\\n{"brewery": string, "location": "town or county the brewery is based in (use your knowledge if not printed)", "name": string, "kind": "beer"|"cider", "style": string, "abv": "number as string", "bestBefore": "best before date if printed, as YYYY-MM-DD, reading any dd/mm/yyyy in UK day-month order", "deliveredBy": "distributor or wholesaler named on the label, e.g. after 'To:', else empty", "clarity": "Clear|Hazy|Cloudy", "glutenStatus": "Standard|Low gluten|Gluten-free", "vegan": true|false, "allergens": [only from: ${ALLERGEN_OPTIONS.join(", ")}], "notes": "same short style: a 3 to 6 word taste descriptor, optionally plus one short genuine fun fact if you know one, never invented"}\\nIf allergen or vegan/gluten-free information is printed on the label, use it directly. Otherwise recall the real, specific, published facts about this exact beer if you know them. Only as a last resort, estimate from the style: most ales then get "Barley (gluten)", most ciders get "Sulphites", vegan=false, glutenStatus="Standard". If a field isn't legible or known, use "" for text fields.${distHint} JSON only, no other text.`;
+  const labelPrompt = `This image is a beer or cider pump clip, cask end, or bottle/can label. Read what's printed AND use your knowledge of this product (look it up if it helps) to complete the details accurately. Pay close attention to any printed allergen statement, ingredients list, "contains" or "allergy advice" text, or vegan/gluten-free logos on the label itself, cask casks and bottle labels very often state this explicitly. If the label states it, use exactly what it says over any general assumption. Return STRICT JSON only:\\n{"brewery": string, "location": "town or county the brewery is based in (use your knowledge if not printed)", "name": string, "kind": "beer"|"cider", "style": string, "abv": "number as string", "bestBefore": "best before date if printed, as YYYY-MM-DD, reading any dd/mm/yyyy in UK day-month order", "deliveredBy": "distributor or wholesaler named on the label, e.g. after 'To:', else empty", "clarity": "Clear|Hazy|Cloudy", "glutenStatus": "Standard|Low gluten|Gluten-free", "vegan": true|false, "allergens": [only from: ${ALLERGEN_OPTIONS.join(", ")}], "notes": "same strict format: max 2 short sentences, max 18 words total. Sentence 1 a 3 to 6 word taste descriptor. Sentence 2 only a genuine fun fact under 12 words if you know one, never invented, never a third sentence"}\\nIf allergen or vegan/gluten-free information is printed on the label, use it directly. Otherwise recall the real, specific, published facts about this exact beer if you know them. Only as a last resort, estimate from the style: most ales then get "Barley (gluten)", most ciders get "Sulphites", vegan=false, glutenStatus="Standard". If a field isn't legible or known, use "" for text fields.${distHint} JSON only, no other text.`;
   const labelToItem = (p, i) => {
     const dt = p.kind === "cider" ? "cider" : "cask";
     const style = p.style ? String(p.style) : "";
@@ -2349,7 +2368,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           </div>
           <p className="text-sm font-medium" style={{ color: "rgba(243,239,230,0.85)" }}>{beer.style} · {beer.abv}%{beer.clarity ? ` · ${beer.clarity}` : ""}</p>
           {beer.location && <p className="text-xs" style={{ color: "rgba(243,239,230,0.5)" }}>{beer.location}</p>}
-          {beer.notes && <p className="mt-1 text-sm italic" style={{ color: faint }}>{beer.notes}</p>}
+          {beer.notes && <ul className="mt-1 space-y-0.5">{splitNote(beer.notes).map((line, i) => <li key={i} className="flex gap-1.5 text-sm italic" style={{ color: faint }}><span>·</span><span>{line}.</span></li>)}</ul>}
           <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
             {diet.map((d) => <span key={d} className="text-xs font-semibold uppercase tracking-wide" style={{ color: C.brassSoft }}>{d}</span>)}
             <span className="text-xs" style={{ color: "rgba(243,239,230,0.45)" }}>{beer.allergensVerified ? (beer.allergens.length ? `Contains: ${beer.allergens.join(", ")}` : "No declared allergens") : "Allergens: please ask at the bar"}</span>
@@ -2458,7 +2477,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                     </div>
                   ) : <p className="mt-2 flex items-center gap-1.5 text-sm text-emerald-700"><CheckCircle2 size={15} /> Verified by staff</p>}
                 </div>
-                {previewBeer.notes && <div><p className="mb-2 text-sm font-medium text-slate-500">Tasting notes</p><p className="text-sm leading-relaxed text-slate-600">{previewBeer.notes}</p></div>}
+                {previewBeer.notes && <div><p className="mb-1.5 text-sm font-medium text-slate-500">Tasting notes</p><ul className="space-y-1">{splitNote(previewBeer.notes).map((line, i) => <li key={i} className="flex gap-1.5 text-sm leading-snug text-slate-600"><span style={{ color: C.brass }}>•</span><span>{line}.</span></li>)}</ul></div>}
               </div>
               <div className="sticky bottom-0 border-t bg-white p-4" style={{ borderColor: C.line }}>
                 <button onClick={() => doSwap(previewLine.id, swap.oldId, swap.slot)} className="flex w-full items-center justify-center gap-1.5 rounded-lg px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Check size={16} /> Put on</button>
@@ -2615,7 +2634,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
               ) : <p className="mt-2 flex items-center gap-1.5 text-sm text-emerald-700"><CheckCircle2 size={15} /> Verified by staff</p>}
             </div>
 
-            {beer.notes && <div><p className="mb-2 text-sm font-medium text-slate-500">Tasting notes</p><p className="text-sm leading-relaxed text-slate-600">{beer.notes}</p></div>}
+            {beer.notes && <div><p className="mb-1.5 text-sm font-medium text-slate-500">Tasting notes</p><ul className="space-y-1">{splitNote(beer.notes).map((line, i) => <li key={i} className="flex gap-1.5 text-sm leading-snug text-slate-600"><span style={{ color: C.brass }}>•</span><span>{line}.</span></li>)}</ul></div>}
 
             <div className="border-t pt-4" style={{ borderColor: C.line }}>
               <div className="flex gap-1.5">
