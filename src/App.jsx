@@ -661,7 +661,8 @@ export default function TheCurfewCellar() {
       y = 36;
 
       const sectionHead = (t, n) => {
-        ensure(13);
+        ensure(16);
+        y += 4;
         doc.setFillColor(brass[0], brass[1], brass[2]); doc.rect(M, y - 4, 2.2, 5.2, "F");
         doc.setFont("helvetica", "bold"); doc.setFontSize(11.5); doc.setTextColor(ink[0], ink[1], ink[2]);
         doc.text(t, M + 4.5, y);
@@ -752,7 +753,10 @@ export default function TheCurfewCellar() {
       const empties = lines.filter((l) => l.status === "off" && !l.collected && l.drinkType !== "cider" && l.drinkType !== "keykeg");
       if (empties.length) {
         sectionHead("Empties", empties.length);
-        const owners = [...new Set(empties.map((l) => l.caskOwner || "Unknown"))].sort();
+        const owners = [...new Set(empties.map((l) => l.caskOwner || "Unknown"))].sort((a, b) => {
+              const diff = empties.filter((l) => (l.caskOwner || "Unknown") === b).length - empties.filter((l) => (l.caskOwner || "Unknown") === a).length;
+              return diff !== 0 ? diff : a.localeCompare(b);
+            });
         owners.forEach((owner) => {
           subHead(owner);
           empties.filter((l) => (l.caskOwner || "Unknown") === owner).forEach((l) => beerLine(l, "#9AA1AC", {}));
@@ -1666,7 +1670,10 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     const match = (b) => [b.name, b.brewery, b.style, b.category, b.location].some((x) => (x || "").toLowerCase().includes(q));
     const justAddedBeers = library.filter((b) => b.justAdded);
     const results = q ? library.filter(match) : [];
-    const recent = library.filter((b) => !b.justAdded).slice(-6).reverse();
+    const rest = library.filter((b) => !b.justAdded).slice().sort((a, b) => {
+      if (a.allergensVerified !== b.allergensVerified) return a.allergensVerified ? 1 : -1;
+      return (a.brewery || "").localeCompare(b.brewery || "") || (a.name || "").localeCompare(b.name || "");
+    });
     const histChrono = (b) => (b.history || []).slice().sort((x, y) => new Date(x.date) - new Date(y.date));
     const libRow = (b) => {
       const h = histChrono(b);
@@ -1676,7 +1683,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{b.brewery ? `${b.brewery} - ` : ""}{b.name}</p>
-              <p className="truncate text-xs font-medium text-slate-600">{b.style} · {b.abv}%</p>
+              <p className="truncate text-xs font-medium text-slate-600">{b.style} · {b.abv}%{!b.allergensVerified ? " · not staff verified" : ""}</p>
               <p className="truncate text-xs text-slate-400">{b.location || ""}</p>
             </div>
             <div className="flex shrink-0 items-center gap-1">
@@ -1763,10 +1770,10 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
               <p className="font-semibold" style={{ color: C.ink }}>Search your library</p>
               <p className="mt-1 text-sm text-slate-500">{library.length} beer{library.length === 1 ? "" : "s"} saved. Type a name, brewery or style.</p>
             </div>
-            {recent.length > 0 && (
+            {rest.length > 0 && (
               <div>
-                <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">Recently added</p>
-                <div className="space-y-2">{recent.map(libRow)}</div>
+                <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">Library · unverified first</p>
+                <div className="space-y-2">{rest.map(libRow)}</div>
               </div>
             )}
           </>
@@ -1815,7 +1822,10 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
 
   const Empties = () => {
     const empties = lines.filter((l) => l.status === "off" && !l.collected && l.drinkType !== "cider" && l.drinkType !== "keykeg");
-    const owners = [...new Set(empties.map((l) => l.caskOwner || "Unknown"))].sort();
+    const owners = [...new Set(empties.map((l) => l.caskOwner || "Unknown"))].sort((a, b) => {
+      const diff = empties.filter((l) => (l.caskOwner || "Unknown") === b).length - empties.filter((l) => (l.caskOwner || "Unknown") === a).length;
+      return diff !== 0 ? diff : a.localeCompare(b);
+    });
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-end gap-2">
@@ -1841,11 +1851,14 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                 <ul className="space-y-1.5 px-3 pb-3">
                   {items.map((l) => {
                     const beer = beerById[l.beerId];
+                    const dt = (DRINK_TYPES.find((t) => t.key === l.drinkType) || {}).label || l.drinkType;
                     return (
-                      <li key={l.id} className="flex items-center justify-between gap-2 rounded-lg border px-2.5 py-2" style={{ borderColor: C.line }}>
+                      <li key={l.id} className="flex items-start justify-between gap-2 rounded-lg border px-2.5 py-2" style={{ borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[l.drinkType] || C.line }}>
                         <span className="min-w-0">
-                          <span className="block truncate text-sm font-medium" style={{ color: C.ink }}>{beer ? beer.name : "Unknown"}</span>
-                          <span className="block truncate text-xs text-slate-500">{l.size} · finished {l.dates.off ? fmtDate(l.dates.off.slice(0, 10)) : "--"}</span>
+                          <span className="block truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{beer ? `${beer.brewery ? beer.brewery + " - " : ""}${beer.name}` : "Unknown"}</span>
+                          {beer && <span className="block truncate text-xs font-medium text-slate-600">{dt}{beer.style ? ` · ${beer.style}` : ""}{beer.abv ? ` · ${beer.abv}%` : ""}</span>}
+                          {beer && beer.location && <span className="block truncate text-xs text-slate-400">{beer.location}</span>}
+                          <span className="block truncate text-xs text-slate-500">{l.size ? `${l.size} · ` : ""}finished {l.dates.off ? fmtDate(l.dates.off.slice(0, 10)) : "--"}</span>
                         </span>
                         <button onClick={() => markCollected(l.id)} className="inline-flex shrink-0 items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><Check size={13} /> Collected</button>
                       </li>
@@ -2029,7 +2042,10 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           {(() => {
             const empties = lines.filter((l) => l.status === "off" && !l.collected && l.drinkType !== "cider" && l.drinkType !== "keykeg");
             if (!empties.length) return null;
-            const owners = [...new Set(empties.map((l) => l.caskOwner || "Unknown"))].sort();
+            const owners = [...new Set(empties.map((l) => l.caskOwner || "Unknown"))].sort((a, b) => {
+              const diff = empties.filter((l) => (l.caskOwner || "Unknown") === b).length - empties.filter((l) => (l.caskOwner || "Unknown") === a).length;
+              return diff !== 0 ? diff : a.localeCompare(b);
+            });
             return (
               <div className="mt-4">
                 <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: C.brass }}>Empties · {empties.length}</h3>
