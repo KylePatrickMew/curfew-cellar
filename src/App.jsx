@@ -37,6 +37,15 @@ const _client = async () => {
   return _sb;
 };
 const _revOf = (v) => { try { return JSON.parse(v).lastUpdated || null; } catch (e) { return null; } };
+const _loadJsPDF = () => new Promise((resolve, reject) => {
+  if (typeof window === "undefined") return reject(new Error("no window"));
+  if (window.jspdf && window.jspdf.jsPDF) return resolve(window.jspdf.jsPDF);
+  const el = document.createElement("script");
+  el.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+  el.onload = () => resolve(window.jspdf && window.jspdf.jsPDF);
+  el.onerror = () => reject(new Error("PDF library failed to load"));
+  document.head.appendChild(el);
+});
 const cloudStore = {
   async session() { try { const c = await _client(); const { data } = await c.auth.getSession(); return data ? data.session : null; } catch (e) { return null; } },
   async signIn(password) { try { const c = await _client(); const { error } = await c.auth.signInWithPassword({ email: BAR_EMAIL, password }); return error ? (error.message || "Sign in failed") : null; } catch (e) { return "Cannot reach the cloud. Check your connection."; } },
@@ -173,12 +182,12 @@ const toISO = (s) => {
   return "";
 };
 const fmt = (iso) => {
-  if (!iso) return "—";
+  if (!iso) return "--";
   const d = new Date(iso);
   return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }) + ", " +
     d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 };
-const fmtDate = (s) => { if (!s) return "—"; return new Date(s + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" }); };
+const fmtDate = (s) => { if (!s) return "--"; return new Date(s + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" }); };
 const dayDiff = (aIso, bIso) => { const a = new Date(aIso); a.setHours(0, 0, 0, 0); const b = new Date(bIso); b.setHours(0, 0, 0, 0); return Math.round((b - a) / DAY); };
 const daysUntil = (dateStr) => { if (!dateStr) return null; const a = new Date(); a.setHours(0, 0, 0, 0); const b = new Date(dateStr + "T00:00:00"); return Math.round((b - a) / DAY); };
 const daysOn = (line) => { if (!line.dates.on) return null; return dayDiff(line.dates.on, line.dates.off || new Date().toISOString()); };
@@ -415,6 +424,7 @@ export default function TheCurfewCellar() {
   const [pw, setPw] = useState("");
   const [authErr, setAuthErr] = useState(null);
   const [authBusy, setAuthBusy] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
   const toggleSection = (k) => setPrefs((p) => ({ ...p, [k]: !p[k] }));
   const [loading, setLoading] = useState(false);
   const [librarySearch, setLibrarySearch] = useState("");
@@ -522,10 +532,102 @@ export default function TheCurfewCellar() {
   };
   const lock = async () => { try { await store.signOut(); } catch (e) { /* ignore */ } setView("cellar"); setOpenId(null); setShowMore(false); setAuthed(false); };
 
-  // Save whenever data changes, but only if storage responded and (in cloud mode) we're signed in
+  // Build the full stock list as a PDF and share it (mobile) or download it.
+  const sharePDF = async () => {
+    if (pdfBusy) return;
+    setPdfBusy(true);
+    try {
+      const JsPDF = await _loadJsPDF();
+      if (!JsPDF) throw new Error("no pdf lib");
+      const doc = new JsPDF({ unit: "mm", format: "a4" });
+      const W = 210, H = 297, M = 15; let y = M;
+      const ink = [27, 34, 48], brass = [122, 86, 18], gray = [120, 120, 120];
+      const ensure = (need) => { if (y + need > H - M) { doc.addPage(); y = M; } };
+      const fmtD = (d) => { if (!d) return ""; try { return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" }); } catch (e) { return ""; } };
+      const cmpBB = (a, b) => { const da = a.bestBefore ? new Date(a.bestBefore).getTime() : Infinity; const db = b.bestBefore ? new Date(b.bestBefore).getTime() : Infinity; return da - db; };
+
+      doc.setFont("helvetica", "bold"); doc.setFontSize(20); doc.setTextColor(ink[0], ink[1], ink[2]);
+      doc.text("The Curfew", M, y); y += 7;
+      doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(gray[0], gray[1], gray[2]);
+      doc.text(`Stock list  ·  ${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}`, M, y); y += 4;
+      doc.setDrawColor(210, 210, 205); doc.line(M, y, W - M, y); y += 6;
+
+      const sectionHead = (t) => { ensure(12); doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(brass[0], brass[1], brass[2]); doc.text(t, M, y); y += 6; };
+      const subHead = (t) => { ensure(8); doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(ink[0], ink[1], ink[2]); doc.text(t, M, y); y += 5; };
+      const catHead = (t) => { ensure(6); doc.setFont("helvetica", "italic"); doc.setFontSize(8); doc.setTextColor(gray[0], gray[1], gray[2]); doc.text(t, M + 2, y); y += 4.5; };
+      const beerLine = (l, stage) => {
+        const b = beerById[l.beerId]; if (!b) return;
+        ensure(10);
+        const name = `${b.brewery ? b.brewery + " - " : ""}${b.name || ""}`;
+        const pump = l.status === "on" && l.slot ? PUMP_LABELS[l.slot] : null;
+        const right = pump || stage || "";
+        doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(ink[0], ink[1], ink[2]);
+        const nameLines = doc.splitTextToSize(name, W - 2 * M - 28);
+        doc.text(nameLines, M, y);
+        if (right) { doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(brass[0], brass[1], brass[2]); doc.text(right, W - M, y, { align: "right" }); }
+        y += 4.4 * nameLines.length;
+        const dt = (DRINK_TYPES.find((t) => t.key === l.drinkType) || {}).label || l.drinkType;
+        const meta = [dt, b.style, b.abv ? b.abv + "%" : "", l.bestBefore ? "BB " + fmtD(l.bestBefore) : "", l.caskOwner || b.location || ""].filter(Boolean).join("  ·  ");
+        doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(gray[0], gray[1], gray[2]);
+        const metaLines = doc.splitTextToSize(meta, W - 2 * M);
+        doc.text(metaLines, M, y); y += 4 * metaLines.length + 1.6;
+      };
+
+      const onL = lines.filter((l) => l.status === "on");
+      const prepOrder = { tapped: 0, vented: 1, racked: 2 };
+      const prep = lines.filter((l) => ["tapped", "vented", "racked"].includes(l.status)).sort((a, b) => prepOrder[a.status] - prepOrder[b.status]);
+      const storeL = lines.filter((l) => l.status === "in_cellar");
+
+      if (onL.length) { sectionHead(`On  ·  ${onL.length}`); onL.forEach((l) => beerLine(l, null)); y += 2; }
+      if (prep.length) { sectionHead(`In cellar  ·  ${prep.length}`); prep.forEach((l) => beerLine(l, (STATUS_BY_KEY[l.status] && STATUS_BY_KEY[l.status].label) || "")); y += 2; }
+      if (storeL.length) {
+        sectionHead(`In store  ·  ${storeL.length}`);
+        [["cask", "Cask"], ["keg", "Keg"], ["keykeg", "Key Keg"], ["cider", "Cider"]].forEach(([dt, label]) => {
+          const items = storeL.filter((l) => l.drinkType === dt);
+          if (!items.length) return;
+          subHead(label);
+          if (dt === "cask") {
+            CATEGORIES.forEach((cat) => {
+              const sub = items.filter((l) => (beerById[l.beerId] && beerById[l.beerId].category || "Misc") === cat).sort(cmpBB);
+              if (!sub.length) return;
+              catHead(cat); sub.forEach((l) => beerLine(l, null));
+            });
+          } else {
+            items.slice().sort(cmpBB).forEach((l) => beerLine(l, null));
+          }
+        });
+      }
+      if (!onL.length && !prep.length && !storeL.length) { doc.setFontSize(11); doc.setTextColor(gray[0], gray[1], gray[2]); doc.text("No stock yet.", M, y); }
+
+      const fname = "curfew-stock-list.pdf";
+      const blob = doc.output("blob");
+      try {
+        const file = new File([blob], fname, { type: "application/pdf" });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: "Curfew stock list" });
+        } else {
+          doc.save(fname);
+        }
+      } catch (e) {
+        if (!(e && e.name === "AbortError")) { try { doc.save(fname); } catch (e2) { /* ignore */ } }
+      }
+    } catch (e) {
+      if (typeof window !== "undefined") window.alert("Could not make the PDF just now. Check your connection and try again.");
+    } finally {
+      setPdfBusy(false);
+    }
+  };
+
+  // Save when data changes, debounced so fast typing (e.g. prices) stays smooth.
+  // The write (full serialise + cloud upsert) runs ~half a second after the last change.
+  const saveTimer = useRef(null);
   useEffect(() => {
     if (!hydrated || !store || storageOk !== true || (cloudMode && !authed)) return;
-    (async () => { try { await store.set(STORE_KEY, JSON.stringify({ library, lines, distributors, prefs, lastUpdated }), false); } catch (e) { /* ignore */ } })();
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      (async () => { try { await store.set(STORE_KEY, JSON.stringify({ library, lines, distributors, prefs, lastUpdated }), false); } catch (e) { /* ignore */ } })();
+    }, 500);
+    return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
   }, [library, lines, distributors, prefs, lastUpdated, hydrated, storageOk, authed]);
 
   // Stamp "last updated" whenever a beer is added or changed (not on first load or a remote sync)
@@ -1027,7 +1129,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="truncate text-base font-semibold leading-snug" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</p>
-            <p className="truncate text-sm font-medium text-slate-600">{beer.style} · {beer.abv}% · £{line.price || "—"}</p>
+            <p className="truncate text-sm font-medium text-slate-600">{beer.style} · {beer.abv}% · £{line.price || "--"}</p>
             <p className="truncate text-xs text-slate-400">{beer.location || ""}</p>
           </div>
         </div>
@@ -1421,8 +1523,8 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                         <li key={i} className="flex items-center justify-between text-xs">
                           <span className="text-slate-500">{new Date(e.date).toLocaleDateString("en-GB", { month: "short", year: "2-digit" })}</span>
                           <span className="flex items-center gap-4">
-                            <span className={abvCh ? "font-semibold text-amber-700" : "text-slate-600"}>{e.abv || "—"}%</span>
-                            <span className={priceCh ? (pN > pP ? "font-semibold text-red-600" : "font-semibold text-emerald-600") : "text-slate-600"}>£{e.price || "—"}{priceCh ? (pN > pP ? " ↑" : " ↓") : ""}</span>
+                            <span className={abvCh ? "font-semibold text-amber-700" : "text-slate-600"}>{e.abv || "--"}%</span>
+                            <span className={priceCh ? (pN > pP ? "font-semibold text-red-600" : "font-semibold text-emerald-600") : "text-slate-600"}>£{e.price || "--"}{priceCh ? (pN > pP ? " ↑" : " ↓") : ""}</span>
                           </span>
                         </li>
                       );
@@ -1466,7 +1568,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                   {justAddedBeers.map((b) => (
                     <div key={b.id} className="rounded-lg border bg-white p-2.5" style={{ borderColor: C.line, borderLeftWidth: 3, borderLeftColor: CAT_ACCENT[b.category] || C.line }}>
                       <p className="truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{b.brewery ? `${b.brewery} - ` : ""}{b.name}</p>
-                      <p className="truncate text-xs font-medium text-slate-600">{b.style ? b.style : "—"}{b.abv ? ` · ${b.abv}%` : ""}{!b.allergensVerified ? " · not staff verified" : ""}</p>
+                      <p className="truncate text-xs font-medium text-slate-600">{b.style ? b.style : "--"}{b.abv ? ` · ${b.abv}%` : ""}{!b.allergensVerified ? " · not staff verified" : ""}</p>
                       <p className="truncate text-xs text-slate-400">{b.location || ""}</p>
                       <div className="mt-2 flex items-center gap-1.5">
                         <button onClick={() => setEditBeerId(b.id)} className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50 focus:outline-none" style={{ borderColor: C.line }}><Pencil size={13} /> Check &amp; edit</button>
@@ -1565,7 +1667,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                       <li key={l.id} className="flex items-center justify-between gap-2 rounded-lg border px-2.5 py-2" style={{ borderColor: C.line }}>
                         <span className="min-w-0">
                           <span className="block truncate text-sm font-medium" style={{ color: C.ink }}>{beer ? beer.name : "Unknown"}</span>
-                          <span className="block truncate text-xs text-slate-500">{l.size} · finished {l.dates.off ? fmtDate(l.dates.off.slice(0, 10)) : "—"}</span>
+                          <span className="block truncate text-xs text-slate-500">{l.size} · finished {l.dates.off ? fmtDate(l.dates.off.slice(0, 10)) : "--"}</span>
                         </span>
                         <button onClick={() => markCollected(l.id)} className="inline-flex shrink-0 items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><Check size={13} /> Collected</button>
                       </li>
@@ -1602,7 +1704,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
       <div className="space-y-5">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <Stat label="On now" value={onNow.length} />
-          <Stat label="Avg days a cask lasts" value={avgDays == null ? "—" : avgDays} sub={lasted.length ? `from ${lasted.length} finished` : "no finished casks yet"} />
+          <Stat label="Avg days a cask lasts" value={avgDays == null ? "--" : avgDays} sub={lasted.length ? `from ${lasted.length} finished` : "no finished casks yet"} />
           <Stat label="In the library" value={library.length} />
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -1721,6 +1823,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     return (
       <div className="space-y-4">
         <div className="no-print flex items-center justify-end gap-2">
+          <button onClick={sharePDF} disabled={pdfBusy} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition hover:bg-slate-50 active:scale-95 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line, color: C.ink }}>{pdfBusy ? <Loader2 className="animate-spin" size={15} /> : <Download size={15} />} Share PDF</button>
           <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Printer size={15} /> Print</button>
         </div>
         <div className="rounded-xl border bg-white p-5" style={{ borderColor: C.line }}>
@@ -1772,7 +1875,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           <div className="flex items-baseline justify-between gap-3">
             <p className="text-lg font-semibold" style={{ color: C.cream, fontFamily: "Fraunces, Georgia, serif" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</p>
             <div className="shrink-0 text-right">
-              <p className="text-lg font-semibold" style={{ color: C.brassSoft, fontFamily: "Fraunces, Georgia, serif" }}>{tlp ? tlp.pint : `£${line.price || "—"}`}</p>
+              <p className="text-lg font-semibold" style={{ color: C.brassSoft, fontFamily: "Fraunces, Georgia, serif" }}>{tlp ? tlp.pint : `£${line.price || "--"}`}</p>
               {tlp && <p className="text-xs" style={{ color: "rgba(243,239,230,0.55)" }}>Half {tlp.half} · Schooner {tlp.schooner}</p>}
             </div>
           </div>
@@ -1857,7 +1960,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     const emptyMsg = isCask ? "Nothing racked, vented or tapped yet. Rack and vent a cask to get one ready." : `Nothing in the store to put on. Add ${swap.drink === "keg" ? "a keg" : "a cider"} first.`;
     const previewLine = swapPreviewId ? lines.find((l) => l.id === swapPreviewId) : null;
     const previewBeer = previewLine ? beerById[previewLine.beerId] : null;
-    const pmeta = previewBeer ? [DRINK_TYPES.find((t) => t.key === previewLine.drinkType)?.label, previewBeer.style, `${previewBeer.abv}%`, `£${previewLine.price || "—"}`, previewLine.size ? previewLine.size.replace("Bag-in-box ", "").replace("Keg ", "") : ""].filter(Boolean).join("  ·  ") : "";
+    const pmeta = previewBeer ? [DRINK_TYPES.find((t) => t.key === previewLine.drinkType)?.label, previewBeer.style, `${previewBeer.abv}%`, `£${previewLine.price || "--"}`, previewLine.size ? previewLine.size.replace("Bag-in-box ", "").replace("Keg ", "") : ""].filter(Boolean).join("  ·  ") : "";
     return (
       <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(27,34,48,0.45)" }} onClick={close}>
         <div className="flex w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-white sm:rounded-2xl cc-pop" style={{ maxHeight: "85vh" }} onClick={(e) => e.stopPropagation()}>
