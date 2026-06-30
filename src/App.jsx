@@ -102,6 +102,34 @@ const flowFor = (drinkType) => (drinkType === "cask" ? CASK_FLOW : SHORT_FLOW);
 const PUMPS = { cask: ["cask0", "cask1", "cask2", "cask3"], keg: ["keg0", "keg1", "keg2"], cider: ["cider0", "cider1", "cider2"] };
 const PUMP_LABELS = { cask0: "IPA", cask1: "Pale", cask2: "Bitter", cask3: "Stout", keg0: "Keg 1", keg1: "Keg 2", keg2: "Keg 3", cider0: "Cider 1", cider1: "Cider 2", cider2: "Cider 3" };
 const LAUNCH_PRICES = { b1: "4.50", b2: "4.50", b3: "4.90", b5: "4.70", b7: "4.90", b9: "4.70", b11: "4.90", b12: "4.50", b14: "4.30", b16: "4.70", b17: "4.90", b20: "4.30", b23: "4.70", b25: "4.70", b33: "5.70", b40: "6.20" };
+const EMPTIES_NEW_BEERS = [
+  { id: "b57", brewery: "Campervan", location: "Leith, Edinburgh", name: "Mango Mimosa", style: "Fruit Sour", abv: "4.7", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Wheat (gluten)"], notes: "Berliner Weisse with mango and lime, fruity and tart.", allergensVerified: false, category: "Misc" },
+  { id: "b49", brewery: "Hop Back", location: "Salisbury, Wiltshire", name: "GFB", style: "Session Bitter", abv: "3.4", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)"], notes: "Golden session bitter, hoppy aroma with East Kent Goldings and a dry finish.", allergensVerified: false, category: "Bitter" },
+  { id: "b50", brewery: "Hop Back", location: "Salisbury, Wiltshire", name: "Entire Stout", style: "Stout", abv: "4.5", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Wheat (gluten)", "Oats (gluten)"], notes: "Rich dark stout, strong roasted malt flavour with coffee and dark chocolate.", allergensVerified: false, category: "Stout/Porter" },
+  { id: "b51", brewery: "Phoenix", location: "Heywood, Greater Manchester", name: "Arizona", style: "Pale Ale", abv: "4.1", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)", "Wheat (gluten)"], notes: "Best-selling session pale brewed with Goldings hops, floral and honey notes.", allergensVerified: false, category: "Pale" },
+  { id: "b52", brewery: "Potting Shed Brew", location: "", name: "Unknown", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)"], notes: "Name not confirmed, check with Kyle before serving.", allergensVerified: false, category: "Misc" },
+  { id: "b53", brewery: "Two by Two", location: "North Shields", name: "Citra Motueka", style: "New World Pale", abv: "4.6", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Oats (gluten)"], notes: "Tropical hop character from Citra, Motueka and Sabro, oats and wheat for mouthfeel. ABV estimated.", allergensVerified: false, category: "Misc" },
+  { id: "b54", brewery: "Two by Two", location: "North Shields", name: "Azacca Mosaic", style: "Pale Ale", abv: "4.4", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Tropical, citrus and dank pale ale. ABV estimated.", allergensVerified: false, category: "Misc" },
+  { id: "b55", brewery: "Two by Two", location: "North Shields", name: "Razorbill", style: "Pale Ale", abv: "4.5", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Hop-forward pale ale. Not confirmed online, check ABV and style with Kyle.", allergensVerified: false, category: "Misc" },
+  { id: "b56", brewery: "Tempest", location: "Tweedbank, Scottish Borders", name: "Hawaiian Shirt", style: "Fruit Sour", abv: "4.5", clarity: "Hazy", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)", "Wheat (gluten)", "Oats (gluten)"], notes: "Tropical fruited sour with guava, mango and passionfruit.", allergensVerified: false, category: "Misc" },
+];
+const EMPTIES_NEW_LINES = [
+  { beerId: "b24", drinkType: "cask", caskOwner: "LWC" },
+  { beerId: "b4", drinkType: "cask", caskOwner: "LWC" },
+  { beerId: "b49", drinkType: "cask", caskOwner: "LWC" },
+  { beerId: "b50", drinkType: "cask", caskOwner: "LWC" },
+  { beerId: "b17", drinkType: "cask", caskOwner: "LWC" },
+  { beerId: "b28", drinkType: "cask", caskOwner: "LWC" },
+  { beerId: "b51", drinkType: "cask", caskOwner: "HB Clark" },
+  { beerId: "b52", drinkType: "cask", caskOwner: "" },
+  { beerId: "b53", drinkType: "keg", caskOwner: "Two by Two" },
+  { beerId: "b54", drinkType: "keg", caskOwner: "Two by Two" },
+  { beerId: "b53", drinkType: "keg", caskOwner: "Two by Two" },
+  { beerId: "b55", drinkType: "keg", caskOwner: "Two by Two" },
+  { beerId: "b54", drinkType: "keg", caskOwner: "Two by Two" },
+  { beerId: "b56", drinkType: "keg", caskOwner: "Tempest" },
+  { beerId: "b36", drinkType: "keg", caskOwner: "James Clay" },
+];
 const caskPrefPumps = (cat) => (cat === "IPA" || cat === "Pale") ? ["cask0", "cask1"] : cat === "Bitter" ? ["cask2"] : cat === "Stout/Porter" ? ["cask3"] : [];
 const bbCmp = (a, b) => (a.bestBefore || "9999-12-31").localeCompare(b.bestBefore || "9999-12-31");
 // Pin each "on" line to a physical pump so beers never jump between pumps.
@@ -297,6 +325,14 @@ const seedLibrary = [
   { id: "b46", brewery: "Sandford Orchards", location: "Crediton, Devon", name: "Blackberry", style: "Fruit Cider", abv: "4.0", clarity: "Clear", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Devon cider with blackberry.", allergensVerified: false, category: "Misc" },
   { id: "b47", brewery: "Celtic Marches", location: "Bishops Frome, Herefordshire", name: "Wild Berries", style: "Fruit Cider", abv: "4.0", clarity: "Clear", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Mixed berry fruit cider.", allergensVerified: false, category: "Misc" },
   { id: "b48", brewery: "Dudda's Tun", location: "Doddington, Kent", name: "Disco", style: "Cider", abv: "5.0", clarity: "Hazy", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Kentish craft cider.", allergensVerified: false, category: "Misc" },
+  { id: "b49", brewery: "Hop Back", location: "Salisbury, Wiltshire", name: "GFB", style: "Session Bitter", abv: "3.4", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)"], notes: "Golden session bitter, hoppy aroma with East Kent Goldings and a dry finish.", allergensVerified: false, category: "Bitter" },
+  { id: "b50", brewery: "Hop Back", location: "Salisbury, Wiltshire", name: "Entire Stout", style: "Stout", abv: "4.5", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Wheat (gluten)", "Oats (gluten)"], notes: "Rich dark stout, strong roasted malt flavour with coffee and dark chocolate.", allergensVerified: false, category: "Stout/Porter" },
+  { id: "b51", brewery: "Phoenix", location: "Heywood, Greater Manchester", name: "Arizona", style: "Pale Ale", abv: "4.1", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)", "Wheat (gluten)"], notes: "Best-selling session pale brewed with Goldings hops, floral and honey notes.", allergensVerified: false, category: "Pale" },
+  { id: "b52", brewery: "Potting Shed Brew", location: "", name: "Unknown", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)"], notes: "Name not confirmed, check with Kyle before serving.", allergensVerified: false, category: "Misc" },
+  { id: "b53", brewery: "Two by Two", location: "North Shields", name: "Citra Motueka", style: "New World Pale", abv: "4.6", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Oats (gluten)"], notes: "Tropical hop character from Citra, Motueka and Sabro, oats and wheat for mouthfeel. ABV estimated.", allergensVerified: false, category: "Misc" },
+  { id: "b54", brewery: "Two by Two", location: "North Shields", name: "Azacca Mosaic", style: "Pale Ale", abv: "4.4", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Tropical, citrus and dank pale ale. ABV estimated.", allergensVerified: false, category: "Misc" },
+  { id: "b55", brewery: "Two by Two", location: "North Shields", name: "Razorbill", style: "Pale Ale", abv: "4.5", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Hop-forward pale ale. Not confirmed online, check ABV and style with Kyle.", allergensVerified: false, category: "Misc" },
+  { id: "b56", brewery: "Tempest", location: "Tweedbank, Scottish Borders", name: "Hawaiian Shirt", style: "Fruit Sour", abv: "4.5", clarity: "Hazy", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)", "Wheat (gluten)", "Oats (gluten)"], notes: "Tropical fruited sour with guava, mango and passionfruit.", allergensVerified: false, category: "Misc" },
 ];
 const seedLines = [
   { id: "l1", beerId: "b1", drinkType: "cask", size: "", price: "", status: "on", slot: "cask0", caskOwner: "", collected: false, bestBefore: "2026-08-11", dates: { ordered: isoDaysAgo(5), delivered: isoDaysAgo(4), racked: isoDaysAgo(4), vented: isoDaysAgo(2), tapped: isoDaysAgo(1), on: isoDaysAgo(1), off: null } },
@@ -350,6 +386,21 @@ const seedLines = [
   { id: "l49", beerId: "b46", drinkType: "cider", size: "", price: "", status: "in_cellar", caskOwner: "", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), racked: null, vented: null, tapped: null, on: null, off: null } },
   { id: "l50", beerId: "b47", drinkType: "cider", size: "", price: "", status: "in_cellar", caskOwner: "", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), racked: null, vented: null, tapped: null, on: null, off: null } },
   { id: "l51", beerId: "b48", drinkType: "cider", size: "", price: "", status: "in_cellar", caskOwner: "", collected: false, bestBefore: "", dates: { ordered: isoDaysAgo(2), delivered: isoDaysAgo(1), racked: null, vented: null, tapped: null, on: null, off: null } },
+  { id: "l52", beerId: "b24", drinkType: "cask", size: "", price: "", status: "off", caskOwner: "LWC", collected: false, bestBefore: "", dates: { ordered: null, delivered: null, racked: null, vented: null, tapped: null, on: null, off: new Date().toISOString() } },
+  { id: "l53", beerId: "b4", drinkType: "cask", size: "", price: "", status: "off", caskOwner: "LWC", collected: false, bestBefore: "", dates: { ordered: null, delivered: null, racked: null, vented: null, tapped: null, on: null, off: new Date().toISOString() } },
+  { id: "l54", beerId: "b49", drinkType: "cask", size: "", price: "", status: "off", caskOwner: "LWC", collected: false, bestBefore: "", dates: { ordered: null, delivered: null, racked: null, vented: null, tapped: null, on: null, off: new Date().toISOString() } },
+  { id: "l55", beerId: "b50", drinkType: "cask", size: "", price: "", status: "off", caskOwner: "LWC", collected: false, bestBefore: "", dates: { ordered: null, delivered: null, racked: null, vented: null, tapped: null, on: null, off: new Date().toISOString() } },
+  { id: "l56", beerId: "b17", drinkType: "cask", size: "", price: "", status: "off", caskOwner: "LWC", collected: false, bestBefore: "", dates: { ordered: null, delivered: null, racked: null, vented: null, tapped: null, on: null, off: new Date().toISOString() } },
+  { id: "l57", beerId: "b28", drinkType: "cask", size: "", price: "", status: "off", caskOwner: "LWC", collected: false, bestBefore: "", dates: { ordered: null, delivered: null, racked: null, vented: null, tapped: null, on: null, off: new Date().toISOString() } },
+  { id: "l58", beerId: "b51", drinkType: "cask", size: "", price: "", status: "off", caskOwner: "HB Clark", collected: false, bestBefore: "", dates: { ordered: null, delivered: null, racked: null, vented: null, tapped: null, on: null, off: new Date().toISOString() } },
+  { id: "l59", beerId: "b52", drinkType: "cask", size: "", price: "", status: "off", caskOwner: "", collected: false, bestBefore: "", dates: { ordered: null, delivered: null, racked: null, vented: null, tapped: null, on: null, off: new Date().toISOString() } },
+  { id: "l60", beerId: "b53", drinkType: "keg", size: "", price: "", status: "off", caskOwner: "Two by Two", collected: false, bestBefore: "", dates: { ordered: null, delivered: null, racked: null, vented: null, tapped: null, on: null, off: new Date().toISOString() } },
+  { id: "l61", beerId: "b54", drinkType: "keg", size: "", price: "", status: "off", caskOwner: "Two by Two", collected: false, bestBefore: "", dates: { ordered: null, delivered: null, racked: null, vented: null, tapped: null, on: null, off: new Date().toISOString() } },
+  { id: "l62", beerId: "b53", drinkType: "keg", size: "", price: "", status: "off", caskOwner: "Two by Two", collected: false, bestBefore: "", dates: { ordered: null, delivered: null, racked: null, vented: null, tapped: null, on: null, off: new Date().toISOString() } },
+  { id: "l63", beerId: "b55", drinkType: "keg", size: "", price: "", status: "off", caskOwner: "Two by Two", collected: false, bestBefore: "", dates: { ordered: null, delivered: null, racked: null, vented: null, tapped: null, on: null, off: new Date().toISOString() } },
+  { id: "l64", beerId: "b54", drinkType: "keg", size: "", price: "", status: "off", caskOwner: "Two by Two", collected: false, bestBefore: "", dates: { ordered: null, delivered: null, racked: null, vented: null, tapped: null, on: null, off: new Date().toISOString() } },
+  { id: "l65", beerId: "b56", drinkType: "keg", size: "", price: "", status: "off", caskOwner: "Tempest", collected: false, bestBefore: "", dates: { ordered: null, delivered: null, racked: null, vented: null, tapped: null, on: null, off: new Date().toISOString() } },
+  { id: "l66", beerId: "b36", drinkType: "keg", size: "", price: "", status: "off", caskOwner: "James Clay", collected: false, bestBefore: "", dates: { ordered: null, delivered: null, racked: null, vented: null, tapped: null, on: null, off: new Date().toISOString() } },
 ];
 
 const seedDistributors = ["HB Clark", "LWC", "6 Barrells"];
@@ -479,6 +530,32 @@ export default function TheCurfewCellar() {
     });
     return { ...data, lines, prefs: { ...(data.prefs || {}), pricesV1: true }, lastUpdated: new Date().toISOString() };
   };
+  // One-time, non-destructive batch: add the supplied empties list (new library beers if not
+  // already present, plus a finished, uncollected line for each cask/keg) so they appear under
+  // Empties for collection. Guarded by prefs.emptiesV1 so it only ever runs once.
+  const migrateEmpties = (data) => {
+    if (!data || (data.prefs && data.prefs.emptiesV1)) return data;
+    const lib = [...(data.library || [])];
+    EMPTIES_NEW_BEERS.forEach((b) => { if (!lib.find((x) => x.id === b.id)) lib.push(b); });
+    const nowIso = new Date().toISOString();
+    const newLines = EMPTIES_NEW_LINES.map((e) => ({
+      id: uid(), beerId: e.beerId, drinkType: e.drinkType, size: "", price: "", status: "off",
+      caskOwner: e.caskOwner, collected: false, bestBefore: "",
+      dates: { ordered: null, delivered: null, racked: null, vented: null, tapped: null, on: null, off: nowIso },
+    }));
+    return { ...data, library: lib, lines: [...(data.lines || []), ...newLines], prefs: { ...(data.prefs || {}), emptiesV1: true }, lastUpdated: nowIso };
+  };
+  // Follow-up, non-destructive batch: adds the Campervan keg (supplier George) and clarifies the
+  // Potting Shed cask is genuinely unnamed. Guarded by prefs.emptiesV2, separate from emptiesV1 so
+  // it still applies even on devices that already ran the first batch.
+  const migrateEmpties2 = (data) => {
+    if (!data || (data.prefs && data.prefs.emptiesV2)) return data;
+    const lib = (data.library || []).map((b) => (b.id === "b52" ? { ...b, notes: "Old cask, the beer name is genuinely not known." } : b));
+    if (!lib.find((x) => x.id === "b57")) lib.push({ id: "b57", brewery: "Campervan", location: "Leith, Edinburgh", name: "Mango Mimosa", style: "Fruit Sour", abv: "4.7", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Wheat (gluten)"], notes: "Berliner Weisse with mango and lime, fruity and tart.", allergensVerified: false, category: "Misc" });
+    const nowIso = new Date().toISOString();
+    const newLine = { id: uid(), beerId: "b57", drinkType: "keg", size: "", price: "", status: "off", caskOwner: "George", collected: false, bestBefore: "", dates: { ordered: null, delivered: null, racked: null, vented: null, tapped: null, on: null, off: nowIso } };
+    return { ...data, library: lib, lines: [...(data.lines || []), newLine], prefs: { ...(data.prefs || {}), emptiesV2: true }, lastUpdated: nowIso };
+  };
   const applyData = (data, remote) => {
     if (!data) return;
     if (remote) skipBump.current = true;
@@ -497,7 +574,7 @@ export default function TheCurfewCellar() {
       const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 1200));
       try {
         const r = await Promise.race([store.get(STORE_KEY, false), timeout]);
-        if (!cancelled && r && r.value) applyData(migrateLaunch(JSON.parse(r.value)), false);
+        if (!cancelled && r && r.value) applyData(migrateEmpties2(migrateEmpties(migrateLaunch(JSON.parse(r.value)))), false);
         if (!cancelled) setStorageOk(true);
       } catch (e) {
         if (!cancelled) setStorageOk(!(e && e.message === "timeout"));
@@ -525,7 +602,7 @@ export default function TheCurfewCellar() {
       try {
         const r = await store.get(STORE_KEY);
         if (r && r.cloudOk) {
-          if (r.value) applyData(migrateLaunch(JSON.parse(r.value)), true);
+          if (r.value) applyData(migrateEmpties2(migrateEmpties(migrateLaunch(JSON.parse(r.value)))), true);
           setCloudReady(true);
           return true;
         }
@@ -540,7 +617,7 @@ export default function TheCurfewCellar() {
     let cancelled = false;
     (async () => {
       const ok = await loadCellar();
-      if (!cancelled && ok) store.subscribe((j) => { try { applyData(migrateLaunch(JSON.parse(j)), true); } catch (e) { /* ignore */ } });
+      if (!cancelled && ok) store.subscribe((j) => { try { applyData(migrateEmpties2(migrateEmpties(migrateLaunch(JSON.parse(j)))), true); } catch (e) { /* ignore */ } });
     })();
     return () => { cancelled = true; };
   }, [authed]);
@@ -671,6 +748,17 @@ export default function TheCurfewCellar() {
         });
       }
       if (!onL.length && !prep.length && !storeL.length) { doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(gray[0], gray[1], gray[2]); doc.text("No stock yet.", M, y); }
+
+      const empties = lines.filter((l) => l.status === "off" && !l.collected && l.drinkType !== "cider" && l.drinkType !== "keykeg");
+      if (empties.length) {
+        sectionHead("Empties", empties.length);
+        const owners = [...new Set(empties.map((l) => l.caskOwner || "Unknown"))].sort();
+        owners.forEach((owner) => {
+          subHead(owner);
+          empties.filter((l) => (l.caskOwner || "Unknown") === owner).forEach((l) => beerLine(l, "#9AA1AC", {}));
+          y += 1;
+        });
+      }
 
       const pageCount = doc.internal.getNumberOfPages();
       for (let p = 1; p <= pageCount; p++) {
@@ -816,7 +904,7 @@ Return exactly:
   "notes": "one or two sentence tasting note for bar staff"
 }
 
-Rules: Correct obvious misspellings or odd capitalisation in the producer and product names to the real ones you recognise (e.g. "hope back" -> "Hop Back", "sanford" -> "Sandford Orchards"), but do not swap in a different beer. If unsure of the specific product, estimate from the name. Keep allergens conservative (most ales contain "Barley (gluten)"; most ciders contain "Sulphites"). Never assert a vegan or gluten-free claim you are unsure of: default vegan=false and glutenStatus="Standard" when uncertain (ciders are usually gluten-free). JSON only.`;
+Rules: Correct obvious misspellings or odd capitalisation in the producer and product names to the real ones you recognise (e.g. "hope back" -> "Hop Back", "sanford" -> "Sandford Orchards"), but do not swap in a different beer. For ABV, recall the real, specific, published ABV of that exact named beer from this producer if you know it (most named cask and keg beers have a fixed, well-documented ABV, often not a round number, e.g. 4.1 or 5.3). Only fall back to a style-typical estimate if you genuinely do not recognise the specific beer, and in that case keep the rest of the response otherwise unaffected. Do not default to round numbers like 4.0, 4.5 or 5.0 out of habit. Keep allergens conservative (most ales contain "Barley (gluten)"; most ciders contain "Sulphites"). Never assert a vegan or gluten-free claim you are unsure of: default vegan=false and glutenStatus="Standard" when uncertain (ciders are usually gluten-free). JSON only.`;
     let stage = "network";
     try {
       const res = await fetch("/api/anthropic", {
@@ -873,7 +961,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     const entry = { date: new Date().toISOString(), abv: form.abv.trim(), price: form.price.trim() };
     const saved = findSavedBeer(form.brewery, form.name);
     let beerId;
-    if (saved) { beerId = saved.id; setLibrary((lib) => lib.map((b) => (b.id === saved.id ? { ...b, ...beerFields, history: [...(b.history || []), entry], justAdded: false } : b))); }
+    if (saved) { beerId = saved.id; setLibrary((lib) => lib.map((b) => (b.id === saved.id ? { ...b, ...beerFields, history: [...(b.history || []), entry], justAdded: false, pendingBestBefore: "", pendingCaskOwner: "", pendingPrice: "", pendingDrinkType: "" } : b))); }
     else { beerId = uid(); setLibrary((lib) => [...lib, { id: beerId, ...beerFields, history: [entry], justAdded: false }]); }
     const dates = { ordered: null, delivered: null, racked: null, vented: null, tapped: null, on: null, off: null };
     dates[STATUSES[STATUS_INDEX[form.status]].dateKey] = new Date().toISOString();
@@ -973,7 +1061,7 @@ Return exactly:
   "notes": "one or two sentence tasting note for bar staff"
 }
 
-Rules: Correct obvious misspellings or odd capitalisation in the producer and product names to the real ones you recognise (e.g. "hope back" -> "Hop Back", "sanford" -> "Sandford Orchards"), but do not swap in a different beer. If unsure of the specific product, estimate from the name. Keep allergens conservative (most ales contain "Barley (gluten)"; most ciders contain "Sulphites"). Never assert a vegan or gluten-free claim you are unsure of: default vegan=false and glutenStatus="Standard" when uncertain (ciders are usually gluten-free). JSON only.`;
+Rules: Correct obvious misspellings or odd capitalisation in the producer and product names to the real ones you recognise (e.g. "hope back" -> "Hop Back", "sanford" -> "Sandford Orchards"), but do not swap in a different beer. For ABV, recall the real, specific, published ABV of that exact named beer from this producer if you know it (most named cask and keg beers have a fixed, well-documented ABV, often not a round number, e.g. 4.1 or 5.3). Only fall back to a style-typical estimate if you genuinely do not recognise the specific beer, and in that case keep the rest of the response otherwise unaffected. Do not default to round numbers like 4.0, 4.5 or 5.0 out of habit. Keep allergens conservative (most ales contain "Barley (gluten)"; most ciders contain "Sulphites"). Never assert a vegan or gluten-free claim you are unsure of: default vegan=false and glutenStatus="Standard" when uncertain (ciders are usually gluten-free). JSON only.`;
     try {
       const res = await fetch("/api/anthropic", {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -1006,7 +1094,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
   };
   const removeLine = (id) => { snapshotUndo("Removed from cellar"); setLines((ls) => ls.filter((c) => c.id !== id)); setOpenId(null); };
   const latestPrice = (beer) => { const h = beer.history || []; return h.length ? h[h.length - 1].price : ""; };
-  const loadBeerIntoForm = (beer) => setForm({ ...emptyForm, drinkType: "cask", brewery: beer.brewery, location: beer.location, name: beer.name, style: beer.style, abv: beer.abv, clarity: beer.clarity, glutenStatus: beer.glutenStatus, vegan: beer.vegan, allergens: beer.allergens, notes: beer.notes, allergensVerified: beer.allergensVerified, category: beer.category || categorise(beer.style, beer.abv), price: latestPrice(beer) });
+  const loadBeerIntoForm = (beer) => setForm({ ...emptyForm, drinkType: beer.pendingDrinkType || "cask", brewery: beer.brewery, location: beer.location, name: beer.name, style: beer.style, abv: beer.abv, clarity: beer.clarity, glutenStatus: beer.glutenStatus, vegan: beer.vegan, allergens: beer.allergens, notes: beer.notes, allergensVerified: beer.allergensVerified, category: beer.category || categorise(beer.style, beer.abv), price: latestPrice(beer) || beer.pendingPrice || "", bestBefore: beer.pendingBestBefore || "", caskOwner: beer.pendingCaskOwner || "" });
   const pickBeer = (beer) => { loadBeerIntoForm(beer); setShowMore(false); setFillNote({ type: "ok", text: `Loaded "${beer.name}". Just set price, best before and status.` }); setAddMode("form"); };
   const startNewBeer = () => { setForm(emptyForm); setFillNote(null); setShowMore(false); setAddMode("form"); };
   const addLineOfBeer = (beer) => { loadBeerIntoForm(beer); setShowMore(false); setFillNote({ type: "ok", text: `Loaded "${beer.name}" from your library.` }); setAddMode("form"); setView("add"); };
@@ -1148,8 +1236,11 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     chosen.forEach((x) => {
       const existing = lib.find((b) => b.brewery.trim().toLowerCase() === x.brewery.trim().toLowerCase() && b.name.trim().toLowerCase() === x.name.trim().toLowerCase());
       const entry = { date: nowIso, abv: x.abv, price: x.price };
-      if (existing) { lib = lib.map((b) => (b.id === existing.id ? { ...b, abv: x.abv || b.abv, history: [...(b.history || []), entry], justAdded: true } : b)); }
-      else { lib = [...lib, { id: uid(), brewery: x.brewery.trim(), location: x.location || "", name: x.name.trim(), style: x.style || "", abv: x.abv, clarity: x.clarity || "Clear", glutenStatus: x.glutenStatus || "Standard", vegan: x.vegan || false, allergens: x.allergens || [], notes: x.notes || "", allergensVerified: false, category: x.category || (x.drinkType === "cask" ? categorise(x.style || "", x.abv) : "Misc"), history: [entry], justAdded: true }]; }
+      // Carry the physical-stock details (best before, supplier, price, drink type) through as
+      // "pending" so they prefill the cellar line when the beer is reviewed and added for real.
+      const pending = { pendingBestBefore: x.bestBefore || "", pendingCaskOwner: x.caskOwner || "", pendingPrice: x.price || "", pendingDrinkType: x.drinkType || "cask" };
+      if (existing) { lib = lib.map((b) => (b.id === existing.id ? { ...b, abv: x.abv || b.abv, history: [...(b.history || []), entry], justAdded: true, ...pending } : b)); }
+      else { lib = [...lib, { id: uid(), brewery: x.brewery.trim(), location: x.location || "", name: x.name.trim(), style: x.style || "", abv: x.abv, clarity: x.clarity || "Clear", glutenStatus: x.glutenStatus || "Standard", vegan: x.vegan || false, allergens: x.allergens || [], notes: x.notes || "", allergensVerified: false, category: x.category || (x.drinkType === "cask" ? categorise(x.style || "", x.abv) : "Misc"), history: [entry], justAdded: true, ...pending }]; }
     });
     setLibrary(lib);
     setInvoiceItems(null); setInvoiceOwner(""); setAddMode("pick"); setFillNote(null); setLibrarySearch(""); setView("library");
@@ -1373,7 +1464,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           <button onClick={() => { setAddMode("pick"); setInvoiceItems(null); }} className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"><ArrowRight size={14} className="rotate-180" /> Back</button>
           <div className="rounded-xl border bg-white p-4" style={{ borderColor: C.line }}>
             <p className="text-base font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{batchSource === "labels" ? "Scanned labels" : batchSource === "list" ? "From your list" : "Delivery items"}</p>
-            <p className="mt-1 text-sm text-slate-500">Saved to your library under "Just added". Nothing reaches the cellar until you add it.</p>
+            <p className="mt-1 text-sm text-slate-500">Saved to your library under "Just added". Nothing reaches the cellar until you add it{batchSource === "labels" ? ", best before and supplier carry over automatically" : ""}.</p>
             <div className="mt-3 space-y-2">
               {items.length === 0 && <p className="py-3 text-center text-sm text-slate-400">Nothing found.</p>}
               {items.map((x, idx) => (
@@ -1388,6 +1479,12 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                     {batchSource !== "invoice" && <input value={x.price} onChange={(e) => updateInvoice(idx, { price: e.target.value })} placeholder="£ price" className="rounded border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />}
                     <select value={x.drinkType} onChange={(e) => updateInvoice(idx, { drinkType: e.target.value })} className="rounded border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }}>{DRINK_TYPES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}</select>
                   </div>
+                  {batchSource === "labels" && (
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <input type="date" value={x.bestBefore || ""} onChange={(e) => updateInvoice(idx, { bestBefore: e.target.value })} className="rounded border px-2 py-1 text-sm text-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
+                      <input value={x.caskOwner || ""} onChange={(e) => updateInvoice(idx, { caskOwner: e.target.value })} placeholder="Supplier" className="rounded border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -1929,11 +2026,26 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
               ))}
             </div>
           )}
+          {(() => {
+            const empties = lines.filter((l) => l.status === "off" && !l.collected && l.drinkType !== "cider" && l.drinkType !== "keykeg");
+            if (!empties.length) return null;
+            const owners = [...new Set(empties.map((l) => l.caskOwner || "Unknown"))].sort();
+            return (
+              <div className="mt-4">
+                <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: C.brass }}>Empties · {empties.length}</h3>
+                {owners.map((owner) => (
+                  <div key={owner} className="mt-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{owner}</p>
+                    {empties.filter((l) => (l.caskOwner || "Unknown") === owner).map((l) => <Row key={l.id} l={l} stage={null} />)}
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
         </div>
       </div>
     );
   };
-
   const TapList = () => {
     const on = lines.filter((l) => l.status === "on");
     const soon = lines.filter((l) => ["tapped", "vented", "in_cellar"].includes(l.status));
