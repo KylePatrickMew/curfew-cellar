@@ -54,10 +54,13 @@ const cloudStore = {
     try {
       const c = await _client();
       const { data, error } = await c.from("cellar").select("data").eq("id", CLOUD_ID).maybeSingle();
-      if (!error && data && data.data) { const v = JSON.stringify(data.data); _rev = _revOf(v); try { localStorage.setItem(key, v); } catch (e) {} return { key, value: v }; }
-    } catch (e) { /* offline: fall back to the local cache */ }
-    try { const v = localStorage.getItem(key); if (v) { _rev = _revOf(v); return { key, value: v }; } } catch (e) {}
-    return null;
+      if (!error) {
+        if (data && data.data) { const v = JSON.stringify(data.data); _rev = _revOf(v); try { localStorage.setItem(key, v); } catch (e) {} return { key, value: v, cloudOk: true }; }
+        return { key, value: null, cloudOk: true }; // reached the cloud, genuinely no row yet
+      }
+    } catch (e) { /* offline or failed: fall back to the local cache, but flag that we have not confirmed the cloud */ }
+    try { const v = localStorage.getItem(key); if (v) { _rev = _revOf(v); return { key, value: v, cloudOk: false }; } } catch (e) {}
+    return { key, value: null, cloudOk: false };
   },
   async set(key, value) {
     try { localStorage.setItem(key, value); } catch (e) {}
@@ -424,6 +427,8 @@ export default function TheCurfewCellar() {
   const [pw, setPw] = useState("");
   const [authErr, setAuthErr] = useState(null);
   const [authBusy, setAuthBusy] = useState(false);
+  const [cloudReady, setCloudReady] = useState(!cloudMode);
+  const [cloudLoadError, setCloudLoadError] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
   const toggleSection = (k) => setPrefs((p) => ({ ...p, [k]: !p[k] }));
   const [loading, setLoading] = useState(false);
@@ -511,13 +516,31 @@ export default function TheCurfewCellar() {
     return () => { cancelled = true; };
   }, []);
 
-  // Cloud: once signed in, pull the shared cellar and listen for live changes
+  // Cloud: once signed in, pull the shared cellar and listen for live changes.
+  // Saving is blocked until cloudReady is true, so a failed fetch can never fall
+  // back to the device's built-in starter data and overwrite everyone else's stock.
+  const loadCellar = async () => {
+    setCloudLoadError(false);
+    for (let attempt = 0; attempt < 4; attempt++) {
+      try {
+        const r = await store.get(STORE_KEY);
+        if (r && r.cloudOk) {
+          if (r.value) applyData(migrateLaunch(JSON.parse(r.value)), true);
+          setCloudReady(true);
+          return true;
+        }
+      } catch (e) { /* retry */ }
+      if (attempt < 3) await new Promise((res) => setTimeout(res, 800 * (attempt + 1)));
+    }
+    setCloudLoadError(true);
+    return false;
+  };
   useEffect(() => {
     if (!cloudMode || !authed) return;
     let cancelled = false;
     (async () => {
-      try { const r = await store.get(STORE_KEY); if (!cancelled && r && r.value) applyData(migrateLaunch(JSON.parse(r.value)), true); } catch (e) { /* ignore */ }
-      store.subscribe((j) => { try { applyData(migrateLaunch(JSON.parse(j)), true); } catch (e) { /* ignore */ } });
+      const ok = await loadCellar();
+      if (!cancelled && ok) store.subscribe((j) => { try { applyData(migrateLaunch(JSON.parse(j)), true); } catch (e) { /* ignore */ } });
     })();
     return () => { cancelled = true; };
   }, [authed]);
@@ -584,18 +607,21 @@ export default function TheCurfewCellar() {
         const nameLines = doc.splitTextToSize(name, W - 2 * M - 38);
         doc.setFont("helvetica", "normal"); doc.setFontSize(7.8);
         const metaLines = doc.splitTextToSize(meta, W - 2 * M - 38);
-        const rowH = Math.max(3.9 * nameLines.length + 3.4 * metaLines.length + 3.4, 10.5);
+        const hasBB = !!l.bestBefore;
+        const topPad = 4.2, lhName = 3.9, lhMeta = 3.5, lhBB = 3.6, bottomPad = 2.4;
+        const contentH = lhName * nameLines.length + lhMeta * metaLines.length + (hasBB ? lhBB : 0);
+        const rowH = Math.max(topPad + contentH + bottomPad, 10.5);
         ensure(rowH + 1.2);
 
         doc.setFillColor(paleBg[0], paleBg[1], paleBg[2]); doc.rect(M, y, W - 2 * M, rowH, "F");
         const ac = hex(accentHex); doc.setFillColor(ac[0], ac[1], ac[2]); doc.rect(M, y, 1.4, rowH, "F");
 
-        let ty = y + 4.2;
+        let ty = y + topPad;
         doc.setFont("helvetica", "bold"); doc.setFontSize(9.5); doc.setTextColor(ink[0], ink[1], ink[2]);
-        doc.text(nameLines, M + 4.5, ty); ty += 3.9 * nameLines.length;
+        doc.text(nameLines, M + 4.5, ty); ty += lhName * nameLines.length;
         doc.setFont("helvetica", "normal"); doc.setFontSize(7.8); doc.setTextColor(gray[0], gray[1], gray[2]);
-        doc.text(metaLines, M + 4.5, ty);
-        if (l.bestBefore) { doc.setTextColor(170, 100, 40); doc.text(`BB ${fmtD(l.bestBefore)}`, M + 4.5, y + rowH - 1.6); }
+        doc.text(metaLines, M + 4.5, ty); ty += lhMeta * metaLines.length;
+        if (hasBB) { doc.setFont("helvetica", "bold"); doc.setFontSize(7.6); doc.setTextColor(170, 100, 40); doc.text(`Best before ${fmtD(l.bestBefore)}`, M + 4.5, ty); }
 
         const rx = W - M - 3;
         let ry = y + 4.4;
@@ -678,13 +704,13 @@ export default function TheCurfewCellar() {
   // The write (full serialise + cloud upsert) runs ~half a second after the last change.
   const saveTimer = useRef(null);
   useEffect(() => {
-    if (!hydrated || !store || storageOk !== true || (cloudMode && !authed)) return;
+    if (!hydrated || !store || storageOk !== true || (cloudMode && (!authed || !cloudReady))) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       (async () => { try { await store.set(STORE_KEY, JSON.stringify({ library, lines, distributors, prefs, lastUpdated }), false); } catch (e) { /* ignore */ } })();
     }, 500);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [library, lines, distributors, prefs, lastUpdated, hydrated, storageOk, authed]);
+  }, [library, lines, distributors, prefs, lastUpdated, hydrated, storageOk, authed, cloudReady]);
 
   // Stamp "last updated" whenever a beer is added or changed (not on first load or a remote sync)
   useEffect(() => {
@@ -2264,7 +2290,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     );
   };
 
-  if (cloudMode && (authChecking || !authed)) {
+  if (cloudMode && (authChecking || !authed || (!cloudReady && !cloudLoadError))) {
     return (
       <div className="flex min-h-screen w-full items-center justify-center p-6" style={{ background: C.ink }}>
         <div className="w-full max-w-xs">
@@ -2274,13 +2300,28 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           </div>
           {authChecking ? (
             <p className="text-center text-sm" style={{ color: C.brassSoft }}>Checking…</p>
-          ) : (
+          ) : !authed ? (
             <div className="space-y-3">
               <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") doLogin(); }} placeholder="Pub password" autoFocus className="w-full rounded-lg px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: "rgba(255,255,255,0.08)", color: C.cream, border: `1px solid ${C.brass}` }} />
               {authErr && <p className="text-xs" style={{ color: "#f3b4b4" }}>{authErr}</p>}
               <button onClick={doLogin} disabled={authBusy || !pw.trim()} className="w-full rounded-lg px-4 py-3 text-sm font-semibold transition active:scale-95 disabled:opacity-50" style={{ background: C.brass, color: C.ink }}>{authBusy ? "Signing in…" : "Unlock"}</button>
             </div>
+          ) : (
+            <p className="text-center text-sm" style={{ color: C.brassSoft }}>Loading the cellar…</p>
           )}
+        </div>
+      </div>
+    );
+  }
+
+  if (cloudMode && cloudLoadError) {
+    return (
+      <div className="flex min-h-screen w-full items-center justify-center p-6" style={{ background: C.ink }}>
+        <div className="w-full max-w-xs text-center">
+          <AlertTriangle className="mx-auto mb-3" size={28} color={C.brassSoft} />
+          <p className="text-lg font-semibold" style={{ color: C.cream, fontFamily: "Fraunces, Georgia, serif" }}>Could not load the cellar</p>
+          <p className="mt-2 text-sm" style={{ color: "rgba(243,239,230,0.7)" }}>Check your connection and try again. Editing stays paused until this loads, so nothing gets overwritten.</p>
+          <button onClick={() => loadCellar()} className="mt-4 w-full rounded-lg px-4 py-3 text-sm font-semibold transition active:scale-95" style={{ background: C.brass, color: C.ink }}>Try again</button>
         </div>
       </div>
     );
