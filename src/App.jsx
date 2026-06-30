@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 // import { useCallback } from "react"; // might need later
 import {
   Plus, ClipboardList, BookOpen, Beer, Sparkles, Check, CheckCircle2,
-  AlertTriangle, Clock, X, ArrowRight, Trash2, Search, Loader2, Bell, Calendar, History, ChevronDown, Database, Download, Upload, Copy, QrCode, Camera, FileText, Package, MoreHorizontal, BarChart3, Pencil, Printer, RotateCcw, Compass,
+  AlertTriangle, Clock, X, ArrowRight, Trash2, Search, Loader2, Bell, Calendar, History, ChevronDown, Database, Download, Upload, Copy, QrCode, Camera, FileText, Package, MoreHorizontal, BarChart3, Pencil, Printer, RotateCcw, Compass, Lock,
 } from "lucide-react";
 
 // ---------- Brand ----------
@@ -89,6 +89,7 @@ const flowFor = (drinkType) => (drinkType === "cask" ? CASK_FLOW : SHORT_FLOW);
 
 const PUMPS = { cask: ["cask0", "cask1", "cask2", "cask3"], keg: ["keg0", "keg1", "keg2"], cider: ["cider0", "cider1", "cider2"] };
 const PUMP_LABELS = { cask0: "IPA", cask1: "Pale", cask2: "Bitter", cask3: "Stout", keg0: "Keg 1", keg1: "Keg 2", keg2: "Keg 3", cider0: "Cider 1", cider1: "Cider 2", cider2: "Cider 3" };
+const LAUNCH_PRICES = { b1: "4.50", b2: "4.50", b3: "4.90", b5: "4.70", b7: "4.90", b9: "4.70", b11: "4.90", b12: "4.50", b14: "4.30", b16: "4.70", b17: "4.90", b20: "4.30", b23: "4.70", b25: "4.70", b33: "5.70", b40: "6.20" };
 const caskPrefPumps = (cat) => (cat === "IPA" || cat === "Pale") ? ["cask0", "cask1"] : cat === "Bitter" ? ["cask2"] : cat === "Stout/Porter" ? ["cask3"] : [];
 const bbCmp = (a, b) => (a.bestBefore || "9999-12-31").localeCompare(b.bestBefore || "9999-12-31");
 // Pin each "on" line to a physical pump so beers never jump between pumps.
@@ -451,6 +452,18 @@ export default function TheCurfewCellar() {
 
   // Apply a saved data blob to state. remote=true means it came from another device,
   // so don't re-stamp "last updated" and don't echo it back to the cloud.
+  // One-time, non-destructive launch tidy: fill blank prices from the launch list and set every
+  // cider to GBP 4.10. Guarded by prefs.pricesV1 so it runs once on the next load, then syncs out.
+  const migrateLaunch = (data) => {
+    if (!data || (data.prefs && data.prefs.pricesV1)) return data;
+    const lines = (data.lines || []).map((l) => {
+      let price = l.price;
+      if (l.drinkType === "cider") price = "4.10";
+      else if ((!price || price === "") && LAUNCH_PRICES[l.beerId]) price = LAUNCH_PRICES[l.beerId];
+      return price === l.price ? l : { ...l, price };
+    });
+    return { ...data, lines, prefs: { ...(data.prefs || {}), pricesV1: true }, lastUpdated: new Date().toISOString() };
+  };
   const applyData = (data, remote) => {
     if (!data) return;
     if (remote) skipBump.current = true;
@@ -469,7 +482,7 @@ export default function TheCurfewCellar() {
       const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 1200));
       try {
         const r = await Promise.race([store.get(STORE_KEY, false), timeout]);
-        if (!cancelled && r && r.value) applyData(JSON.parse(r.value), false);
+        if (!cancelled && r && r.value) applyData(migrateLaunch(JSON.parse(r.value)), false);
         if (!cancelled) setStorageOk(true);
       } catch (e) {
         if (!cancelled) setStorageOk(!(e && e.message === "timeout"));
@@ -493,8 +506,8 @@ export default function TheCurfewCellar() {
     if (!cloudMode || !authed) return;
     let cancelled = false;
     (async () => {
-      try { const r = await store.get(STORE_KEY); if (!cancelled && r && r.value) applyData(JSON.parse(r.value), true); } catch (e) { /* ignore */ }
-      store.subscribe((j) => { try { applyData(JSON.parse(j), true); } catch (e) { /* ignore */ } });
+      try { const r = await store.get(STORE_KEY); if (!cancelled && r && r.value) applyData(migrateLaunch(JSON.parse(r.value)), true); } catch (e) { /* ignore */ }
+      store.subscribe((j) => { try { applyData(migrateLaunch(JSON.parse(j)), true); } catch (e) { /* ignore */ } });
     })();
     return () => { cancelled = true; };
   }, [authed]);
@@ -507,6 +520,7 @@ export default function TheCurfewCellar() {
     if (err) { setAuthErr(err); return; }
     setPw(""); setAuthed(true);
   };
+  const lock = async () => { try { await store.signOut(); } catch (e) { /* ignore */ } setView("cellar"); setOpenId(null); setShowMore(false); setAuthed(false); };
 
   // Save whenever data changes, but only if storage responded and (in cloud mode) we're signed in
   useEffect(() => {
@@ -1012,9 +1026,9 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
       <button onClick={() => setOpenId(line.id)} className="w-full rounded-2xl border bg-white p-3 text-left transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-amber-300 active:scale-95" style={{ borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[line.drinkType] || C.line, boxShadow: "0 1px 2px rgba(27,34,48,0.04), 0 2px 8px -4px rgba(27,34,48,0.10)" }}>
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <p className="truncate text-base font-semibold leading-snug" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{beer.name}</p>
+            <p className="truncate text-base font-semibold leading-snug" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</p>
             <p className="truncate text-sm font-medium text-slate-600">{beer.style} · {beer.abv}% · £{line.price || "—"}</p>
-            <p className="truncate text-xs text-slate-400">{beer.brewery} · {beer.location}</p>
+            <p className="truncate text-xs text-slate-400">{beer.location || ""}</p>
           </div>
         </div>
         <div className="mt-1.5 flex items-center gap-2" style={{ minHeight: 24 }}>
@@ -1209,9 +1223,9 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
       const pickRow = (b) => (
         <button key={b.id} onClick={() => pickBeer(b)} className="flex w-full items-center justify-between gap-2 rounded-lg border bg-white p-2.5 text-left transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line, borderLeftWidth: 3, borderLeftColor: CAT_ACCENT[b.category] || C.line }}>
           <span className="min-w-0">
-            <span className="block truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{b.name}</span>
+            <span className="block truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{b.brewery ? `${b.brewery} - ` : ""}{b.name}</span>
             <span className="block truncate text-xs font-medium text-slate-600">{b.style} · {b.abv}%</span>
-            <span className="block truncate text-xs text-slate-400">{b.brewery}{b.location ? ` · ${b.location}` : ""}</span>
+            <span className="block truncate text-xs text-slate-400">{b.location || ""}</span>
           </span>
           <span className="shrink-0 text-xs text-slate-400">{latestPrice(b) ? `last £${latestPrice(b)} ` : ""}→</span>
         </button>
@@ -1381,9 +1395,9 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
         <div key={b.id} className="rounded-xl border bg-white p-2.5" style={{ borderColor: C.line, borderLeftWidth: 3, borderLeftColor: CAT_ACCENT[b.category] || C.line }}>
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{b.name}</p>
+              <p className="truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{b.brewery ? `${b.brewery} - ` : ""}{b.name}</p>
               <p className="truncate text-xs font-medium text-slate-600">{b.style} · {b.abv}%</p>
-              <p className="truncate text-xs text-slate-400">{b.brewery}{b.location ? ` · ${b.location}` : ""}</p>
+              <p className="truncate text-xs text-slate-400">{b.location || ""}</p>
             </div>
             <div className="flex shrink-0 items-center gap-1">
               <button onClick={() => addLineOfBeer(b)} title="Add to cellar" className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Plus size={13} /> Add</button>
@@ -1451,9 +1465,9 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                 <div className="space-y-2">
                   {justAddedBeers.map((b) => (
                     <div key={b.id} className="rounded-lg border bg-white p-2.5" style={{ borderColor: C.line, borderLeftWidth: 3, borderLeftColor: CAT_ACCENT[b.category] || C.line }}>
-                      <p className="truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{b.name}</p>
+                      <p className="truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{b.brewery ? `${b.brewery} - ` : ""}{b.name}</p>
                       <p className="truncate text-xs font-medium text-slate-600">{b.style ? b.style : "—"}{b.abv ? ` · ${b.abv}%` : ""}{!b.allergensVerified ? " · not staff verified" : ""}</p>
-                      <p className="truncate text-xs text-slate-400">{b.brewery}{b.location ? ` · ${b.location}` : ""}</p>
+                      <p className="truncate text-xs text-slate-400">{b.location || ""}</p>
                       <div className="mt-2 flex items-center gap-1.5">
                         <button onClick={() => setEditBeerId(b.id)} className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50 focus:outline-none" style={{ borderColor: C.line }}><Pencil size={13} /> Check &amp; edit</button>
                         <button onClick={() => addLineOfBeer(b)} className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition hover:bg-amber-50 focus:outline-none" style={{ borderColor: C.brass, color: C.brass }}><Plus size={13} /> Add to cellar</button>
@@ -1673,9 +1687,9 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
       return (
         <div className="flex items-start justify-between gap-3 py-2.5" style={{ borderBottom: `1px solid ${C.line}` }}>
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{beer.name}</p>
+            <p className="truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</p>
             <p className="truncate text-xs font-medium text-slate-600">{dt} · {beer.style} · {beer.abv}%</p>
-            <p className="truncate text-xs text-slate-400">{beer.brewery}{l.caskOwner ? ` · ${l.caskOwner}` : ""}</p>
+            <p className="truncate text-xs text-slate-400">{l.caskOwner ? l.caskOwner : (beer.location || "")}</p>
           </div>
           <div className="shrink-0 text-right">
             {pump && <p className="text-xs font-semibold" style={{ color: C.brass }}>{pump}</p>}
@@ -1789,7 +1803,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           {fmtUpdated(lastUpdated) && <p className="mt-3 text-xs" style={{ color: "rgba(243,239,230,0.5)" }}>Last updated: {fmtUpdated(lastUpdated)}</p>}
 
           <div className="mt-8">
-            {on.length === 0 && <p className="py-12 text-center" style={{ color: "rgba(243,239,230,0.6)" }}>Nothing on just now. Back shortly.</p>}
+            {on.length === 0 && <p className="py-12 text-center" style={{ color: "rgba(243,239,230,0.6)" }}>Nothing on just now. Check back soon.</p>}
 
             {caskByCat.length > 0 && (
               <section className="mb-7">
@@ -1817,23 +1831,6 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
               </section>
             )}
 
-            {soon.length > 0 && (
-              <section className="mb-7">
-                <h2 className="mb-2 text-sm font-semibold uppercase tracking-widest" style={{ color: C.brass }}>Coming soon</h2>
-                <div className="space-y-2">
-                  {[["Cask", "cask", "#C79A3E"], ["Keg", "keg", "#7FA8C4"], ["Cider", "cider", "#8FB97A"]].map(([label, dt, col]) => {
-                    const names = soon.filter((l) => l.drinkType === dt).map((l) => beerById[l.beerId]?.name).filter(Boolean);
-                    if (!names.length) return null;
-                    return (
-                      <div key={dt} className="flex gap-2">
-                        <span className="shrink-0 text-xs font-semibold uppercase tracking-wide" style={{ color: col, minWidth: 42 }}>{label}</span>
-                        <p className="text-sm" style={{ color: "rgba(243,239,230,0.7)" }}>{names.join(" · ")}</p>
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-            )}
 
             <p className="mt-10 text-center text-xs" style={{ color: "rgba(243,239,230,0.4)" }}>Please confirm allergens with staff before ordering.</p>
           </div>
@@ -1915,9 +1912,9 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                       return (
                         <button key={l.id} onClick={() => setSwapPreviewId(l.id)} className="flex w-full items-center justify-between gap-2 rounded-xl border bg-white p-3 text-left transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[swap.drink] || C.line }}>
                           <span className="min-w-0">
-                            <span className="block truncate font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{beer.name}</span>
+                            <span className="block truncate font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</span>
                             <span className="block truncate text-sm font-medium text-slate-600">{beer.style} · {beer.abv}%</span>
-                            <span className="block truncate text-xs text-slate-400">{beer.brewery} · {beer.location}</span>
+                            <span className="block truncate text-xs text-slate-400">{beer.location || ""}</span>
                           </span>
                           <span className="flex shrink-0 items-center gap-1 text-xs text-slate-400">{when ? fmt(when) : ""} <ArrowRight size={14} /></span>
                         </button>
@@ -2016,8 +2013,8 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
         <div className="w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white sm:rounded-2xl cc-pop" style={{ maxHeight: "92vh" }} onClick={(e) => e.stopPropagation()}>
           <div className="sticky top-0 flex items-start justify-between gap-2 border-b bg-white p-4" style={{ borderColor: C.line }}>
             <div>
-              <h2 className="text-xl font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{beer.name}</h2>
-              <p className="text-sm text-slate-500">{beer.brewery} · {beer.location}</p>
+              <h2 className="text-xl font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</h2>
+              <p className="text-sm text-slate-500">{beer.location || ""}</p>
             </div>
             <button onClick={() => setOpenId(null)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400"><X size={18} /></button>
           </div>
@@ -2199,17 +2196,8 @@ body { touch-action: manipulation; overscroll-behavior-y: contain; }
       </main>
       <footer className="no-print mx-auto max-w-4xl px-4 pb-28 pt-2 text-center sm:pb-8">
         <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-slate-400">
-          <span className="inline-flex items-center gap-1.5">{storageOk === false ? <><AlertTriangle size={13} /> Not saving here</> : <><Check size={13} /> Saved</>}</span>
-          {!confirmReset ? (
-            <button onClick={() => setConfirmReset(true)} title="Wipes everything and reloads the starter line-up" className="inline-flex items-center gap-1 font-medium text-slate-500 hover:text-slate-700"><RotateCcw size={13} /> Reset</button>
-          ) : (
-            <span className="inline-flex flex-wrap items-center justify-center gap-2">
-              <span className="text-slate-500">This wipes all stock everywhere. Type <strong style={{ color: C.ink }}>RESET</strong> to confirm:</span>
-              <input value={resetText} onChange={(e) => setResetText(e.target.value)} placeholder="RESET" autoFocus className="w-24 rounded border px-2 py-0.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-red-300" style={{ borderColor: C.line }} />
-              <button onClick={resetDemo} disabled={resetText !== "RESET"} className="rounded-md px-2 py-0.5 font-medium text-white disabled:cursor-not-allowed disabled:opacity-40" style={{ background: "#b91c1c" }}>Wipe everything</button>
-              <button onClick={() => { setConfirmReset(false); setResetText(""); }} className="rounded-md border px-2 py-0.5 font-medium text-slate-600" style={{ borderColor: C.line }}>Cancel</button>
-            </span>
-          )}
+          <span className="inline-flex items-center gap-1.5">{storageOk === false ? <><AlertTriangle size={13} /> Not saving here</> : <><Check size={13} /> {cloudMode ? "Synced" : "Saved"}</>}</span>
+          {cloudMode && <button onClick={lock} className="inline-flex items-center gap-1 font-medium text-slate-400 transition hover:text-slate-600"><Lock size={12} /> Lock</button>}
         </div>
       </footer>
 
