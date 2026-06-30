@@ -1732,20 +1732,22 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     const storeBB = context === "store" && line.bestBefore && !sig.alert;
     const showBadge = context === "racked" || sig.alert || storeBB;
     const badgeText = storeBB ? `Best before ${fmtDate(line.bestBefore)}` : sig.text;
+    const hasMetaRow = showBadge || !beer.allergensVerified;
     return (
-      <button onClick={() => setOpenId(line.id)} className="w-full rounded-2xl border bg-white p-3 text-left transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-amber-300 active:scale-95" style={{ borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[line.drinkType] || C.line, boxShadow: "0 1px 2px rgba(27,34,48,0.04), 0 2px 8px -4px rgba(27,34,48,0.10)" }}>
+      <button onClick={() => setOpenId(line.id)} className="w-full rounded-xl border bg-white px-3 py-2 text-left transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-amber-300 active:scale-95" style={{ borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[line.drinkType] || C.line, boxShadow: "0 1px 2px rgba(27,34,48,0.04)" }}>
         <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <p className="truncate text-base font-semibold leading-snug" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</p>
-            <p className="truncate text-sm font-medium text-slate-600">{beer.style} · {beer.abv}% · £{line.price || "--"}</p>
-            <p className="truncate text-xs text-slate-400">{beer.location || ""}</p>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold leading-tight" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</p>
+            <p className="truncate text-xs font-medium text-slate-600">{beer.style} · {beer.abv}% · £{line.price || "--"}{beer.location ? ` · ${beer.location}` : ""}</p>
           </div>
+          <span className="shrink-0"><DietaryMini beer={beer} /></span>
         </div>
-        <div className="mt-1.5 flex items-center gap-2" style={{ minHeight: 24 }}>
-          {showBadge && <Badge className={`whitespace-nowrap ${sig.warn ? "bg-red-50 text-red-700 border-red-200" : "bg-slate-100 text-slate-600 border-slate-200"}`}>{badgeText}</Badge>}
-          {!beer.allergensVerified && <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600"><AlertTriangle size={14} /> Not staff verified</span>}
-          <span className="ml-auto"><DietaryMini beer={beer} /></span>
-        </div>
+        {hasMetaRow && (
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+            {showBadge && <Badge className={`whitespace-nowrap ${sig.warn ? "bg-red-50 text-red-700 border-red-200" : "bg-slate-100 text-slate-600 border-slate-200"}`}>{badgeText}</Badge>}
+            {!beer.allergensVerified && <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600"><AlertTriangle size={13} /> Not verified</span>}
+          </div>
+        )}
       </button>
     );
   };
@@ -1807,11 +1809,11 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
 
     const renderSlot = (slot, k, urgent) => (
       <div key={k}>
-        <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{slot.label}</p>
+        <p className="mb-0.5 text-xs font-semibold uppercase tracking-wide text-slate-400">{slot.label}</p>
         {slot.line ? <LineRow line={slot.line} context={urgent ? "on" : "racked"} /> : (
           urgent
-            ? <button onClick={() => openPump(slot)} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed text-sm font-medium transition hover:bg-amber-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ borderColor: "#e2c98a", color: "#b45309", minHeight: 56 }}><Plus size={15} /> Empty</button>
-            : <button onClick={() => go("add")} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed text-sm font-medium text-slate-400 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line, minHeight: 56 }}>Empty</button>
+            ? <button onClick={() => openPump(slot)} className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed text-sm font-medium transition hover:bg-amber-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ borderColor: "#e2c98a", color: "#b45309", minHeight: 44 }}><Plus size={15} /> Empty</button>
+            : <button onClick={() => go("add")} className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed text-sm font-medium text-slate-400 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line, minHeight: 44 }}>Empty</button>
         )}
       </div>
     );
@@ -1828,27 +1830,27 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
       );
     }
     return (
-      <div className="space-y-6">
+      <div className="space-y-4">
         <section>
           <button onClick={() => toggleSection("on")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
             <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>On <span className="text-sm font-normal text-slate-400">· {onFilled}/10</span></h2>
             <ChevronDown size={20} className="text-slate-400" style={{ transform: prefs.on ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
           </button>
           {prefs.on && (
-            <div className="mt-3 space-y-3">
-              <div className="grid gap-2.5 sm:grid-cols-2">{onCaskSlots.map((s, i) => renderSlot(s, `oc${i}`, true))}</div>
-              <div className="grid gap-2.5 sm:grid-cols-2">{onKegSlots.map((s, i) => renderSlot(s, `ok${i}`, true))}</div>
-              <div className="grid gap-2.5 sm:grid-cols-2">{onCiderSlots.map((s, i) => renderSlot(s, `od${i}`, true))}</div>
+            <div className="mt-2 space-y-1.5">
+              <div className="grid gap-1.5 sm:grid-cols-2">{onCaskSlots.map((s, i) => renderSlot(s, `oc${i}`, true))}</div>
+              <div className="grid gap-1.5 sm:grid-cols-2">{onKegSlots.map((s, i) => renderSlot(s, `ok${i}`, true))}</div>
+              <div className="grid gap-1.5 sm:grid-cols-2">{onCiderSlots.map((s, i) => renderSlot(s, `od${i}`, true))}</div>
             </div>
           )}
         </section>
-        <section className="border-t pt-5" style={{ borderColor: C.line }}>
+        <section className="border-t pt-4" style={{ borderColor: C.line }}>
           <button onClick={() => toggleSection("racked")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
             <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>Racked <span className="text-sm font-normal text-slate-400">· {rackedFilled}/6</span></h2>
             <ChevronDown size={20} className="text-slate-400" style={{ transform: prefs.racked ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
           </button>
           {prefs.racked && (
-            <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
+            <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
               {rackedSlots.map((s, i) => renderSlot(s, `r${i}`, false))}
               {rackedOverflow.map((l) => (
                 <div key={l.id}>
@@ -1860,17 +1862,17 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           )}
         </section>
         {store.length > 0 && (
-          <section className="border-t pt-5" style={{ borderColor: C.line }}>
+          <section className="border-t pt-4" style={{ borderColor: C.line }}>
             <button onClick={() => toggleSection("store")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
               <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>In Store <span className="text-sm font-normal text-slate-400">· {store.length}</span></h2>
               <ChevronDown size={20} className="text-slate-400" style={{ transform: prefs.store ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
             </button>
             {prefs.store && (
-              <div className="mt-3 space-y-3">
+              <div className="mt-2 space-y-2">
                 {storeGroups.map((g) => (
                   <div key={g.label}>
-                    <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{g.label}</p>
-                    <div className="grid gap-2.5 sm:grid-cols-2">{g.items.map((l) => <LineRow key={l.id} line={l} context="store" />)}</div>
+                    <p className="mb-0.5 text-xs font-semibold uppercase tracking-wide text-slate-400">{g.label}</p>
+                    <div className="grid gap-1.5 sm:grid-cols-2">{g.items.map((l) => <LineRow key={l.id} line={l} context="store" />)}</div>
                   </div>
                 ))}
               </div>
