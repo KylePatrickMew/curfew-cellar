@@ -1731,23 +1731,20 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     const sig = cardSignal(line);
     const storeBB = context === "store" && line.bestBefore && !sig.alert;
     const showBadge = context === "racked" || sig.alert || storeBB;
-    const badgeText = storeBB ? `Best before ${fmtDate(line.bestBefore)}` : sig.text;
-    const hasMetaRow = showBadge || !beer.allergensVerified;
+    const badgeText = storeBB ? `BB ${fmtDate(line.bestBefore)}` : sig.text;
     return (
-      <button onClick={() => setOpenId(line.id)} className="w-full rounded-xl border bg-white px-3 py-2 text-left transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-amber-300 active:scale-95" style={{ borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[line.drinkType] || C.line, boxShadow: "0 1px 2px rgba(27,34,48,0.04)" }}>
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 flex-1">
+      <button onClick={() => setOpenId(line.id)} className="flex w-full items-center gap-2 rounded-xl border bg-white px-3 py-2 text-left transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-amber-300 active:scale-95" style={{ borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[line.drinkType] || C.line, boxShadow: "0 1px 2px rgba(27,34,48,0.04)", minHeight: 52 }}>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
             <p className="truncate text-sm font-semibold leading-tight" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</p>
-            <p className="truncate text-xs font-medium text-slate-600">{beer.style} · {beer.abv}% · £{line.price || "--"}{beer.location ? ` · ${beer.location}` : ""}</p>
+            {!beer.allergensVerified && <AlertTriangle size={13} className="shrink-0 text-amber-500" />}
           </div>
-          <span className="shrink-0"><DietaryMini beer={beer} /></span>
+          <p className="truncate text-xs font-medium text-slate-600">{beer.style} · {beer.abv}% · £{line.price || "--"}{beer.location ? ` · ${beer.location}` : ""}</p>
         </div>
-        {hasMetaRow && (
-          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-            {showBadge && <Badge className={`whitespace-nowrap ${sig.warn ? "bg-red-50 text-red-700 border-red-200" : "bg-slate-100 text-slate-600 border-slate-200"}`}>{badgeText}</Badge>}
-            {!beer.allergensVerified && <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600"><AlertTriangle size={13} /> Not verified</span>}
-          </div>
-        )}
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <DietaryMini beer={beer} />
+          {showBadge && <span className={`whitespace-nowrap rounded-full border px-1.5 py-0.5 font-semibold ${sig.warn ? "bg-red-50 text-red-700 border-red-200" : "bg-slate-100 text-slate-500 border-slate-200"}`} style={{ fontSize: 10 }}>{badgeText}</span>}
+        </div>
       </button>
     );
   };
@@ -1812,8 +1809,8 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
         <p className="mb-0.5 text-xs font-semibold uppercase tracking-wide text-slate-400">{slot.label}</p>
         {slot.line ? <LineRow line={slot.line} context={urgent ? "on" : "racked"} /> : (
           urgent
-            ? <button onClick={() => openPump(slot)} className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed text-sm font-medium transition hover:bg-amber-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ borderColor: "#e2c98a", color: "#b45309", minHeight: 44 }}><Plus size={15} /> Empty</button>
-            : <button onClick={() => go("add")} className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed text-sm font-medium text-slate-400 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line, minHeight: 44 }}>Empty</button>
+            ? <button onClick={() => openPump(slot)} className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed text-sm font-medium transition hover:bg-amber-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ borderColor: "#e2c98a", color: "#b45309", minHeight: 52 }}><Plus size={15} /> Empty</button>
+            : <button onClick={() => go("add")} className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed text-sm font-medium text-slate-400 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line, minHeight: 52 }}>Empty</button>
         )}
       </div>
     );
