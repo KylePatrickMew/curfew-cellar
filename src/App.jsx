@@ -540,37 +540,75 @@ export default function TheCurfewCellar() {
       const JsPDF = await _loadJsPDF();
       if (!JsPDF) throw new Error("no pdf lib");
       const doc = new JsPDF({ unit: "mm", format: "a4" });
-      const W = 210, H = 297, M = 15; let y = M;
-      const ink = [27, 34, 48], brass = [122, 86, 18], gray = [120, 120, 120];
+      const W = 210, H = 297, M = 14; let y = M;
+      const hex = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+      const ink = [27, 34, 48], brass = [122, 86, 18], brassSoft = [199, 154, 62], gray = [128, 128, 128], lineCol = [225, 222, 215], paleBg = [250, 249, 246];
       const ensure = (need) => { if (y + need > H - M) { doc.addPage(); y = M; } };
       const fmtD = (d) => { if (!d) return ""; try { return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" }); } catch (e) { return ""; } };
       const cmpBB = (a, b) => { const da = a.bestBefore ? new Date(a.bestBefore).getTime() : Infinity; const db = b.bestBefore ? new Date(b.bestBefore).getTime() : Infinity; return da - db; };
+      const money2 = (v) => { const n = parseFloat(v); return isNaN(n) ? "" : `£${n.toFixed(2)}`; };
 
-      doc.setFont("helvetica", "bold"); doc.setFontSize(20); doc.setTextColor(ink[0], ink[1], ink[2]);
-      doc.text("The Curfew", M, y); y += 7;
-      doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(gray[0], gray[1], gray[2]);
-      doc.text(`Stock list  ·  ${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}`, M, y); y += 4;
-      doc.setDrawColor(210, 210, 205); doc.line(M, y, W - M, y); y += 6;
+      // Header band
+      doc.setFillColor(ink[0], ink[1], ink[2]); doc.rect(0, 0, W, 28, "F");
+      doc.setFont("helvetica", "bold"); doc.setFontSize(19); doc.setTextColor(243, 239, 230);
+      doc.text("The Curfew", M, 14);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(brassSoft[0], brassSoft[1], brassSoft[2]);
+      doc.text("MICROPUB · STOCK LIST", M, 20.5);
+      doc.setFontSize(8.5); doc.setTextColor(200, 196, 186);
+      doc.text(new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }), W - M, 14, { align: "right" });
+      const counts = `${lines.filter((l) => l.status === "on").length} on  ·  ${lines.filter((l) => ["tapped", "vented", "racked"].includes(l.status)).length} in cellar  ·  ${lines.filter((l) => l.status === "in_cellar").length} in store`;
+      doc.text(counts, W - M, 20.5, { align: "right" });
+      y = 36;
 
-      const sectionHead = (t) => { ensure(12); doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(brass[0], brass[1], brass[2]); doc.text(t, M, y); y += 6; };
-      const subHead = (t) => { ensure(8); doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(ink[0], ink[1], ink[2]); doc.text(t, M, y); y += 5; };
-      const catHead = (t) => { ensure(6); doc.setFont("helvetica", "italic"); doc.setFontSize(8); doc.setTextColor(gray[0], gray[1], gray[2]); doc.text(t, M + 2, y); y += 4.5; };
-      const beerLine = (l, stage) => {
+      const sectionHead = (t, n) => {
+        ensure(13);
+        doc.setFillColor(brass[0], brass[1], brass[2]); doc.rect(M, y - 4, 2.2, 5.2, "F");
+        doc.setFont("helvetica", "bold"); doc.setFontSize(11.5); doc.setTextColor(ink[0], ink[1], ink[2]);
+        doc.text(t, M + 4.5, y);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(gray[0], gray[1], gray[2]);
+        doc.text(String(n), W - M, y, { align: "right" });
+        y += 5.5;
+      };
+      const subHead = (t) => { ensure(7); doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor(brass[0], brass[1], brass[2]); doc.text(t.toUpperCase(), M, y); y += 4.5; };
+      const catHead = (t) => { ensure(5.5); doc.setFont("helvetica", "italic"); doc.setFontSize(7.5); doc.setTextColor(gray[0], gray[1], gray[2]); doc.text(t, M + 3, y); y += 4; };
+
+      // One stock line as a card row: accent bar, name, meta, and a right column with
+      // pump/stage pill, price, and best-before.
+      const beerLine = (l, accentHex, opts) => {
+        const o = opts || {};
         const b = beerById[l.beerId]; if (!b) return;
-        ensure(10);
         const name = `${b.brewery ? b.brewery + " - " : ""}${b.name || ""}`;
-        const pump = l.status === "on" && l.slot ? PUMP_LABELS[l.slot] : null;
-        const right = pump || stage || "";
-        doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(ink[0], ink[1], ink[2]);
-        const nameLines = doc.splitTextToSize(name, W - 2 * M - 28);
-        doc.text(nameLines, M, y);
-        if (right) { doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(brass[0], brass[1], brass[2]); doc.text(right, W - M, y, { align: "right" }); }
-        y += 4.4 * nameLines.length;
         const dt = (DRINK_TYPES.find((t) => t.key === l.drinkType) || {}).label || l.drinkType;
-        const meta = [dt, b.style, b.abv ? b.abv + "%" : "", l.bestBefore ? "BB " + fmtD(l.bestBefore) : "", l.caskOwner || b.location || ""].filter(Boolean).join("  ·  ");
-        doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(gray[0], gray[1], gray[2]);
-        const metaLines = doc.splitTextToSize(meta, W - 2 * M);
-        doc.text(metaLines, M, y); y += 4 * metaLines.length + 1.6;
+        const meta = [dt, b.style, b.abv ? b.abv + "%" : "", l.caskOwner || b.location || ""].filter(Boolean).join("  ·  ");
+        doc.setFont("helvetica", "bold"); doc.setFontSize(9.5);
+        const nameLines = doc.splitTextToSize(name, W - 2 * M - 38);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(7.8);
+        const metaLines = doc.splitTextToSize(meta, W - 2 * M - 38);
+        const rowH = Math.max(3.9 * nameLines.length + 3.4 * metaLines.length + 3.4, 10.5);
+        ensure(rowH + 1.2);
+
+        doc.setFillColor(paleBg[0], paleBg[1], paleBg[2]); doc.rect(M, y, W - 2 * M, rowH, "F");
+        const ac = hex(accentHex); doc.setFillColor(ac[0], ac[1], ac[2]); doc.rect(M, y, 1.4, rowH, "F");
+
+        let ty = y + 4.2;
+        doc.setFont("helvetica", "bold"); doc.setFontSize(9.5); doc.setTextColor(ink[0], ink[1], ink[2]);
+        doc.text(nameLines, M + 4.5, ty); ty += 3.9 * nameLines.length;
+        doc.setFont("helvetica", "normal"); doc.setFontSize(7.8); doc.setTextColor(gray[0], gray[1], gray[2]);
+        doc.text(metaLines, M + 4.5, ty);
+        if (l.bestBefore) { doc.setTextColor(170, 100, 40); doc.text(`BB ${fmtD(l.bestBefore)}`, M + 4.5, y + rowH - 1.6); }
+
+        const rx = W - M - 3;
+        let ry = y + 4.4;
+        if (o.pill) {
+          doc.setFont("helvetica", "bold"); doc.setFontSize(7.6); doc.setTextColor(255, 255, 255);
+          const tw = doc.getTextWidth(o.pill) + 4;
+          doc.setFillColor(ac[0], ac[1], ac[2]); doc.roundedRect(rx - tw, ry - 3.1, tw, 4.4, 1, 1, "F");
+          doc.text(o.pill, rx - tw / 2, ry, { align: "center" });
+          ry += 6.4;
+        }
+        if (l.price) { doc.setFont("helvetica", "bold"); doc.setFontSize(9.5); doc.setTextColor(ink[0], ink[1], ink[2]); doc.text(money2(l.price), rx, ry, { align: "right" }); }
+
+        y += rowH + 1.4;
       };
 
       const onL = lines.filter((l) => l.status === "on");
@@ -578,10 +616,18 @@ export default function TheCurfewCellar() {
       const prep = lines.filter((l) => ["tapped", "vented", "racked"].includes(l.status)).sort((a, b) => prepOrder[a.status] - prepOrder[b.status]);
       const storeL = lines.filter((l) => l.status === "in_cellar");
 
-      if (onL.length) { sectionHead(`On  ·  ${onL.length}`); onL.forEach((l) => beerLine(l, null)); y += 2; }
-      if (prep.length) { sectionHead(`In cellar  ·  ${prep.length}`); prep.forEach((l) => beerLine(l, (STATUS_BY_KEY[l.status] && STATUS_BY_KEY[l.status].label) || "")); y += 2; }
+      if (onL.length) {
+        sectionHead("On", onL.length);
+        onL.forEach((l) => beerLine(l, TYPE_ACCENT[l.drinkType] || "#A9791F", { pill: (l.status === "on" && l.slot) ? PUMP_LABELS[l.slot] : null }));
+        y += 1.5;
+      }
+      if (prep.length) {
+        sectionHead("In cellar", prep.length);
+        prep.forEach((l) => beerLine(l, TYPE_ACCENT[l.drinkType] || "#A9791F", { pill: (STATUS_BY_KEY[l.status] && STATUS_BY_KEY[l.status].label) || null }));
+        y += 1.5;
+      }
       if (storeL.length) {
-        sectionHead(`In store  ·  ${storeL.length}`);
+        sectionHead("In store", storeL.length);
         [["cask", "Cask"], ["keg", "Keg"], ["keykeg", "Key Keg"], ["cider", "Cider"]].forEach(([dt, label]) => {
           const items = storeL.filter((l) => l.drinkType === dt);
           if (!items.length) return;
@@ -590,14 +636,24 @@ export default function TheCurfewCellar() {
             CATEGORIES.forEach((cat) => {
               const sub = items.filter((l) => (beerById[l.beerId] && beerById[l.beerId].category || "Misc") === cat).sort(cmpBB);
               if (!sub.length) return;
-              catHead(cat); sub.forEach((l) => beerLine(l, null));
+              catHead(cat); sub.forEach((l) => beerLine(l, CAT_ACCENT[cat] || "#9AA1AC", {}));
             });
           } else {
-            items.slice().sort(cmpBB).forEach((l) => beerLine(l, null));
+            items.slice().sort(cmpBB).forEach((l) => beerLine(l, TYPE_ACCENT[dt] || "#A9791F", {}));
           }
+          y += 1;
         });
       }
-      if (!onL.length && !prep.length && !storeL.length) { doc.setFontSize(11); doc.setTextColor(gray[0], gray[1], gray[2]); doc.text("No stock yet.", M, y); }
+      if (!onL.length && !prep.length && !storeL.length) { doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(gray[0], gray[1], gray[2]); doc.text("No stock yet.", M, y); }
+
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let p = 1; p <= pageCount; p++) {
+        doc.setPage(p);
+        doc.setDrawColor(lineCol[0], lineCol[1], lineCol[2]); doc.line(M, H - 10, W - M, H - 10);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(gray[0], gray[1], gray[2]);
+        doc.text("46a Bridge St, Berwick-upon-Tweed", M, H - 6);
+        doc.text(`Page ${p} of ${pageCount}`, W - M, H - 6, { align: "right" });
+      }
 
       const fname = "curfew-stock-list.pdf";
       const blob = doc.output("blob");
