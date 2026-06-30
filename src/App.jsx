@@ -715,7 +715,7 @@ export default function TheCurfewCellar() {
         y += rowH + 1.4;
       };
 
-      const onL = lines.filter((l) => l.status === "on");
+      const onL = lines.filter((l) => l.status === "on").slice().sort((a, b) => ["cask0","cask1","cask2","cask3","keg0","keg1","keg2","cider0","cider1","cider2"].indexOf(a.slot) - ["cask0","cask1","cask2","cask3","keg0","keg1","keg2","cider0","cider1","cider2"].indexOf(b.slot));
       const prepOrder = { tapped: 0, vented: 1, racked: 2 };
       const prep = lines.filter((l) => ["tapped", "vented", "racked"].includes(l.status)).sort((a, b) => prepOrder[a.status] - prepOrder[b.status]);
       const storeL = lines.filter((l) => l.status === "in_cellar");
@@ -1992,7 +1992,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
         </div>
       );
     };
-    const onL = lines.filter((l) => l.status === "on");
+    const onL = lines.filter((l) => l.status === "on").slice().sort((a, b) => ["cask0","cask1","cask2","cask3","keg0","keg1","keg2","cider0","cider1","cider2"].indexOf(a.slot) - ["cask0","cask1","cask2","cask3","keg0","keg1","keg2","cider0","cider1","cider2"].indexOf(b.slot));
     const prepOrder = { tapped: 0, vented: 1, racked: 2 };
     const prep = lines.filter((l) => ["tapped", "vented", "racked"].includes(l.status)).sort((a, b) => prepOrder[a.status] - prepOrder[b.status]);
     const storeL = lines.filter((l) => l.status === "in_cellar");
