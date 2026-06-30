@@ -592,8 +592,8 @@ export default function TheCurfewCellar() {
         doc.text(String(n), W - M, y, { align: "right" });
         y += 5.5;
       };
-      const subHead = (t) => { ensure(7); doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor(brass[0], brass[1], brass[2]); doc.text(t.toUpperCase(), M, y); y += 4.5; };
-      const catHead = (t) => { ensure(5.5); doc.setFont("helvetica", "italic"); doc.setFontSize(7.5); doc.setTextColor(gray[0], gray[1], gray[2]); doc.text(t, M + 3, y); y += 4; };
+      const subHead = (t) => { ensure(11); y += 3.5; doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor(brass[0], brass[1], brass[2]); doc.text(t.toUpperCase(), M, y); y += 4.8; };
+      const catHead = (t) => { ensure(9); y += 2.4; doc.setFont("helvetica", "italic"); doc.setFontSize(7.5); doc.setTextColor(gray[0], gray[1], gray[2]); doc.text(t, M + 3, y); y += 4.2; };
 
       // One stock line as a card row: accent bar, name, meta, and a right column with
       // pump/stage pill, price, and best-before.
@@ -677,7 +677,6 @@ export default function TheCurfewCellar() {
         doc.setPage(p);
         doc.setDrawColor(lineCol[0], lineCol[1], lineCol[2]); doc.line(M, H - 10, W - M, H - 10);
         doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(gray[0], gray[1], gray[2]);
-        doc.text("46a Bridge St, Berwick-upon-Tweed", M, H - 6);
         doc.text(`Page ${p} of ${pageCount}`, W - M, H - 6, { align: "right" });
       }
 
