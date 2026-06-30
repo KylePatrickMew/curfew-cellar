@@ -103,15 +103,15 @@ const PUMPS = { cask: ["cask0", "cask1", "cask2", "cask3"], keg: ["keg0", "keg1"
 const PUMP_LABELS = { cask0: "IPA", cask1: "Pale", cask2: "Bitter", cask3: "Stout", keg0: "Keg 1", keg1: "Keg 2", keg2: "Keg 3", cider0: "Cider 1", cider1: "Cider 2", cider2: "Cider 3" };
 const LAUNCH_PRICES = { b1: "4.50", b2: "4.50", b3: "4.90", b5: "4.70", b7: "4.90", b9: "4.70", b11: "4.90", b12: "4.50", b14: "4.30", b16: "4.70", b17: "4.90", b20: "4.30", b23: "4.70", b25: "4.70", b33: "5.70", b40: "6.20" };
 const EMPTIES_NEW_BEERS = [
-  { id: "b57", brewery: "Campervan", location: "Leith, Edinburgh", name: "Mango Mimosa", style: "Fruit Sour", abv: "4.7", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Wheat (gluten)"], notes: "Berliner Weisse with mango and lime, fruity and tart.", allergensVerified: false, category: "Misc" },
-  { id: "b49", brewery: "Hop Back", location: "Salisbury, Wiltshire", name: "GFB", style: "Session Bitter", abv: "3.4", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)"], notes: "Golden session bitter, hoppy aroma with East Kent Goldings and a dry finish.", allergensVerified: false, category: "Bitter" },
-  { id: "b50", brewery: "Hop Back", location: "Salisbury, Wiltshire", name: "Entire Stout", style: "Stout", abv: "4.5", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Wheat (gluten)", "Oats (gluten)"], notes: "Rich dark stout, strong roasted malt flavour with coffee and dark chocolate.", allergensVerified: false, category: "Stout/Porter" },
-  { id: "b51", brewery: "Phoenix", location: "Heywood, Greater Manchester", name: "Arizona", style: "Pale Ale", abv: "4.1", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)", "Wheat (gluten)"], notes: "Best-selling session pale brewed with Goldings hops, floral and honey notes.", allergensVerified: false, category: "Pale" },
-  { id: "b52", brewery: "Potting Shed Brew", location: "", name: "Unknown", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)"], notes: "Name not confirmed, check with Kyle before serving.", allergensVerified: false, category: "Misc" },
-  { id: "b53", brewery: "Two by Two", location: "North Shields", name: "Citra Motueka", style: "New World Pale", abv: "4.6", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Oats (gluten)"], notes: "Tropical hop character from Citra, Motueka and Sabro, oats and wheat for mouthfeel. ABV estimated.", allergensVerified: false, category: "Misc" },
-  { id: "b54", brewery: "Two by Two", location: "North Shields", name: "Azacca Mosaic", style: "Pale Ale", abv: "4.4", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Tropical, citrus and dank pale ale. ABV estimated.", allergensVerified: false, category: "Misc" },
-  { id: "b55", brewery: "Two by Two", location: "North Shields", name: "Razorbill", style: "Pale Ale", abv: "4.5", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Hop-forward pale ale. Not confirmed online, check ABV and style with Kyle.", allergensVerified: false, category: "Misc" },
-  { id: "b56", brewery: "Tempest", location: "Tweedbank, Scottish Borders", name: "Hawaiian Shirt", style: "Fruit Sour", abv: "4.5", clarity: "Hazy", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)", "Wheat (gluten)", "Oats (gluten)"], notes: "Tropical fruited sour with guava, mango and passionfruit.", allergensVerified: false, category: "Misc" },
+  { id: "b57", brewery: "Campervan", location: "Leith, Edinburgh", name: "Mango Mimosa", style: "Fruit Sour", abv: "4.7", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Wheat (gluten)"], notes: "Mango and lime, fruity and tart Berliner Weisse.", allergensVerified: false, category: "Misc" },
+  { id: "b49", brewery: "Hop Back", location: "Salisbury, Wiltshire", name: "GFB", style: "Session Bitter", abv: "3.4", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)"], notes: "Hoppy, dry session bitter. GFB stands for Gilbert's First Brew, named after founder John Gilbert.", allergensVerified: false, category: "Bitter" },
+  { id: "b50", brewery: "Hop Back", location: "Salisbury, Wiltshire", name: "Entire Stout", style: "Stout", abv: "4.5", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Wheat (gluten)", "Oats (gluten)"], notes: "Roasted malt, coffee and chocolate.", allergensVerified: false, category: "Stout/Porter" },
+  { id: "b51", brewery: "Phoenix", location: "Heywood, Greater Manchester", name: "Arizona", style: "Pale Ale", abv: "4.1", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)", "Wheat (gluten)"], notes: "Floral, honeyed session pale.", allergensVerified: false, category: "Pale" },
+  { id: "b52", brewery: "Potting Shed Brew", location: "", name: "Unknown", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)"], notes: "Old cask, the beer name is genuinely not known.", allergensVerified: false, category: "Misc" },
+  { id: "b53", brewery: "Two by Two", location: "North Shields", name: "Citra Motueka", style: "New World Pale", abv: "4.6", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Oats (gluten)"], notes: "Tropical hop character, oats for body. ABV estimated.", allergensVerified: false, category: "Misc" },
+  { id: "b54", brewery: "Two by Two", location: "North Shields", name: "Azacca Mosaic", style: "Pale Ale", abv: "4.4", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Tropical, citrus and dank. ABV estimated.", allergensVerified: false, category: "Misc" },
+  { id: "b55", brewery: "Two by Two", location: "North Shields", name: "Razorbill", style: "Pale Ale", abv: "4.5", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Hop-forward pale ale. Not confirmed online, check with Kyle.", allergensVerified: false, category: "Misc" },
+  { id: "b56", brewery: "Tempest", location: "Tweedbank, Scottish Borders", name: "Hawaiian Shirt", style: "Fruit Sour", abv: "4.5", clarity: "Hazy", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)", "Wheat (gluten)", "Oats (gluten)"], notes: "Guava, mango and passionfruit sour.", allergensVerified: false, category: "Misc" },
 ];
 const EMPTIES_NEW_LINES = [
   { beerId: "b24", drinkType: "cask", caskOwner: "LWC" },
@@ -277,62 +277,62 @@ const aiDraft = (name) => {
 
 // ---------- Demo data ----------
 const seedLibrary = [
-  { id: "b1", brewery: "Ampersand", location: "Pewsey, Wiltshire", name: "Extra Pale Ale", style: "Extra Pale Ale", abv: "4.0", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)"], notes: "Light, crisp extra pale ale with gentle citrus hops.", allergensVerified: false, category: "Pale" },
-  { id: "b2", brewery: "Bank Top", location: "Bolton", name: "Harlequin", style: "Pale Ale", abv: "4.0", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)"], notes: "Pale ale showcasing the Harlequin hop, soft tropical fruit.", allergensVerified: false, category: "Pale" },
-  { id: "b3", brewery: "Timothy Taylor", location: "Keighley, West Yorkshire", name: "Landlord", style: "Pale Ale", abv: "4.3", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)"], notes: "Classic award-winning pale ale, citrus and biscuit malt.", allergensVerified: false, category: "Bitter" },
-  { id: "b4", brewery: "Durham", location: "Bowburn, County Durham", name: "Dark Angel", style: "Stout", abv: "4.5", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)"], notes: "Dark, roasty stout.", allergensVerified: false, category: "Stout/Porter" },
+  { id: "b1", brewery: "Ampersand", location: "Pewsey, Wiltshire", name: "Extra Pale Ale", style: "Extra Pale Ale", abv: "4.0", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)"], notes: "Light and crisp, gentle citrus hops.", allergensVerified: false, category: "Pale" },
+  { id: "b2", brewery: "Bank Top", location: "Bolton", name: "Harlequin", style: "Pale Ale", abv: "4.0", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)"], notes: "Soft tropical fruit, easy drinking pale.", allergensVerified: false, category: "Pale" },
+  { id: "b3", brewery: "Timothy Taylor", location: "Keighley, West Yorkshire", name: "Landlord", style: "Pale Ale", abv: "4.3", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)"], notes: "Citrus and biscuit malt. Reportedly Madonna's favourite beer.", allergensVerified: false, category: "Bitter" },
+  { id: "b4", brewery: "Durham", location: "Bowburn, County Durham", name: "Dark Angel", style: "Stout", abv: "4.5", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)"], notes: "Dark, roasty stout, coffee and liquorice.", allergensVerified: false, category: "Stout/Porter" },
   { id: "b5", brewery: "Blackjack", location: "Manchester", name: "Spring and Axle", style: "Pale Ale", abv: "4.2", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)"], notes: "Hoppy, easy-drinking pale ale.", allergensVerified: false, category: "IPA" },
-  { id: "b6", brewery: "Fyne", location: "Cairndow, Argyll", name: "Hurricane Jack", style: "Blonde Ale", abv: "4.4", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Well-balanced blonde, Cascade and Amarillo, citrus over biscuit malt.", allergensVerified: false, category: "IPA" },
-  { id: "b7", brewery: "Ossett", location: "Ossett, West Yorkshire", name: "White Rat", style: "Pale Ale", abv: "4.0", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Intensely hoppy pale, resinous grapefruit and citrus.", allergensVerified: false, category: "Pale" },
-  { id: "b8", brewery: "Cheviot", location: "Slingley, Northumberland", name: "Upland Ale", style: "Bitter", abv: "4.0", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)"], notes: "Traditional Northumbrian bitter, malty and balanced.", allergensVerified: false, category: "Bitter" },
-  { id: "b9", brewery: "Marble", location: "Salford, Greater Manchester", name: "Whitehead's", style: "Stout", abv: "4.8", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Dark, roasty stout.", allergensVerified: false, category: "Stout/Porter" },
+  { id: "b6", brewery: "Fyne", location: "Cairndow, Argyll", name: "Hurricane Jack", style: "Blonde Ale", abv: "4.4", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Biscuity blonde, citrus and pear. Named after the legendary sailor in Neil Munro's Para Handy stories.", allergensVerified: false, category: "IPA" },
+  { id: "b7", brewery: "Ossett", location: "Ossett, West Yorkshire", name: "White Rat", style: "Pale Ale", abv: "4.0", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Intensely hoppy pale, grapefruit and citrus.", allergensVerified: false, category: "Pale" },
+  { id: "b8", brewery: "Cheviot", location: "Slingley, Northumberland", name: "Upland Ale", style: "Bitter", abv: "4.0", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)"], notes: "Malty, balanced Northumbrian bitter.", allergensVerified: false, category: "Bitter" },
+  { id: "b9", brewery: "Marble", location: "Salford, Greater Manchester", name: "Whitehead's", style: "Stout", abv: "4.8", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Dark, roasty stout, coffee and chocolate. Marble is named after Manchester's Marble Arch pub, where it began life.", allergensVerified: false, category: "Stout/Porter" },
   { id: "b10", brewery: "Ossett", location: "Ossett, West Yorkshire", name: "Butterley", style: "Pale Ale", abv: "3.8", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Light, refreshing session pale.", allergensVerified: false, category: "Pale" },
-  { id: "b11", brewery: "Oakham", location: "Peterborough", name: "Citra", style: "Pale Ale", abv: "4.2", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Hugely aromatic single-hop Citra pale, lime and lychee.", allergensVerified: false, category: "Pale" },
-  { id: "b12", brewery: "Castle Rock", location: "Nottingham", name: "Preservation", style: "Bitter", abv: "4.4", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)"], notes: "Amber best bitter, malt backbone with citrus hops.", allergensVerified: false, category: "Bitter" },
-  { id: "b13", brewery: "Black Isle", location: "Munlochy, Highland", name: "Porter", style: "Porter", abv: "4.5", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Organic porter, roast coffee and dark chocolate.", allergensVerified: false, category: "Stout/Porter" },
-  { id: "b14", brewery: "Timothy Taylor", location: "Keighley, West Yorkshire", name: "Golden Best", style: "Light Mild", abv: "3.5", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)"], notes: "Pale Pennine light mild, delicate and refreshing.", allergensVerified: false, category: "Bitter" },
-  { id: "b15", brewery: "Tempest", location: "Tweedbank, Scottish Borders", name: "Long White Cloud", style: "Pale Ale", abv: "5.6", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Oats (gluten)"], notes: "NZ-hopped pale, tropical fruit and a juicy body.", allergensVerified: false, category: "Pale" },
+  { id: "b11", brewery: "Oakham", location: "Peterborough", name: "Citra", style: "Pale Ale", abv: "4.2", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Zesty Citra pale, lime and lychee. The first UK beer brewed with 100% Citra hops, in 2009.", allergensVerified: false, category: "Pale" },
+  { id: "b12", brewery: "Castle Rock", location: "Nottingham", name: "Preservation", style: "Bitter", abv: "4.4", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)"], notes: "Malty amber bitter, citrus hop edge. Castle Rock was founded by a former CAMRA chairman.", allergensVerified: false, category: "Bitter" },
+  { id: "b13", brewery: "Black Isle", location: "Munlochy, Highland", name: "Porter", style: "Porter", abv: "4.5", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Roast coffee and dark chocolate. Organic, brewed on the Black Isle in the Highlands.", allergensVerified: false, category: "Stout/Porter" },
+  { id: "b14", brewery: "Timothy Taylor", location: "Keighley, West Yorkshire", name: "Golden Best", style: "Light Mild", abv: "3.5", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)"], notes: "Pale, delicate light mild.", allergensVerified: false, category: "Bitter" },
+  { id: "b15", brewery: "Tempest", location: "Tweedbank, Scottish Borders", name: "Long White Cloud", style: "Pale Ale", abv: "5.6", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Oats (gluten)"], notes: "NZ-hopped pale, tropical fruit.", allergensVerified: false, category: "Pale" },
   { id: "b16", brewery: "Hop Back", location: "Salisbury, Wiltshire", name: "Crop Circle", style: "Blonde Ale", abv: "4.2", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Pale, hoppy summer ale, floral and citrus.", allergensVerified: false, category: "Pale" },
-  { id: "b17", brewery: "Hop Back", location: "Salisbury, Wiltshire", name: "Summer Lightning", style: "Golden Ale", abv: "5.0", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)"], notes: "Straw-coloured golden ale, clean bitterness and a long dry finish.", allergensVerified: false, category: "Pale" },
-  { id: "b18", brewery: "Burton Bridge", location: "Burton upon Trent", name: "Sunshine Pale", style: "Pale Ale", abv: "4.0", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)"], notes: "Easy-drinking golden pale ale.", allergensVerified: false, category: "Pale" },
-  { id: "b19", brewery: "Arbor", location: "Bristol", name: "Oyster Stout", style: "Stout", abv: "4.6", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)"], notes: "Smooth dry stout, roast and dark chocolate.", allergensVerified: false, category: "Stout/Porter" },
-  { id: "b20", brewery: "Burning Sky", location: "Firle, East Sussex", name: "Plateau", style: "Pale Ale", abv: "3.5", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Light, hoppy table pale, citrus and stone fruit.", allergensVerified: false, category: "Pale" },
-  { id: "b21", brewery: "Fyne", location: "Cairndow, Argyll", name: "Avalanche", style: "Pale Ale", abv: "4.5", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Refreshing pale, Cascade hops, lemon and grapefruit.", allergensVerified: false, category: "Pale" },
-  { id: "b22", brewery: "The Kernel", location: "London", name: "Summer Pale Krush", style: "Pale Ale", abv: "5.0", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Hop-forward pale ale, soft and juicy.", allergensVerified: false, category: "Pale" },
-  { id: "b23", brewery: "Hop Back", location: "Salisbury, Wiltshire", name: "Citra", style: "Pale Ale", abv: "4.0", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Single-hop Citra pale, zesty grapefruit.", allergensVerified: false, category: "Pale" },
-  { id: "b24", brewery: "Fyne", location: "Cairndow, Argyll", name: "Jarl", style: "Blonde Ale", abv: "3.8", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Citra session blonde, waves of citrus and a clean finish.", allergensVerified: false, category: "Pale" },
+  { id: "b17", brewery: "Hop Back", location: "Salisbury, Wiltshire", name: "Summer Lightning", style: "Golden Ale", abv: "5.0", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)"], notes: "Straw-coloured, dry hoppy finish. Widely credited with starting Britain's golden ale craze in 1989.", allergensVerified: false, category: "Pale" },
+  { id: "b18", brewery: "Burton Bridge", location: "Burton upon Trent", name: "Sunshine Pale", style: "Pale Ale", abv: "4.0", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)"], notes: "Easy-drinking golden pale ale. Brewed in Burton upon Trent, home of British brewing.", allergensVerified: false, category: "Pale" },
+  { id: "b19", brewery: "Arbor", location: "Bristol", name: "Oyster Stout", style: "Stout", abv: "4.6", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)"], notes: "Smooth dry stout, roast and chocolate.", allergensVerified: false, category: "Stout/Porter" },
+  { id: "b20", brewery: "Burning Sky", location: "Firle, East Sussex", name: "Plateau", style: "Pale Ale", abv: "3.5", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Light, hoppy table pale.", allergensVerified: false, category: "Pale" },
+  { id: "b21", brewery: "Fyne", location: "Cairndow, Argyll", name: "Avalanche", style: "Pale Ale", abv: "4.5", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Refreshing pale, lemon and grapefruit.", allergensVerified: false, category: "Pale" },
+  { id: "b22", brewery: "The Kernel", location: "London", name: "Summer Pale Krush", style: "Pale Ale", abv: "5.0", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Hop-forward pale, soft and juicy. The Kernel started out under railway arches in Bermondsey, London.", allergensVerified: false, category: "Pale" },
+  { id: "b23", brewery: "Hop Back", location: "Salisbury, Wiltshire", name: "Citra", style: "Pale Ale", abv: "4.0", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Zesty grapefruit, single-hop pale.", allergensVerified: false, category: "Pale" },
+  { id: "b24", brewery: "Fyne", location: "Cairndow, Argyll", name: "Jarl", style: "Blonde Ale", abv: "3.8", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Citrus session blonde, clean finish. Jarl means Earl in Old Norse, a nod to Argyll's Viking past.", allergensVerified: false, category: "Pale" },
   { id: "b25", brewery: "Neptune", location: "Maghull, Liverpool", name: "Abyss", style: "Stout", abv: "6.0", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Oats (gluten)"], notes: "Rich, dark stout.", allergensVerified: false, category: "Stout/Porter" },
-  { id: "b26", brewery: "Loch Lomond", location: "Alexandria, West Dunbartonshire", name: "Silkie Stout", style: "Oatmeal Stout", abv: "5.0", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)", "Oats (gluten)"], notes: "Robust oatmeal stout, roast coffee and chocolate, smooth finish.", allergensVerified: false, category: "Stout/Porter" },
-  { id: "b27", brewery: "Loch Lomond", location: "Alexandria, West Dunbartonshire", name: "Lost in Mosaic", style: "New World IPA", abv: "5.0", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Hazy New World IPA, pineapple, citrus and melon.", allergensVerified: false, category: "IPA" },
+  { id: "b26", brewery: "Loch Lomond", location: "Alexandria, West Dunbartonshire", name: "Silkie Stout", style: "Oatmeal Stout", abv: "5.0", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)", "Oats (gluten)"], notes: "Oatmeal stout, coffee and chocolate.", allergensVerified: false, category: "Stout/Porter" },
+  { id: "b27", brewery: "Loch Lomond", location: "Alexandria, West Dunbartonshire", name: "Lost in Mosaic", style: "New World IPA", abv: "5.0", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Hazy New World IPA, pineapple and melon.", allergensVerified: false, category: "IPA" },
   { id: "b28", brewery: "Tempest", location: "Tweedbank, Scottish Borders", name: "Cresta", style: "Stout", abv: "4.5", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Oats (gluten)"], notes: "Roasty session stout.", allergensVerified: false, category: "Stout/Porter" },
   { id: "b29", brewery: "Cheviot", location: "Slingley, Northumberland", name: "Black Hag", style: "Porter", abv: "4.4", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)"], notes: "Dark, roasty porter.", allergensVerified: false, category: "Stout/Porter" },
   { id: "b30", brewery: "Fyne", location: "Cairndow, Argyll", name: "Like Clockwork", style: "Pale Ale", abv: "4.0", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Hop-forward pale ale.", allergensVerified: false, category: "Pale" },
-  { id: "b31", brewery: "Two by Two", location: "North Shields", name: "Strata Pale", style: "Pale Ale", abv: "4.4", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Hazy pale hopped with Strata, tropical and dank.", allergensVerified: false, category: "Misc" },
-  { id: "b32", brewery: "Rodenbach", location: "Roeselare, Belgium", name: "Fruitage", style: "Flemish Red Sour", abv: "3.9", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Refreshing Flanders red blended with cherry, sweet and sour.", allergensVerified: false, category: "Misc" },
-  { id: "b33", brewery: "Wylam", location: "Newcastle upon Tyne", name: "State of Mind", style: "Pale Ale", abv: "5.0", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Oats (gluten)"], notes: "Juicy, hazy pale ale.", allergensVerified: false, category: "Misc" },
-  { id: "b34", brewery: "Burning Sky", location: "Firle, East Sussex", name: "Three Arms", style: "Dark Mild", abv: "4.0", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Dark, malty session ale.", allergensVerified: false, category: "Misc" },
-  { id: "b35", brewery: "The Kernel", location: "London", name: "Pale Ale Citra", style: "Pale Ale", abv: "5.0", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Hop-forward Citra pale, grapefruit and tropical fruit.", allergensVerified: false, category: "Misc" },
-  { id: "b36", brewery: "Deya", location: "Cheltenham", name: "Steady Rolling Man", style: "Pale Ale", abv: "5.2", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Oats (gluten)"], notes: "Iconic hazy pale, soft and juicy with tropical hops.", allergensVerified: false, category: "Misc" },
+  { id: "b31", brewery: "Two by Two", location: "North Shields", name: "Strata Pale", style: "Pale Ale", abv: "4.4", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Hazy, tropical and dank. Named after the animals boarding Noah's Ark, two by two.", allergensVerified: false, category: "Misc" },
+  { id: "b32", brewery: "Rodenbach", location: "Roeselare, Belgium", name: "Fruitage", style: "Flemish Red Sour", abv: "3.9", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Sweet and sour, cherry-forward Flanders red.", allergensVerified: false, category: "Misc" },
+  { id: "b33", brewery: "Wylam", location: "Newcastle upon Tyne", name: "State of Mind", style: "Pale Ale", abv: "5.0", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Oats (gluten)"], notes: "Juicy, hazy pale ale. Wylam takes its name from the Tyneside village that gave the world railway pioneer George Stephenson.", allergensVerified: false, category: "Misc" },
+  { id: "b34", brewery: "Burning Sky", location: "Firle, East Sussex", name: "Three Arms", style: "Dark Mild", abv: "4.0", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Dark, malty session mild.", allergensVerified: false, category: "Misc" },
+  { id: "b35", brewery: "The Kernel", location: "London", name: "Pale Ale Citra", style: "Pale Ale", abv: "5.0", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Grapefruit and tropical fruit, hop-forward.", allergensVerified: false, category: "Misc" },
+  { id: "b36", brewery: "Deya", location: "Cheltenham", name: "Steady Rolling Man", style: "Pale Ale", abv: "5.2", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Oats (gluten)"], notes: "Soft, juicy tropical hops. Named after the old blues standard made famous by Robert Johnson.", allergensVerified: false, category: "Misc" },
   { id: "b37", brewery: "Tempest", location: "Tweedbank, Scottish Borders", name: "Daisy Age", style: "Hazy IPA", abv: "5.3", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Oats (gluten)"], notes: "Juicy, hazy IPA.", allergensVerified: false, category: "Misc" },
-  { id: "b38", brewery: "Tempest", location: "Tweedbank, Scottish Borders", name: "Graceland Pilsner", style: "Pilsner", abv: "4.8", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Crisp German-style pilsner, clean and floral.", allergensVerified: false, category: "Misc" },
+  { id: "b38", brewery: "Tempest", location: "Tweedbank, Scottish Borders", name: "Graceland Pilsner", style: "Pilsner", abv: "4.8", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Crisp, clean German-style pilsner.", allergensVerified: false, category: "Misc" },
   { id: "b39", brewery: "Polly's", location: "Mold, Flintshire", name: "The Ritual Continues", style: "IPA", abv: "5.5", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Oats (gluten)"], notes: "Hazy, juicy IPA.", allergensVerified: false, category: "Misc" },
   { id: "b40", brewery: "Burning Sky", location: "Firle, East Sussex", name: "Le Coeur Framboise", style: "Raspberry Sour", abv: "5.0", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Wheat (gluten)"], notes: "Barrel-aged raspberry sour.", allergensVerified: false, category: "Misc" },
-  { id: "b41", brewery: "Schneider Weisse", location: "Kelheim, Germany", name: "Hefeweissbier", style: "Weissbier", abv: "5.4", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Wheat (gluten)"], notes: "Classic Bavarian wheat beer, banana and clove.", allergensVerified: false, category: "Misc" },
-  { id: "b42", brewery: "Weston's", location: "Much Marcle, Herefordshire", name: "Old Rosie", style: "Cloudy Scrumpy", abv: "7.3", clarity: "Cloudy", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Cloudy traditional scrumpy, full-bodied and dry.", allergensVerified: false, category: "Misc" },
+  { id: "b41", brewery: "Schneider Weisse", location: "Kelheim, Germany", name: "Hefeweissbier", style: "Weissbier", abv: "5.4", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Wheat (gluten)"], notes: "Banana and clove, classic Bavarian wheat beer. Schneider was among the first breweries allowed to brew wheat beer after Bavaria's royal brewing monopoly ended in 1872.", allergensVerified: false, category: "Misc" },
+  { id: "b42", brewery: "Weston's", location: "Much Marcle, Herefordshire", name: "Old Rosie", style: "Cloudy Scrumpy", abv: "6.8", clarity: "Cloudy", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Cloudy, dry traditional scrumpy. Named after a 1921 steam roller at the cidery, itself named after Laurie Lee's Cider with Rosie.", allergensVerified: false, category: "Misc" },
   { id: "b43", brewery: "Broadoak", location: "Clutton, Somerset", name: "Rhubarb", style: "Fruit Cider", abv: "4.0", clarity: "Clear", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Sweet, fruity rhubarb cider.", allergensVerified: false, category: "Misc" },
-  { id: "b44", brewery: "Dudda's Tun", location: "Doddington, Kent", name: "Wild Haze", style: "Cider", abv: "5.4", clarity: "Hazy", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Medium, semi-cloudy Kentish cider, smooth and juicy.", allergensVerified: false, category: "Misc" },
-  { id: "b45", brewery: "Thistly Cross", location: "Belhaven, East Lothian", name: "Cloudy", style: "Cloudy Cider", abv: "4.4", clarity: "Cloudy", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Cloudy Scottish cider, fresh pressed apple.", allergensVerified: false, category: "Misc" },
+  { id: "b44", brewery: "Dudda's Tun", location: "Doddington, Kent", name: "Wild Haze", style: "Cider", abv: "5.4", clarity: "Hazy", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Smooth, semi-cloudy Kentish cider. Dudda's Tun is the old Anglo-Saxon name for Doddington, meaning Dudda's farm.", allergensVerified: false, category: "Misc" },
+  { id: "b45", brewery: "Thistly Cross", location: "Belhaven, East Lothian", name: "Cloudy", style: "Cloudy Cider", abv: "4.4", clarity: "Cloudy", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Cloudy, fresh pressed apple.", allergensVerified: false, category: "Misc" },
   { id: "b46", brewery: "Sandford Orchards", location: "Crediton, Devon", name: "Blackberry", style: "Fruit Cider", abv: "4.0", clarity: "Clear", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Devon cider with blackberry.", allergensVerified: false, category: "Misc" },
   { id: "b47", brewery: "Celtic Marches", location: "Bishops Frome, Herefordshire", name: "Wild Berries", style: "Fruit Cider", abv: "4.0", clarity: "Clear", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Mixed berry fruit cider.", allergensVerified: false, category: "Misc" },
   { id: "b48", brewery: "Dudda's Tun", location: "Doddington, Kent", name: "Disco", style: "Cider", abv: "5.0", clarity: "Hazy", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Kentish craft cider.", allergensVerified: false, category: "Misc" },
-  { id: "b49", brewery: "Hop Back", location: "Salisbury, Wiltshire", name: "GFB", style: "Session Bitter", abv: "3.4", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)"], notes: "Golden session bitter, hoppy aroma with East Kent Goldings and a dry finish.", allergensVerified: false, category: "Bitter" },
-  { id: "b50", brewery: "Hop Back", location: "Salisbury, Wiltshire", name: "Entire Stout", style: "Stout", abv: "4.5", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Wheat (gluten)", "Oats (gluten)"], notes: "Rich dark stout, strong roasted malt flavour with coffee and dark chocolate.", allergensVerified: false, category: "Stout/Porter" },
-  { id: "b51", brewery: "Phoenix", location: "Heywood, Greater Manchester", name: "Arizona", style: "Pale Ale", abv: "4.1", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)", "Wheat (gluten)"], notes: "Best-selling session pale brewed with Goldings hops, floral and honey notes.", allergensVerified: false, category: "Pale" },
-  { id: "b52", brewery: "Potting Shed Brew", location: "", name: "Unknown", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)"], notes: "Name not confirmed, check with Kyle before serving.", allergensVerified: false, category: "Misc" },
-  { id: "b53", brewery: "Two by Two", location: "North Shields", name: "Citra Motueka", style: "New World Pale", abv: "4.6", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Oats (gluten)"], notes: "Tropical hop character from Citra, Motueka and Sabro, oats and wheat for mouthfeel. ABV estimated.", allergensVerified: false, category: "Misc" },
-  { id: "b54", brewery: "Two by Two", location: "North Shields", name: "Azacca Mosaic", style: "Pale Ale", abv: "4.4", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Tropical, citrus and dank pale ale. ABV estimated.", allergensVerified: false, category: "Misc" },
-  { id: "b55", brewery: "Two by Two", location: "North Shields", name: "Razorbill", style: "Pale Ale", abv: "4.5", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Hop-forward pale ale. Not confirmed online, check ABV and style with Kyle.", allergensVerified: false, category: "Misc" },
-  { id: "b56", brewery: "Tempest", location: "Tweedbank, Scottish Borders", name: "Hawaiian Shirt", style: "Fruit Sour", abv: "4.5", clarity: "Hazy", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)", "Wheat (gluten)", "Oats (gluten)"], notes: "Tropical fruited sour with guava, mango and passionfruit.", allergensVerified: false, category: "Misc" },
+  { id: "b49", brewery: "Hop Back", location: "Salisbury, Wiltshire", name: "GFB", style: "Session Bitter", abv: "3.4", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)"], notes: "Hoppy, dry session bitter. GFB stands for Gilbert's First Brew, named after founder John Gilbert.", allergensVerified: false, category: "Bitter" },
+  { id: "b50", brewery: "Hop Back", location: "Salisbury, Wiltshire", name: "Entire Stout", style: "Stout", abv: "4.5", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Wheat (gluten)", "Oats (gluten)"], notes: "Roasted malt, coffee and chocolate.", allergensVerified: false, category: "Stout/Porter" },
+  { id: "b51", brewery: "Phoenix", location: "Heywood, Greater Manchester", name: "Arizona", style: "Pale Ale", abv: "4.1", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)", "Wheat (gluten)"], notes: "Floral, honeyed session pale.", allergensVerified: false, category: "Pale" },
+  { id: "b52", brewery: "Potting Shed Brew", location: "", name: "Unknown", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)"], notes: "Old cask, the beer name is genuinely not known.", allergensVerified: false, category: "Misc" },
+  { id: "b53", brewery: "Two by Two", location: "North Shields", name: "Citra Motueka", style: "New World Pale", abv: "4.6", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Oats (gluten)"], notes: "Tropical hop character, oats for body. ABV estimated.", allergensVerified: false, category: "Misc" },
+  { id: "b54", brewery: "Two by Two", location: "North Shields", name: "Azacca Mosaic", style: "Pale Ale", abv: "4.4", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Tropical, citrus and dank. ABV estimated.", allergensVerified: false, category: "Misc" },
+  { id: "b55", brewery: "Two by Two", location: "North Shields", name: "Razorbill", style: "Pale Ale", abv: "4.5", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Hop-forward pale ale. Not confirmed online, check with Kyle.", allergensVerified: false, category: "Misc" },
+  { id: "b56", brewery: "Tempest", location: "Tweedbank, Scottish Borders", name: "Hawaiian Shirt", style: "Fruit Sour", abv: "4.5", clarity: "Hazy", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)", "Wheat (gluten)", "Oats (gluten)"], notes: "Guava, mango and passionfruit sour.", allergensVerified: false, category: "Misc" },
 ];
 const seedLines = [
   { id: "l1", beerId: "b1", drinkType: "cask", size: "", price: "", status: "on", slot: "cask0", caskOwner: "", collected: false, bestBefore: "2026-08-11", dates: { ordered: isoDaysAgo(5), delivered: isoDaysAgo(4), racked: isoDaysAgo(4), vented: isoDaysAgo(2), tapped: isoDaysAgo(1), on: isoDaysAgo(1), off: null } },
@@ -551,10 +551,70 @@ export default function TheCurfewCellar() {
   const migrateEmpties2 = (data) => {
     if (!data || (data.prefs && data.prefs.emptiesV2)) return data;
     const lib = (data.library || []).map((b) => (b.id === "b52" ? { ...b, notes: "Old cask, the beer name is genuinely not known." } : b));
-    if (!lib.find((x) => x.id === "b57")) lib.push({ id: "b57", brewery: "Campervan", location: "Leith, Edinburgh", name: "Mango Mimosa", style: "Fruit Sour", abv: "4.7", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Wheat (gluten)"], notes: "Berliner Weisse with mango and lime, fruity and tart.", allergensVerified: false, category: "Misc" });
+    if (!lib.find((x) => x.id === "b57")) lib.push({ id: "b57", brewery: "Campervan", location: "Leith, Edinburgh", name: "Mango Mimosa", style: "Fruit Sour", abv: "4.7", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Wheat (gluten)"], notes: "Mango and lime, fruity and tart Berliner Weisse.", allergensVerified: false, category: "Misc" });
     const nowIso = new Date().toISOString();
     const newLine = { id: uid(), beerId: "b57", drinkType: "keg", size: "", price: "", status: "off", caskOwner: "George", collected: false, bestBefore: "", dates: { ordered: null, delivered: null, racked: null, vented: null, tapped: null, on: null, off: nowIso } };
     return { ...data, library: lib, lines: [...(data.lines || []), newLine], prefs: { ...(data.prefs || {}), emptiesV2: true }, lastUpdated: nowIso };
+  };
+
+  // One-time, non-destructive note rewrite: shortens tasting notes to a quick taste descriptor
+  // plus an optional genuine fun fact. Only touches a beer's notes if they still exactly match
+  // the original text, so anything Kyle has already edited by hand is left untouched. Also
+  // corrects the Old Rosie ABV (Weston's reduced it from 7.3% to 6.8% in 2019). Guarded by
+  // prefs.notesV1 so it only ever runs once.
+  const NOTE_REWRITES = {
+    "b1": ["Light, crisp extra pale ale with gentle citrus hops.", "Light and crisp, gentle citrus hops."],
+    "b2": ["Pale ale showcasing the Harlequin hop, soft tropical fruit.", "Soft tropical fruit, easy drinking pale."],
+    "b3": ["Classic award-winning pale ale, citrus and biscuit malt.", "Citrus and biscuit malt. Reportedly Madonna's favourite beer."],
+    "b4": ["Dark, roasty stout.", "Dark, roasty stout, coffee and liquorice."],
+    "b6": ["Well-balanced blonde, Cascade and Amarillo, citrus over biscuit malt.", "Biscuity blonde, citrus and pear. Named after the legendary sailor in Neil Munro's Para Handy stories."],
+    "b7": ["Intensely hoppy pale, resinous grapefruit and citrus.", "Intensely hoppy pale, grapefruit and citrus."],
+    "b8": ["Traditional Northumbrian bitter, malty and balanced.", "Malty, balanced Northumbrian bitter."],
+    "b9": ["Dark, roasty stout.", "Dark, roasty stout, coffee and chocolate. Marble is named after Manchester's Marble Arch pub, where it began life."],
+    "b11": ["Hugely aromatic single-hop Citra pale, lime and lychee.", "Zesty Citra pale, lime and lychee. The first UK beer brewed with 100% Citra hops, in 2009."],
+    "b12": ["Amber best bitter, malt backbone with citrus hops.", "Malty amber bitter, citrus hop edge. Castle Rock was founded by a former CAMRA chairman."],
+    "b13": ["Organic porter, roast coffee and dark chocolate.", "Roast coffee and dark chocolate. Organic, brewed on the Black Isle in the Highlands."],
+    "b14": ["Pale Pennine light mild, delicate and refreshing.", "Pale, delicate light mild."],
+    "b15": ["NZ-hopped pale, tropical fruit and a juicy body.", "NZ-hopped pale, tropical fruit."],
+    "b17": ["Straw-coloured golden ale, clean bitterness and a long dry finish.", "Straw-coloured, dry hoppy finish. Widely credited with starting Britain's golden ale craze in 1989."],
+    "b18": ["Easy-drinking golden pale ale.", "Easy-drinking golden pale ale. Brewed in Burton upon Trent, home of British brewing."],
+    "b19": ["Smooth dry stout, roast and dark chocolate.", "Smooth dry stout, roast and chocolate."],
+    "b20": ["Light, hoppy table pale, citrus and stone fruit.", "Light, hoppy table pale."],
+    "b21": ["Refreshing pale, Cascade hops, lemon and grapefruit.", "Refreshing pale, lemon and grapefruit."],
+    "b22": ["Hop-forward pale ale, soft and juicy.", "Hop-forward pale, soft and juicy. The Kernel started out under railway arches in Bermondsey, London."],
+    "b23": ["Single-hop Citra pale, zesty grapefruit.", "Zesty grapefruit, single-hop pale."],
+    "b24": ["Citra session blonde, waves of citrus and a clean finish.", "Citrus session blonde, clean finish. Jarl means Earl in Old Norse, a nod to Argyll's Viking past."],
+    "b26": ["Robust oatmeal stout, roast coffee and chocolate, smooth finish.", "Oatmeal stout, coffee and chocolate."],
+    "b27": ["Hazy New World IPA, pineapple, citrus and melon.", "Hazy New World IPA, pineapple and melon."],
+    "b31": ["Hazy pale hopped with Strata, tropical and dank.", "Hazy, tropical and dank. Named after the animals boarding Noah's Ark, two by two."],
+    "b32": ["Refreshing Flanders red blended with cherry, sweet and sour.", "Sweet and sour, cherry-forward Flanders red."],
+    "b33": ["Juicy, hazy pale ale.", "Juicy, hazy pale ale. Wylam takes its name from the Tyneside village that gave the world railway pioneer George Stephenson."],
+    "b34": ["Dark, malty session ale.", "Dark, malty session mild."],
+    "b35": ["Hop-forward Citra pale, grapefruit and tropical fruit.", "Grapefruit and tropical fruit, hop-forward."],
+    "b36": ["Iconic hazy pale, soft and juicy with tropical hops.", "Soft, juicy tropical hops. Named after the old blues standard made famous by Robert Johnson."],
+    "b38": ["Crisp German-style pilsner, clean and floral.", "Crisp, clean German-style pilsner."],
+    "b41": ["Classic Bavarian wheat beer, banana and clove.", "Banana and clove, classic Bavarian wheat beer. Schneider was among the first breweries allowed to brew wheat beer after Bavaria's royal brewing monopoly ended in 1872."],
+    "b42": ["Cloudy traditional scrumpy, full-bodied and dry.", "Cloudy, dry traditional scrumpy. Named after a 1921 steam roller at the cidery, itself named after Laurie Lee's Cider with Rosie."],
+    "b44": ["Medium, semi-cloudy Kentish cider, smooth and juicy.", "Smooth, semi-cloudy Kentish cider. Dudda's Tun is the old Anglo-Saxon name for Doddington, meaning Dudda's farm."],
+    "b45": ["Cloudy Scottish cider, fresh pressed apple.", "Cloudy, fresh pressed apple."],
+    "b49": ["Golden session bitter, hoppy aroma with East Kent Goldings and a dry finish.", "Hoppy, dry session bitter. GFB stands for Gilbert's First Brew, named after founder John Gilbert."],
+    "b50": ["Rich dark stout, strong roasted malt flavour with coffee and dark chocolate.", "Roasted malt, coffee and chocolate."],
+    "b51": ["Best-selling session pale brewed with Goldings hops, floral and honey notes.", "Floral, honeyed session pale."],
+    "b53": ["Tropical hop character from Citra, Motueka and Sabro, oats and wheat for mouthfeel. ABV estimated.", "Tropical hop character, oats for body. ABV estimated."],
+    "b54": ["Tropical, citrus and dank pale ale. ABV estimated.", "Tropical, citrus and dank. ABV estimated."],
+    "b55": ["Hop-forward pale ale. Not confirmed online, check ABV and style with Kyle.", "Hop-forward pale ale. Not confirmed online, check with Kyle."],
+    "b56": ["Tropical fruited sour with guava, mango and passionfruit.", "Guava, mango and passionfruit sour."],
+  };
+  const migrateNotes = (data) => {
+    if (!data || (data.prefs && data.prefs.notesV1)) return data;
+    const lib = (data.library || []).map((b) => {
+      let next = b;
+      const pair = NOTE_REWRITES[b.id];
+      if (pair && b.notes === pair[0]) next = { ...next, notes: pair[1] };
+      if (b.id === "b42" && b.abv === "7.3") next = { ...next, abv: "6.8" };
+      return next;
+    });
+    return { ...data, library: lib, prefs: { ...(data.prefs || {}), notesV1: true }, lastUpdated: new Date().toISOString() };
   };
   const applyData = (data, remote) => {
     if (!data) return;
@@ -574,7 +634,7 @@ export default function TheCurfewCellar() {
       const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 1200));
       try {
         const r = await Promise.race([store.get(STORE_KEY, false), timeout]);
-        if (!cancelled && r && r.value) applyData(migrateEmpties2(migrateEmpties(migrateLaunch(JSON.parse(r.value)))), false);
+        if (!cancelled && r && r.value) applyData(migrateNotes(migrateEmpties2(migrateEmpties(migrateLaunch(JSON.parse(r.value))))), false);
         if (!cancelled) setStorageOk(true);
       } catch (e) {
         if (!cancelled) setStorageOk(!(e && e.message === "timeout"));
@@ -602,7 +662,7 @@ export default function TheCurfewCellar() {
       try {
         const r = await store.get(STORE_KEY);
         if (r && r.cloudOk) {
-          if (r.value) applyData(migrateEmpties2(migrateEmpties(migrateLaunch(JSON.parse(r.value)))), true);
+          if (r.value) applyData(migrateNotes(migrateEmpties2(migrateEmpties(migrateLaunch(JSON.parse(r.value))))), true);
           setCloudReady(true);
           return true;
         }
@@ -617,7 +677,7 @@ export default function TheCurfewCellar() {
     let cancelled = false;
     (async () => {
       const ok = await loadCellar();
-      if (!cancelled && ok) store.subscribe((j) => { try { applyData(migrateEmpties2(migrateEmpties(migrateLaunch(JSON.parse(j)))), true); } catch (e) { /* ignore */ } });
+      if (!cancelled && ok) store.subscribe((j) => { try { applyData(migrateNotes(migrateEmpties2(migrateEmpties(migrateLaunch(JSON.parse(j))))), true); } catch (e) { /* ignore */ } });
     })();
     return () => { cancelled = true; };
   }, [authed]);
@@ -631,6 +691,21 @@ export default function TheCurfewCellar() {
     setPw(""); setAuthed(true);
   };
   const lock = async () => { try { await store.signOut(); } catch (e) { /* ignore */ } setView("cellar"); setOpenId(null); setShowMore(false); setAuthed(false); };
+
+  // Shares a finished jsPDF doc (mobile share sheet) or downloads it (desktop).
+  const sharePdfDoc = async (doc, fname, title) => {
+    const blob = doc.output("blob");
+    try {
+      const file = new File([blob], fname, { type: "application/pdf" });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title });
+      } else {
+        doc.save(fname);
+      }
+    } catch (e) {
+      if (!(e && e.name === "AbortError")) { try { doc.save(fname); } catch (e2) { /* ignore */ } }
+    }
+  };
 
   // Build the full stock list as a PDF and share it (mobile) or download it.
   const sharePDF = async () => {
@@ -791,6 +866,189 @@ export default function TheCurfewCellar() {
     }
   };
 
+  // Builds the customer tap list as a shareable PDF: what's on, grouped and priced.
+  const shareTapListPDF = async () => {
+    if (pdfBusy) return;
+    setPdfBusy(true);
+    try {
+      const JsPDF = await _loadJsPDF();
+      if (!JsPDF) throw new Error("no pdf lib");
+      const doc = new JsPDF({ unit: "mm", format: "a4" });
+      const W = 210, H = 297, M = 14; let y = M;
+      const ink = [27, 34, 48], brass = [122, 86, 18], brassSoft = [199, 154, 62], gray = [128, 128, 128], lineCol = [225, 222, 215], paleBg = [250, 249, 246];
+      const hex = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+      const ensure = (need) => { if (y + need > H - M) { doc.addPage(); y = M; } };
+
+      doc.setFillColor(ink[0], ink[1], ink[2]); doc.rect(0, 0, W, 28, "F");
+      doc.setFont("helvetica", "bold"); doc.setFontSize(19); doc.setTextColor(243, 239, 230);
+      doc.text("The Curfew", M, 14);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(brassSoft[0], brassSoft[1], brassSoft[2]);
+      doc.text("MICROPUB · WHAT'S ON TODAY", M, 20.5);
+      doc.setFontSize(8.5); doc.setTextColor(200, 196, 186);
+      doc.text(new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }), W - M, 14, { align: "right" });
+      y = 36;
+
+      const sectionHead = (t) => { ensure(16); y += 4; doc.setFillColor(brass[0], brass[1], brass[2]); doc.rect(M, y - 4, 2.2, 5.2, "F"); doc.setFont("helvetica", "bold"); doc.setFontSize(11.5); doc.setTextColor(ink[0], ink[1], ink[2]); doc.text(t, M + 4.5, y); y += 5.5; };
+      const catHead = (t) => { ensure(9); y += 2.4; doc.setFont("helvetica", "italic"); doc.setFontSize(7.5); doc.setTextColor(gray[0], gray[1], gray[2]); doc.text(t, M + 3, y); y += 4.2; };
+
+      const beerLine = (l, accentRGB) => {
+        const b = beerById[l.beerId]; if (!b) return;
+        const name = `${b.brewery ? b.brewery + " - " : ""}${b.name || ""}`;
+        const tlp = priceTriple(l.price);
+        const meta = [b.style, b.abv ? b.abv + "%" : "", b.clarity || "", b.location || ""].filter(Boolean).join("  ·  ");
+        const diet = [b.vegan ? "Vegan" : "", b.glutenStatus === "Gluten-free" ? "Gluten-free" : b.glutenStatus === "Low gluten" ? "Low gluten" : ""].filter(Boolean).join("  ·  ");
+        const allergenLine = b.allergensVerified ? (b.allergens.length ? `Contains: ${b.allergens.join(", ")}` : "No declared allergens") : "Allergens: please ask at the bar";
+        doc.setFont("helvetica", "bold"); doc.setFontSize(9.5);
+        const nameLines = doc.splitTextToSize(name, W - 2 * M - 38);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(7.8);
+        const metaLines = doc.splitTextToSize(meta, W - 2 * M - 38);
+        const noteLines = b.notes ? doc.splitTextToSize(b.notes, W - 2 * M - 8) : [];
+        const dietLine = diet ? 1 : 0;
+        const allergenLines = doc.splitTextToSize(allergenLine, W - 2 * M - 8);
+        const topPad = 4.2, lhName = 3.9, lhMeta = 3.5, lhNote = 3.4, lhDiet = 3.4, lhAllergen = 3.2, bottomPad = 2.4;
+        const contentH = lhName * nameLines.length + lhMeta * metaLines.length + lhNote * noteLines.length + lhDiet * dietLine + lhAllergen * allergenLines.length;
+        const rowH = Math.max(topPad + contentH + bottomPad, 10.5);
+        ensure(rowH + 1.2);
+
+        doc.setFillColor(paleBg[0], paleBg[1], paleBg[2]); doc.rect(M, y, W - 2 * M, rowH, "F");
+        doc.setFillColor(accentRGB[0], accentRGB[1], accentRGB[2]); doc.rect(M, y, 1.4, rowH, "F");
+
+        let ty = y + topPad;
+        doc.setFont("helvetica", "bold"); doc.setFontSize(9.5); doc.setTextColor(ink[0], ink[1], ink[2]);
+        doc.text(nameLines, M + 4.5, ty); ty += lhName * nameLines.length;
+        doc.setFont("helvetica", "normal"); doc.setFontSize(7.8); doc.setTextColor(gray[0], gray[1], gray[2]);
+        doc.text(metaLines, M + 4.5, ty); ty += lhMeta * metaLines.length;
+        if (noteLines.length) { doc.setFont("helvetica", "italic"); doc.setFontSize(7.6); doc.setTextColor(110, 110, 110); doc.text(noteLines, M + 4.5, ty); ty += lhNote * noteLines.length; }
+        if (diet) { doc.setFont("helvetica", "bold"); doc.setFontSize(7.4); doc.setTextColor(brass[0], brass[1], brass[2]); doc.text(diet, M + 4.5, ty); ty += lhDiet; }
+        doc.setFont("helvetica", "normal"); doc.setFontSize(7); doc.setTextColor(150, 150, 150);
+        doc.text(allergenLines, M + 4.5, ty);
+
+        if (tlp) {
+          const rx = W - M - 3;
+          doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(brass[0], brass[1], brass[2]);
+          doc.text(tlp.pint, rx, y + 5.5, { align: "right" });
+          doc.setFont("helvetica", "normal"); doc.setFontSize(7); doc.setTextColor(gray[0], gray[1], gray[2]);
+          doc.text(`Half ${tlp.half} · Schooner ${tlp.schooner}`, rx, y + 9, { align: "right" });
+        }
+        y += rowH + 1.4;
+      };
+
+      const onL = lines.filter((l) => l.status === "on").slice().sort((a, b) => ["cask0","cask1","cask2","cask3","keg0","keg1","keg2","cider0","cider1","cider2"].indexOf(a.slot) - ["cask0","cask1","cask2","cask3","keg0","keg1","keg2","cider0","cider1","cider2"].indexOf(b.slot));
+      const cask = onL.filter((l) => l.drinkType === "cask");
+      const keg = onL.filter((l) => l.drinkType === "keg" || l.drinkType === "keykeg");
+      const cider = onL.filter((l) => l.drinkType === "cider");
+
+      if (cask.length) {
+        sectionHead("Cask ale");
+        CATEGORIES.forEach((cat) => {
+          const items = cask.filter((l) => (beerById[l.beerId] && beerById[l.beerId].category || "Misc") === cat);
+          if (!items.length) return;
+          catHead(cat); items.forEach((l) => beerLine(l, hex(CAT_ACCENT[cat] || "#9AA1AC")));
+        });
+        y += 1;
+      }
+      if (keg.length) { sectionHead("Keg"); keg.forEach((l) => beerLine(l, hex(TYPE_ACCENT[l.drinkType] || "#3F6E8C"))); y += 1; }
+      if (cider.length) { sectionHead("Draught cider"); cider.forEach((l) => beerLine(l, hex(TYPE_ACCENT.cider))); y += 1; }
+      if (!onL.length) { doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(gray[0], gray[1], gray[2]); doc.text("Nothing on right now.", M, y); }
+
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let p = 1; p <= pageCount; p++) {
+        doc.setPage(p);
+        doc.setDrawColor(lineCol[0], lineCol[1], lineCol[2]); doc.line(M, H - 10, W - M, H - 10);
+        doc.setFont("helvetica", "italic"); doc.setFontSize(7.5); doc.setTextColor(gray[0], gray[1], gray[2]);
+        doc.text("Please confirm allergens with staff before ordering.", M, H - 6);
+        doc.setFont("helvetica", "normal"); doc.text(`Page ${p} of ${pageCount}`, W - M, H - 6, { align: "right" });
+      }
+      await sharePdfDoc(doc, "curfew-tap-list.pdf", "Curfew tap list");
+    } catch (e) {
+      if (typeof window !== "undefined") window.alert("Could not make the PDF just now. Check your connection and try again.");
+    } finally {
+      setPdfBusy(false);
+    }
+  };
+
+  // Builds the allergen and dietary guide as a shareable PDF.
+  const shareAllergenPDF = async () => {
+    if (pdfBusy) return;
+    setPdfBusy(true);
+    try {
+      const JsPDF = await _loadJsPDF();
+      if (!JsPDF) throw new Error("no pdf lib");
+      const doc = new JsPDF({ unit: "mm", format: "a4" });
+      const W = 210, H = 297, M = 14; let y = M;
+      const ink = [27, 34, 48], brass = [122, 86, 18], brassSoft = [199, 154, 62], gray = [128, 128, 128], lineCol = [225, 222, 215], paleBg = [250, 249, 246];
+      const hex = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+      const ensure = (need) => { if (y + need > H - M) { doc.addPage(); y = M; } };
+
+      doc.setFillColor(ink[0], ink[1], ink[2]); doc.rect(0, 0, W, 28, "F");
+      doc.setFont("helvetica", "bold"); doc.setFontSize(17); doc.setTextColor(243, 239, 230);
+      doc.text("Allergen and Dietary Guide", M, 13);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(brassSoft[0], brassSoft[1], brassSoft[2]);
+      doc.text("THE CURFEW MICROPUB · PLEASE CONFIRM WITH STAFF BEFORE ORDERING", M, 20.5);
+      doc.setFontSize(8.5); doc.setTextColor(200, 196, 186);
+      doc.text(new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }), W - M, 13, { align: "right" });
+      y = 36;
+
+      const sectionHead = (t) => { ensure(16); y += 4; doc.setFillColor(brass[0], brass[1], brass[2]); doc.rect(M, y - 4, 2.2, 5.2, "F"); doc.setFont("helvetica", "bold"); doc.setFontSize(11.5); doc.setTextColor(ink[0], ink[1], ink[2]); doc.text(t, M + 4.5, y); y += 5.5; };
+
+      const beerLine = (l, accentRGB) => {
+        const b = beerById[l.beerId]; if (!b) return;
+        const name = `${b.brewery ? b.brewery + " - " : ""}${b.name || ""}`;
+        const diet = [b.vegan ? "Vegan" : "", b.glutenStatus === "Gluten-free" ? "Gluten-free" : b.glutenStatus === "Low gluten" ? "Low gluten" : ""].filter(Boolean).join("  ·  ");
+        const allergenText = (b.allergensVerified ? (b.allergens.length ? `Contains: ${b.allergens.join(", ")}` : "No declared allergens") : "Allergens: please ask staff") + (b.allergensVerified ? "" : "  ·  not yet staff verified");
+        doc.setFont("helvetica", "bold"); doc.setFontSize(9.5);
+        const nameLines = doc.splitTextToSize(name, W - 2 * M - 40);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(7.8);
+        const dietLines = diet ? doc.splitTextToSize(diet, W - 2 * M - 8) : [];
+        const allergenLines = doc.splitTextToSize(allergenText, W - 2 * M - 8);
+        const topPad = 4.2, lhName = 3.9, lhDiet = 3.5, lhAllergen = 3.5, bottomPad = 2.4;
+        const contentH = lhName * nameLines.length + lhDiet * dietLines.length + lhAllergen * allergenLines.length;
+        const rowH = Math.max(topPad + contentH + bottomPad, 10.5);
+        ensure(rowH + 1.2);
+
+        doc.setFillColor(paleBg[0], paleBg[1], paleBg[2]); doc.rect(M, y, W - 2 * M, rowH, "F");
+        doc.setFillColor(accentRGB[0], accentRGB[1], accentRGB[2]); doc.rect(M, y, 1.4, rowH, "F");
+
+        let ty = y + topPad;
+        doc.setFont("helvetica", "bold"); doc.setFontSize(9.5); doc.setTextColor(ink[0], ink[1], ink[2]);
+        doc.text(nameLines, M + 4.5, ty); ty += lhName * nameLines.length;
+        const rx = W - M - 3;
+        doc.setFont("helvetica", "normal"); doc.setFontSize(7.8); doc.setTextColor(gray[0], gray[1], gray[2]);
+        doc.text(`${b.abv ? b.abv + "%" : ""}`, rx, y + topPad, { align: "right" });
+        if (dietLines.length) { doc.setFont("helvetica", "bold"); doc.setFontSize(7.6); doc.setTextColor(brass[0], brass[1], brass[2]); doc.text(dietLines, M + 4.5, ty); ty += lhDiet * dietLines.length; }
+        doc.setFont("helvetica", "normal"); doc.setFontSize(7.4);
+        if (b.allergensVerified) doc.setTextColor(130, 130, 130); else doc.setTextColor(180, 110, 50);
+        doc.text(allergenLines, M + 4.5, ty);
+        y += rowH + 1.4;
+      };
+
+      const onL = lines.filter((l) => l.status === "on");
+      const dtGroups = [["cask", "Cask ale"], ["keg", "Keg"], ["keykeg", "Keg"], ["cider", "Draught cider"]];
+      const labelOrder = ["Cask ale", "Keg", "Draught cider"];
+      labelOrder.forEach((label) => {
+        const dts = dtGroups.filter(([d, l2]) => l2 === label).map(([d]) => d);
+        const items = onL.filter((l) => dts.includes(l.drinkType));
+        if (!items.length) return;
+        sectionHead(label);
+        items.forEach((l) => beerLine(l, hex(TYPE_ACCENT[l.drinkType] || "#A9791F")));
+      });
+      if (!onL.length) { doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(gray[0], gray[1], gray[2]); doc.text("Nothing on right now.", M, y); }
+
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let p = 1; p <= pageCount; p++) {
+        doc.setPage(p);
+        doc.setDrawColor(lineCol[0], lineCol[1], lineCol[2]); doc.line(M, H - 10, W - M, H - 10);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(gray[0], gray[1], gray[2]);
+        doc.text(`Page ${p} of ${pageCount}`, W - M, H - 6, { align: "right" });
+      }
+      await sharePdfDoc(doc, "curfew-allergen-guide.pdf", "Curfew allergen guide");
+    } catch (e) {
+      if (typeof window !== "undefined") window.alert("Could not make the PDF just now. Check your connection and try again.");
+    } finally {
+      setPdfBusy(false);
+    }
+  };
+
   // Save when data changes, debounced so fast typing (e.g. prices) stays smooth.
   // The write (full serialise + cloud upsert) runs ~half a second after the last change.
   const saveTimer = useRef(null);
@@ -905,7 +1163,7 @@ Return exactly:
   "glutenStatus": "Standard | Low gluten | Gluten-free",
   "vegan": true or false,
   "allergens": ["choose ONLY from: ${ALLERGEN_OPTIONS.join(", ")}"],
-  "notes": "one or two sentence tasting note for bar staff"
+  "notes": "a short taste descriptor (3 to 6 words, e.g. \"biscuity blonde, citrus and pear\"), optionally followed by one short, genuinely interesting fun fact about the beer or brewery if you know one (e.g. what the name refers to, an award, a notable first), kept brief enough to read and remember at a glance. Skip the fun fact entirely if you do not know a real one, never invent one"
 }
 
 Rules: Correct obvious misspellings or odd capitalisation in the producer and product names to the real ones you recognise (e.g. "hope back" -> "Hop Back", "sanford" -> "Sandford Orchards"), but do not swap in a different beer. For ABV, recall the real, specific, published ABV of that exact named beer from this producer if you know it (most named cask and keg beers have a fixed, well-documented ABV, often not a round number, e.g. 4.1 or 5.3). Only fall back to a style-typical estimate if you genuinely do not recognise the specific beer, and in that case keep the rest of the response otherwise unaffected. Do not default to round numbers like 4.0, 4.5 or 5.0 out of habit. For allergens, vegan status and gluten status, recall the real, specific, published facts about that exact named beer if you know them (many breweries state these explicitly, e.g. "suitable for vegans", "gluten-free", or list malted wheat/oats alongside barley), rather than defaulting to a generic style assumption. Only fall back to a style-typical default if you genuinely do not know the specific beer: most ales then get "Barley (gluten)" and most ciders get "Sulphites", vegan=false, and glutenStatus="Standard" (ciders are usually gluten-free unless fruited with something that changes that). Never state a vegan or gluten-free claim with more confidence than you actually have. JSON only.`;
@@ -1062,7 +1320,7 @@ Return exactly:
   "glutenStatus": "Standard | Low gluten | Gluten-free",
   "vegan": true or false,
   "allergens": ["choose ONLY from: ${ALLERGEN_OPTIONS.join(", ")}"],
-  "notes": "one or two sentence tasting note for bar staff"
+  "notes": "a short taste descriptor (3 to 6 words, e.g. \"biscuity blonde, citrus and pear\"), optionally followed by one short, genuinely interesting fun fact about the beer or brewery if you know one (e.g. what the name refers to, an award, a notable first), kept brief enough to read and remember at a glance. Skip the fun fact entirely if you do not know a real one, never invent one"
 }
 
 Rules: Correct obvious misspellings or odd capitalisation in the producer and product names to the real ones you recognise (e.g. "hope back" -> "Hop Back", "sanford" -> "Sandford Orchards"), but do not swap in a different beer. For ABV, recall the real, specific, published ABV of that exact named beer from this producer if you know it (most named cask and keg beers have a fixed, well-documented ABV, often not a round number, e.g. 4.1 or 5.3). Only fall back to a style-typical estimate if you genuinely do not recognise the specific beer, and in that case keep the rest of the response otherwise unaffected. Do not default to round numbers like 4.0, 4.5 or 5.0 out of habit. For allergens, vegan status and gluten status, recall the real, specific, published facts about that exact named beer if you know them (many breweries state these explicitly, e.g. "suitable for vegans", "gluten-free", or list malted wheat/oats alongside barley), rather than defaulting to a generic style assumption. Only fall back to a style-typical default if you genuinely do not know the specific beer: most ales then get "Barley (gluten)" and most ciders get "Sulphites", vegan=false, and glutenStatus="Standard" (ciders are usually gluten-free unless fruited with something that changes that). Never state a vegan or gluten-free claim with more confidence than you actually have. JSON only.`;
@@ -1149,7 +1407,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     return (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("").trim();
   };
   const distHint = distributors.filter((d) => d.trim()).length ? ` Known distributors: ${distributors.filter((d) => d.trim()).join(", ")}. If one of these appears (often after "To:"), set deliveredBy to it, not the brewery.` : "";
-  const labelPrompt = `This image is a beer or cider pump clip, cask end, or bottle/can label. Read what's printed AND use your knowledge of this product (look it up if it helps) to complete the details accurately. Pay close attention to any printed allergen statement, ingredients list, "contains" or "allergy advice" text, or vegan/gluten-free logos on the label itself, cask casks and bottle labels very often state this explicitly. If the label states it, use exactly what it says over any general assumption. Return STRICT JSON only:\\n{"brewery": string, "location": "town or county the brewery is based in (use your knowledge if not printed)", "name": string, "kind": "beer"|"cider", "style": string, "abv": "number as string", "bestBefore": "best before date if printed, as YYYY-MM-DD, reading any dd/mm/yyyy in UK day-month order", "deliveredBy": "distributor or wholesaler named on the label, e.g. after 'To:', else empty", "clarity": "Clear|Hazy|Cloudy", "glutenStatus": "Standard|Low gluten|Gluten-free", "vegan": true|false, "allergens": [only from: ${ALLERGEN_OPTIONS.join(", ")}], "notes": "short tasting note"}\\nIf allergen or vegan/gluten-free information is printed on the label, use it directly. Otherwise recall the real, specific, published facts about this exact beer if you know them. Only as a last resort, estimate from the style: most ales then get "Barley (gluten)", most ciders get "Sulphites", vegan=false, glutenStatus="Standard". If a field isn't legible or known, use "" for text fields.${distHint} JSON only, no other text.`;
+  const labelPrompt = `This image is a beer or cider pump clip, cask end, or bottle/can label. Read what's printed AND use your knowledge of this product (look it up if it helps) to complete the details accurately. Pay close attention to any printed allergen statement, ingredients list, "contains" or "allergy advice" text, or vegan/gluten-free logos on the label itself, cask casks and bottle labels very often state this explicitly. If the label states it, use exactly what it says over any general assumption. Return STRICT JSON only:\\n{"brewery": string, "location": "town or county the brewery is based in (use your knowledge if not printed)", "name": string, "kind": "beer"|"cider", "style": string, "abv": "number as string", "bestBefore": "best before date if printed, as YYYY-MM-DD, reading any dd/mm/yyyy in UK day-month order", "deliveredBy": "distributor or wholesaler named on the label, e.g. after 'To:', else empty", "clarity": "Clear|Hazy|Cloudy", "glutenStatus": "Standard|Low gluten|Gluten-free", "vegan": true|false, "allergens": [only from: ${ALLERGEN_OPTIONS.join(", ")}], "notes": "same short style: a 3 to 6 word taste descriptor, optionally plus one short genuine fun fact if you know one, never invented"}\\nIf allergen or vegan/gluten-free information is printed on the label, use it directly. Otherwise recall the real, specific, published facts about this exact beer if you know them. Only as a last resort, estimate from the style: most ales then get "Barley (gluten)", most ciders get "Sulphites", vegan=false, glutenStatus="Standard". If a field isn't legible or known, use "" for text fields.${distHint} JSON only, no other text.`;
   const labelToItem = (p, i) => {
     const dt = p.kind === "cider" ? "cider" : "cask";
     const style = p.style ? String(p.style) : "";
@@ -1936,6 +2194,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     return (
       <div className="space-y-4">
         <div className="no-print flex items-center justify-end gap-2">
+          <button onClick={shareAllergenPDF} disabled={pdfBusy} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition hover:bg-slate-50 active:scale-95 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line, color: C.ink }}>{pdfBusy ? <Loader2 className="animate-spin" size={15} /> : <Download size={15} />} Share PDF</button>
           <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Printer size={15} /> Print</button>
         </div>
         <div id="allergen-sheet" className="rounded-xl border bg-white p-5" style={{ borderColor: C.line }}>
@@ -2113,6 +2372,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
             <button onClick={() => go("cellar")} className="shrink-0 rounded-lg border px-3 py-1.5 text-xs font-medium" style={{ borderColor: C.brass, color: C.brassSoft }}>Exit preview</button>
           </div>
           {fmtUpdated(lastUpdated) && <p className="mt-3 text-xs" style={{ color: "rgba(243,239,230,0.5)" }}>Last updated: {fmtUpdated(lastUpdated)}</p>}
+          <button onClick={shareTapListPDF} disabled={pdfBusy} className="mt-3 inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition active:scale-95 disabled:opacity-50" style={{ borderColor: C.brass, color: C.brassSoft }}>{pdfBusy ? <Loader2 className="animate-spin" size={13} /> : <Download size={13} />} Share PDF</button>
 
           <div className="mt-8">
             {on.length === 0 && <p className="py-12 text-center" style={{ color: "rgba(243,239,230,0.6)" }}>Nothing on just now. Check back soon.</p>}
