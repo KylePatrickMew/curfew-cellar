@@ -705,6 +705,85 @@ export default function TheCurfewCellar() {
     });
     return { ...data, library: lib, prefs: { ...(data.prefs || {}), notesV3: true }, lastUpdated: new Date().toISOString() };
   };
+  // Catch-all: any note longer than 70 characters is sentence-style, not keyword-style.
+  // Wipe it to blank so staff re-autofill it and get the correct flashcard format.
+  // Our correct keyword notes top out around 55 chars, so 70 is a safe threshold.
+  // Not guarded by a pref -- runs on every load but only changes notes that are still too long.
+  const migrateNotes4 = (data) => {
+    if (!data) return data;
+    const lib = (data.library || []).map((b) => (b.notes && b.notes.length > 70) ? { ...b, notes: "" } : b);
+    const changed = (data.library || []).some((b) => b.notes && b.notes.length > 70);
+    return changed ? { ...data, library: lib, lastUpdated: new Date().toISOString() } : data;
+  };
+
+  // Force-rewrite every beer's tasting notes to the correct keyword/flashcard style.
+  // Unlike previous migrations, this is unconditional -- it overwrites whatever is currently
+  // stored, so stale sentence-style notes from re-autofills can't survive. Only runs once,
+  // guarded by prefs.notesV5.
+  const NOTE_FORCED = {
+    "b1": "Light, crisp, citrus.",
+    "b2": "Soft, tropical, easy-drinking.",
+    "b3": "Citrus, biscuit, malty. Madonna's reported favourite beer.",
+    "b4": "Dark, roasty, coffee, liquorice.",
+    "b5": "Hoppy, easy-drinking.",
+    "b6": "Biscuity, citrus, pear. Named after a Para Handy character.",
+    "b7": "Hoppy, grapefruit, citrus.",
+    "b8": "Malty, balanced, traditional.",
+    "b9": "Dark, roasty, coffee, chocolate. Named after Manchester's Marble Arch pub.",
+    "b10": "Light, refreshing, session.",
+    "b11": "Zesty, lime, lychee. First UK beer brewed with Citra hops.",
+    "b12": "Malty, amber, citrus. Founded by an ex-CAMRA chairman.",
+    "b13": "Roast coffee, dark chocolate. Organic, brewed on the Black Isle.",
+    "b14": "Pale, delicate, light mild.",
+    "b15": "NZ hops, tropical fruit.",
+    "b16": "Pale, hoppy, floral, citrus.",
+    "b17": "Straw, dry, hoppy. Sparked Britain's golden ale craze.",
+    "b18": "Easy-drinking, golden, pale. Brewed in Burton upon Trent.",
+    "b19": "Smooth, dry, roasty, chocolate.",
+    "b20": "Light, hoppy, table beer.",
+    "b21": "Refreshing, lemon, grapefruit.",
+    "b22": "Hop-forward, soft, juicy. Started under railway arches in Bermondsey.",
+    "b23": "Zesty, grapefruit, single-hop.",
+    "b24": "Citrus, clean, session. Jarl means Earl in Old Norse.",
+    "b25": "Rich, dark, stout.",
+    "b26": "Oatmeal, coffee, chocolate.",
+    "b27": "Hazy, pineapple, melon.",
+    "b28": "Roasty, session stout.",
+    "b29": "Dark, roasty, porter.",
+    "b30": "Hop-forward, pale ale.",
+    "b31": "Hazy, tropical, dank. Named after Noah's Ark.",
+    "b32": "Sweet, sour, cherry.",
+    "b33": "Juicy, hazy, pale. Named after George Stephenson's village.",
+    "b34": "Dark, malty, session mild.",
+    "b35": "Grapefruit, tropical, hop-forward.",
+    "b36": "Soft, juicy, tropical. Named after a Robert Johnson blues song.",
+    "b37": "Juicy, hazy IPA.",
+    "b38": "Crisp, clean, pilsner.",
+    "b39": "Hazy, juicy IPA.",
+    "b40": "Barrel-aged, raspberry, sour.",
+    "b41": "Banana, clove, wheat. Among the first wheat beers after Bavaria's brewing monopoly ended.",
+    "b42": "Cloudy, dry, scrumpy. Named after a 1921 steam roller.",
+    "b43": "Sweet, fruity, rhubarb.",
+    "b44": "Smooth, semi-cloudy, Kentish. Old Anglo-Saxon name for Doddington.",
+    "b45": "Cloudy, fresh, apple.",
+    "b46": "Devon, blackberry, cider.",
+    "b47": "Mixed berry, fruit cider.",
+    "b48": "Kentish, craft cider.",
+    "b49": "Hoppy, dry, session bitter. GFB stands for Gilbert's First Brew.",
+    "b50": "Roasted malt, coffee, chocolate.",
+    "b51": "Floral, honeyed, session pale.",
+    "b52": "Unidentified old cask.",
+    "b53": "Tropical, oats, hop-forward. ABV estimated.",
+    "b54": "Tropical, citrus, dank. ABV estimated.",
+    "b55": "Hop-forward, pale ale. Unconfirmed, check with Kyle.",
+    "b56": "Guava, mango, passionfruit.",
+    "b57": "Mango, lime, tart Berliner Weisse."
+  };
+  const migrateNotes5 = (data) => {
+    if (!data || (data.prefs && data.prefs.notesV5)) return data;
+    const lib = (data.library || []).map((b) => (NOTE_FORCED[b.id] !== undefined ? { ...b, notes: NOTE_FORCED[b.id] } : b));
+    return { ...data, library: lib, prefs: { ...(data.prefs || {}), notesV5: true }, lastUpdated: new Date().toISOString() };
+  };
   const applyData = (data, remote) => {
     if (!data) return;
     if (remote) skipBump.current = true;
@@ -723,7 +802,7 @@ export default function TheCurfewCellar() {
       const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 1200));
       try {
         const r = await Promise.race([store.get(STORE_KEY, false), timeout]);
-        if (!cancelled && r && r.value) applyData(migrateNotes3(migrateNotes2(migrateNotes(migrateEmpties2(migrateEmpties(migrateLaunch(JSON.parse(r.value))))))), false);
+        if (!cancelled && r && r.value) applyData(migrateNotes5(migrateNotes4(migrateNotes3(migrateNotes2(migrateNotes(migrateEmpties2(migrateEmpties(migrateLaunch(JSON.parse(r.value))))))))), false);
         if (!cancelled) setStorageOk(true);
       } catch (e) {
         if (!cancelled) setStorageOk(!(e && e.message === "timeout"));
@@ -751,7 +830,7 @@ export default function TheCurfewCellar() {
       try {
         const r = await store.get(STORE_KEY);
         if (r && r.cloudOk) {
-          if (r.value) applyData(migrateNotes3(migrateNotes2(migrateNotes(migrateEmpties2(migrateEmpties(migrateLaunch(JSON.parse(r.value))))))), true);
+          if (r.value) applyData(migrateNotes5(migrateNotes4(migrateNotes3(migrateNotes2(migrateNotes(migrateEmpties2(migrateEmpties(migrateLaunch(JSON.parse(r.value))))))))), true);
           setCloudReady(true);
           return true;
         }
@@ -766,7 +845,7 @@ export default function TheCurfewCellar() {
     let cancelled = false;
     (async () => {
       const ok = await loadCellar();
-      if (!cancelled && ok) store.subscribe((j) => { try { applyData(migrateNotes3(migrateNotes2(migrateNotes(migrateEmpties2(migrateEmpties(migrateLaunch(JSON.parse(j))))))), true); } catch (e) { /* ignore */ } });
+      if (!cancelled && ok) store.subscribe((j) => { try { applyData(migrateNotes5(migrateNotes4(migrateNotes3(migrateNotes2(migrateNotes(migrateEmpties2(migrateEmpties(migrateLaunch(JSON.parse(j))))))))), true); } catch (e) { /* ignore */ } });
     })();
     return () => { cancelled = true; };
   }, [authed]);
@@ -1278,14 +1357,17 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
       const style = p.style ? String(p.style) : "";
       const abv = p.abv != null ? String(p.abv) : "";
       setF({
-        style, abv,
-        brewery: p.brewery ? String(p.brewery) : form.brewery,
-        name: p.name ? String(p.name) : form.name,
-        location: p.location ? String(p.location) : form.location,
-        clarity: CLARITY_OPTIONS.includes(p.clarity) ? p.clarity : "Clear",
-        glutenStatus: GLUTEN_OPTIONS.includes(p.glutenStatus) ? p.glutenStatus : "Standard",
-        vegan: !!p.vegan, allergens, notes: p.notes ? String(p.notes) : "",
-        allergensVerified: false,
+        style: form.style.trim() ? form.style : style,
+        abv: form.abv.trim() ? form.abv : abv,
+        brewery: form.brewery.trim() ? form.brewery : (p.brewery ? String(p.brewery) : form.brewery),
+        name: form.name.trim() ? form.name : (p.name ? String(p.name) : form.name),
+        location: form.location.trim() ? form.location : (p.location ? String(p.location) : form.location),
+        clarity: form.clarity ? form.clarity : (CLARITY_OPTIONS.includes(p.clarity) ? p.clarity : "Clear"),
+        glutenStatus: (form.glutenStatus && form.glutenStatus !== "Standard") ? form.glutenStatus : (GLUTEN_OPTIONS.includes(p.glutenStatus) ? p.glutenStatus : "Standard"),
+        vegan: form.vegan || !!p.vegan,
+        allergens: form.allergens.length ? form.allergens : allergens,
+        notes: form.notes.trim() ? form.notes : (p.notes ? String(p.notes) : ""),
+        allergensVerified: form.allergensVerified,
         category: form.drinkType === "cask" ? categorise(style, abv) : form.category,
       });
       setFillNote({ type: "ai", text: "Draft filled in. Check everything, then confirm allergens and dietary status against the producer's own information before serving." });
@@ -1428,13 +1510,16 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
       const style = p.style ? String(p.style) : beer.style;
       const abv = p.abv != null ? String(p.abv) : beer.abv;
       updateBeer(beer.id, {
-        style, abv,
-        brewery: p.brewery ? String(p.brewery) : beer.brewery,
-        name: p.name ? String(p.name) : beer.name,
-        location: p.location ? String(p.location) : beer.location,
-        clarity: CLARITY_OPTIONS.includes(p.clarity) ? p.clarity : (beer.clarity || "Clear"),
-        glutenStatus: GLUTEN_OPTIONS.includes(p.glutenStatus) ? p.glutenStatus : (beer.glutenStatus || "Standard"),
-        vegan: !!p.vegan, allergens, notes: p.notes ? String(p.notes) : beer.notes,
+        style: beer.style ? beer.style : style,
+        abv: beer.abv ? beer.abv : abv,
+        brewery: beer.brewery.trim() ? beer.brewery : (p.brewery ? String(p.brewery) : beer.brewery),
+        name: beer.name.trim() ? beer.name : (p.name ? String(p.name) : beer.name),
+        location: beer.location.trim() ? beer.location : (p.location ? String(p.location) : beer.location),
+        clarity: beer.clarity ? beer.clarity : (CLARITY_OPTIONS.includes(p.clarity) ? p.clarity : "Clear"),
+        glutenStatus: (beer.glutenStatus && beer.glutenStatus !== "Standard") ? beer.glutenStatus : (GLUTEN_OPTIONS.includes(p.glutenStatus) ? p.glutenStatus : "Standard"),
+        vegan: beer.vegan || !!p.vegan,
+        allergens: (beer.allergens && beer.allergens.length) ? beer.allergens : allergens,
+        notes: beer.notes ? beer.notes : (p.notes ? String(p.notes) : beer.notes),
         allergensVerified: false,
         category: beer.category || categorise(style, abv),
       });
