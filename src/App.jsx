@@ -12,7 +12,7 @@ const C = {
   paper: "#FBF8F2", alert: "#A23B3B",
 };
 const TYPE_ACCENT = { cask: "#B8862B", keg: "#3E8C82", keykeg: "#3E8C82", cider: "#5E8C4F" };
-const CAT_ACCENT = { IPA: "#E8D976", Pale: "#E3A93E", Bitter: "#D6823C", "Stout/Porter": "#6E4A32", Stout: "#6E4A32", Porter: "#6E4A32", Misc: "#96A19B" };
+const CAT_ACCENT = { IPA: "#E8D976", Pale: "#E3A93E", Bitter: "#D6823C", "Stout/Porter": "#6E4A32", Stout: "#6E4A32", Porter: "#6E4A32", Cider: "#5E8C4F", Sour: "#A13B5C", Misc: "#96A19B" };
 const STORE_KEY = "curfew-cellar:data:v1";
 const MODEL = "claude-sonnet-4-6";
 // ---- Cloud sync (active only in the deployed app; the preview uses window.storage) ----
@@ -1741,7 +1741,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     else if (bb && bb.level === "past") badgeText = "BB passed";
     else if (bb && bb.level === "soon") badgeText = daysUntil(line.bestBefore) === 0 ? "BB today" : `BB ${daysUntil(line.bestBefore)}d`;
     return (
-      <button onClick={() => setOpenId(line.id)} className="flex w-full items-center gap-2 rounded-xl border px-3 py-2 text-left transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-amber-300 active:scale-95" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[line.drinkType] || C.line, boxShadow: "0 1px 2px rgba(28,54,54,0.05)", minHeight: 52 }}>
+      <button onClick={() => setOpenId(line.id)} className="flex w-full items-center gap-2 rounded-xl border px-3 py-2 text-left transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-amber-300 active:scale-95" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[line.drinkType] || C.line, boxShadow: "0 1px 2px rgba(28,54,54,0.05), 0 6px 14px -10px rgba(28,54,54,0.2)", minHeight: 52 }}>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <p className="truncate text-sm font-semibold leading-tight" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</p>
@@ -1855,15 +1855,15 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
             <div className="mt-2 space-y-3">
               <div>
                 <p className="mb-1.5 flex items-center gap-1.5 uppercase" style={{ color: TYPE_ACCENT.cask, fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}><span className="h-1.5 w-1.5 rounded-full" style={{ background: TYPE_ACCENT.cask }} />Cask</p>
-                <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">{onCaskSlots.map((s, i) => renderSlot(s, `oc${i}`, true))}</div>
+                <div className="cc-stagger grid grid-cols-1 gap-1.5 sm:grid-cols-2">{onCaskSlots.map((s, i) => renderSlot(s, `oc${i}`, true))}</div>
               </div>
               <div className="border-t pt-3" style={{ borderColor: C.line }}>
                 <p className="mb-1.5 flex items-center gap-1.5 uppercase" style={{ color: TYPE_ACCENT.keg, fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}><span className="h-1.5 w-1.5 rounded-full" style={{ background: TYPE_ACCENT.keg }} />Keg</p>
-                <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">{onKegSlots.map((s, i) => renderSlot(s, `ok${i}`, true))}</div>
+                <div className="cc-stagger grid grid-cols-1 gap-1.5 sm:grid-cols-2">{onKegSlots.map((s, i) => renderSlot(s, `ok${i}`, true))}</div>
               </div>
               <div className="border-t pt-3" style={{ borderColor: C.line }}>
                 <p className="mb-1.5 flex items-center gap-1.5 uppercase" style={{ color: TYPE_ACCENT.cider, fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}><span className="h-1.5 w-1.5 rounded-full" style={{ background: TYPE_ACCENT.cider }} />Cider</p>
-                <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">{onCiderSlots.map((s, i) => renderSlot(s, `od${i}`, true))}</div>
+                <div className="cc-stagger grid grid-cols-1 gap-1.5 sm:grid-cols-2">{onCiderSlots.map((s, i) => renderSlot(s, `od${i}`, true))}</div>
               </div>
             </div>
           )}
@@ -1924,7 +1924,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
       return (
         <div className="mx-auto max-w-2xl space-y-4">
           <button onClick={() => { setAddMode("pick"); setInvoiceItems(null); }} className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"><ArrowRight size={14} className="rotate-180" /> Back</button>
-          <div className="rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
+          <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
             <p className="text-base font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{batchSource === "labels" ? "Scanned labels" : batchSource === "list" ? "From your list" : "Delivery items"}</p>
             <p className="mt-1 text-sm text-slate-500">Saved to your library under "Just added". Nothing reaches the cellar until you add it{batchSource === "labels" ? ", best before and supplier carry over automatically" : ""}.</p>
             <div className="mt-3 space-y-2">
@@ -1976,7 +1976,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
         <div className="mx-auto max-w-2xl space-y-4">
           <input ref={labelRef} type="file" accept="image/*" multiple onChange={(e) => { const fs = Array.from(e.target.files || []); e.target.value = ""; if (fs.length === 1) scanLabel(fs[0]); else if (fs.length > 1) scanLabelsBatch(fs); }} className="hidden" />
           <input ref={invoiceRef} type="file" accept="image/*,application/pdf" onChange={(e) => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) scanInvoice(f); }} className="hidden" />
-          <div className="rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
+          <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
             <p className="text-base font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Scan it in</p>
             <div className="mt-3 flex flex-wrap gap-2">
               <button onClick={() => labelRef.current && labelRef.current.click()} disabled={scanning} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:opacity-60" style={{ background: C.ink }}><Camera size={16} /> Scan a cask label / pump clip</button>
@@ -1995,7 +1995,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
             {scanning && <p className="mt-2 inline-flex items-center gap-2 text-sm text-slate-500"><Loader2 size={14} className="animate-spin" /> {scanProgress || "Reading… this can take a few seconds."}</p>}
             {scanError && <p className="mt-2 text-sm text-amber-700">{scanError}</p>}
           </div>
-          <div className="rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
+          <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
             <p className="text-base font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Add from your library</p>
             <div className="relative mt-3">
               <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -2027,7 +2027,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
       <div className="mx-auto max-w-2xl space-y-5">
         <button onClick={() => { setAddMode("pick"); setFillNote(null); }} className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"><ArrowRight size={14} className="rotate-180" /> Back to library</button>
 
-        <div className="rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
+        <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
           <Field label="Type">
             <div className="flex gap-2">
               {DRINK_TYPES.map((t) => (
@@ -2053,7 +2053,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           )}
         </div>
 
-        <div className="rounded-xl border p-4 space-y-3" style={{ background: C.paper, borderColor: C.line }}>
+        <div className="cc-elev rounded-xl border p-4 space-y-3" style={{ background: C.paper, borderColor: C.line }}>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="Style"><input className={inputCls} value={form.style} onChange={(e) => setF(form.drinkType === "cask" ? { style: e.target.value, category: categorise(e.target.value, form.abv) } : { style: e.target.value })} placeholder="e.g. IPA" /></Field>
             <Field label="ABV %"><input className={inputCls} value={form.abv} onChange={(e) => setF(form.drinkType === "cask" ? { abv: e.target.value, category: categorise(form.style, e.target.value) } : { abv: e.target.value })} placeholder="e.g. 5.4" /></Field>
@@ -2079,7 +2079,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           <Field label="Status"><select className={inputCls} value={form.status} onChange={(e) => setF({ status: e.target.value })}>{STATUSES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}</select></Field>
         </div>
 
-        <div className="rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
+        <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
           <button onClick={() => setShowMore((v) => !v)} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
             <span className="min-w-0">
               <span className="block text-sm font-medium" style={{ color: C.ink }}>More details</span>
@@ -2244,7 +2244,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     const taCls = `${inputCls} h-28 resize-none font-mono text-xs`;
     return (
       <div className="mx-auto max-w-2xl space-y-5">
-        <div className="rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
+        <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
           <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Export</h2>
           <div className="mt-3 flex flex-wrap gap-2">
             <button onClick={copyBackup} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Copy size={16} /> Copy backup</button>
@@ -2253,7 +2253,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           <textarea readOnly value={exportData()} className={`mt-3 ${taCls}`} onFocus={(e) => e.target.select()} />
         </div>
 
-        <div className="rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
+        <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
           <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Import</h2>
           <p className="mt-1 text-sm text-slate-500">Replaces everything in the app.</p>
           <input ref={fileRef} type="file" accept="application/json,.json" onChange={handleFile} className="hidden" />
@@ -2343,7 +2343,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     const catCounts = CATEGORIES.map((cat) => ({ cat, n: caskOn.filter((l) => (beerById[l.beerId]?.category || "Misc") === cat).length })).filter((c) => c.n);
     const maxCat = Math.max(1, ...catCounts.map((c) => c.n));
     const Stat = ({ label, value, sub }) => (
-      <div className="rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
+      <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
         <p className="text-xs uppercase tracking-wide text-slate-400">{label}</p>
         <p className="mt-1 text-2xl font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{value}</p>
         {sub && <p className="text-xs text-slate-500">{sub}</p>}
@@ -2357,16 +2357,16 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           <Stat label="In the library" value={library.length} />
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div className="rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
+          <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
             <p className="text-xs uppercase tracking-wide text-slate-400">Fastest to go</p>
             {fastest ? <p className="mt-1 text-sm" style={{ color: C.ink }}><span className="font-semibold">{fastest.name}</span> · {fastest.days} day{fastest.days === 1 ? "" : "s"}</p> : <p className="mt-1 text-sm text-slate-400">No finished casks yet.</p>}
           </div>
-          <div className="rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
+          <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
             <p className="text-xs uppercase tracking-wide text-slate-400">Slowest to go</p>
             {slowest ? <p className="mt-1 text-sm" style={{ color: C.ink }}><span className="font-semibold">{slowest.name}</span> · {slowest.days} day{slowest.days === 1 ? "" : "s"}</p> : <p className="mt-1 text-sm text-slate-400">No finished casks yet.</p>}
           </div>
         </div>
-        <div className="rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
+        <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
           <p className="mb-2 text-xs uppercase tracking-wide text-slate-400">Cask ale on now, by category</p>
           {catCounts.length === 0 ? <p className="text-sm text-slate-400">No cask ale on right now.</p> : (
             <div className="space-y-2">
@@ -2397,7 +2397,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           <button onClick={shareAllergenPDF} disabled={pdfBusy} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition hover:bg-slate-50 active:scale-95 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line, color: C.ink }}>{pdfBusy ? <Loader2 className="animate-spin" size={15} /> : <Download size={15} />} Share PDF</button>
           <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Printer size={15} /> Print</button>
         </div>
-        <div id="allergen-sheet" className="rounded-xl border p-5" style={{ background: C.paper, borderColor: C.line }}>
+        <div id="allergen-sheet" className="cc-elev rounded-xl border p-5" style={{ background: C.paper, borderColor: C.line }}>
           <h1 className="text-xl font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>What's on: allergen and dietary guide</h1>
           <p className="mt-0.5 text-xs text-slate-500">Please confirm with staff before ordering.</p>
           {fmtUpdated(lastUpdated) && <p className="mt-0.5 text-xs text-slate-400">Last updated: {fmtUpdated(lastUpdated)}</p>}
@@ -2476,7 +2476,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           <button onClick={sharePDF} disabled={pdfBusy} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition hover:bg-slate-50 active:scale-95 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line, color: C.ink }}>{pdfBusy ? <Loader2 className="animate-spin" size={15} /> : <Download size={15} />} Share PDF</button>
           <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Printer size={15} /> Print</button>
         </div>
-        <div className="rounded-xl border p-5" style={{ background: C.paper, borderColor: C.line }}>
+        <div className="cc-elev rounded-xl border p-5" style={{ background: C.paper, borderColor: C.line }}>
           {fmtUpdated(lastUpdated) && <p className="text-xs text-slate-400">Last updated: {fmtUpdated(lastUpdated)}</p>}
           {total === 0 && <p className="mt-4 text-sm text-slate-400">No stock yet.</p>}
           <Section title="On" items={onL} withStage={false} />
@@ -2737,7 +2737,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
             <Field label="Price (£ per pint)"><input className={inputCls} inputMode="decimal" value={beer.price || ""} onChange={(e) => updateBeerPrice(beer.id, e.target.value)} placeholder="e.g. 4.40" /></Field>
             <Field label="Category">
               <div className="flex flex-wrap gap-2">
-                {CATEGORIES.map((cat) => (
+                {[...CATEGORIES, "Cider", "Sour"].map((cat) => (
                   <button key={cat} onClick={() => updateBeer(beer.id, { category: cat })} className="rounded-full border px-3 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-slate-400" style={chip((beer.category || "Misc") === cat)}>{cat}</button>
                 ))}
               </div>
@@ -2922,15 +2922,31 @@ html, body { overflow-x: hidden; width: 100%; -webkit-text-size-adjust: 100%; te
 body { touch-action: manipulation; overscroll-behavior-y: contain; }
 @media (max-width: 640px) { input, select, textarea { font-size: 16px !important; } }
 @media print { .no-print { display: none !important; } body { background: #fff; } }
-.cc-fade{animation:ccfade .28s ease both}
-@keyframes ccfade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
-.cc-overlay{animation:ccov .2s ease both}
+.cc-fade{animation:ccfade .34s cubic-bezier(.16,1,.3,1) both}
+@keyframes ccfade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.cc-rise{animation:ccrise .42s cubic-bezier(.16,1,.3,1) both}
+@keyframes ccrise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.cc-stagger>*{animation:ccrise .44s cubic-bezier(.16,1,.3,1) both}
+.cc-stagger>*:nth-child(1){animation-delay:.02s}.cc-stagger>*:nth-child(2){animation-delay:.06s}
+.cc-stagger>*:nth-child(3){animation-delay:.10s}.cc-stagger>*:nth-child(4){animation-delay:.14s}
+.cc-stagger>*:nth-child(5){animation-delay:.18s}.cc-stagger>*:nth-child(6){animation-delay:.22s}
+.cc-stagger>*:nth-child(7){animation-delay:.26s}.cc-stagger>*:nth-child(8){animation-delay:.30s}
+.cc-overlay{animation:ccov .22s ease both}
 @keyframes ccov{from{opacity:0}to{opacity:1}}
-.cc-pop{animation:ccpop .28s cubic-bezier(.16,1,.3,1) both}
-@keyframes ccpop{from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:none}}
-.cc-sheet{animation:ccsheet .3s cubic-bezier(.16,1,.3,1) both}
+.cc-pop{animation:ccpop .32s cubic-bezier(.16,1,.3,1) both}
+@keyframes ccpop{from{opacity:0;transform:translateY(16px) scale(.98)}to{opacity:1;transform:none}}
+.cc-sheet{animation:ccsheet .34s cubic-bezier(.16,1,.3,1) both}
 @keyframes ccsheet{from{transform:translateY(100%)}to{transform:none}}
-@media (prefers-reduced-motion: reduce){.cc-fade,.cc-overlay,.cc-pop,.cc-sheet{animation:none}}
+.cc-press{transition:transform .12s ease, box-shadow .2s ease}
+.cc-press:active{transform:scale(.975)}
+/* Layered elevation: a tight contact shadow plus a soft ambient one, so surfaces read as
+   sitting on the page rather than drawn onto it. */
+.cc-elev{box-shadow:0 1px 2px rgba(28,54,54,0.05), 0 8px 20px -12px rgba(28,54,54,0.16);}
+.cc-elev-lg{box-shadow:0 1px 3px rgba(28,54,54,0.06), 0 16px 34px -18px rgba(28,54,54,0.22);}
+.cc-tile{box-shadow:0 1px 2px rgba(28,54,54,0.06), 0 6px 14px -8px rgba(28,54,54,0.18);transition:transform .16s cubic-bezier(.16,1,.3,1), box-shadow .2s ease}
+.cc-tile:hover{transform:translateY(-2px);box-shadow:0 2px 4px rgba(28,54,54,0.07), 0 12px 24px -10px rgba(28,54,54,0.24)}
+.cc-tile:active{transform:scale(.975)}
+@media (prefers-reduced-motion: reduce){.cc-fade,.cc-rise,.cc-stagger>*,.cc-overlay,.cc-pop,.cc-sheet{animation:none}.cc-press{transition:none}}
 /* Retint Tailwind's default cool-blue slate scale to a warm, teal-tinted neutral so
    secondary text and hairlines sit with the brand instead of fighting its warm palette. */
 .text-slate-300{color:#B7BCB4!important}.text-slate-400{color:#96A19B!important}
@@ -2944,7 +2960,11 @@ body { touch-action: manipulation; overscroll-behavior-y: contain; }
       {view === "taplist" ? TapList() : (<>
       <header className="no-print sticky top-0 z-40 border-b" style={{ background: C.ink, borderColor: "rgba(184,134,43,0.35)", boxShadow: "0 1px 0 rgba(184,134,43,0.22), 0 10px 26px -18px rgba(0,0,0,0.65)" }}>
         <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 py-2.5">
-          <div className="flex items-baseline gap-2">
+          <div className="flex items-center gap-2.5">
+            <svg width="20" height="22" viewBox="0 0 20 22" fill="none" style={{ flexShrink: 0 }} aria-hidden="true">
+              <path d="M2 6V2h3v2h3V2h4v2h3V2h3v4M2 6v14h4M2 6h16M18 6v14h-4M6 20v-6a4 4 0 0 1 8 0v6M6 20h8" stroke={C.brassSoft} strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round"/>
+              <path d="M10 9.5v3l1.6 1.2" stroke={C.brassSoft} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
             <p className="text-base font-semibold leading-none" style={{ color: C.cream, fontFamily: "var(--font-display)", letterSpacing: "0.025em" }}>The Curfew</p>
             <p className="hidden sm:inline" style={{ color: C.brassSoft, fontFamily: "var(--font-data)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.14em", lineHeight: 1 }}>Cellar</p>
           </div>
