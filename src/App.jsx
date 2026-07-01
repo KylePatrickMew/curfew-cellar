@@ -1785,8 +1785,12 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     const onFilled = onS.all.filter((s) => s.line).length;
 
     const catOf = (l) => beerById[l.beerId]?.category || "Misc";
+    const abvOf = (l) => parseFloat(beerById[l.beerId]?.abv) || 0;
     const rackedCask = live.filter((l) => l.drinkType === "cask" && (l.status === "racked" || l.status === "vented" || l.status === "tapped"));
-    const rIpaPale = rackedCask.filter((l) => catOf(l) === "IPA" || catOf(l) === "Pale").sort(byBB);
+    // IPA and Pale share four racked slots. Rather than category label, the two highest-ABV
+    // beers fill the IPA slots and the two lowest-ABV fill the Pale slots, since that's the
+    // meaningful distinction behind the bar. Ties fall back to best-before order.
+    const rIpaPale = rackedCask.filter((l) => catOf(l) === "IPA" || catOf(l) === "Pale").sort((a, b) => abvOf(b) - abvOf(a) || byBB(a, b));
     const rBitter = rackedCask.filter((l) => catOf(l) === "Bitter").sort(byBB);
     const rStout = rackedCask.filter((l) => catOf(l) === "Stout/Porter").sort(byBB);
     const rackedSlots = [
@@ -1843,15 +1847,15 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
             <div className="mt-2 space-y-3">
               <div>
                 <p className="mb-1 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide" style={{ color: TYPE_ACCENT.cask }}><span className="h-1.5 w-1.5 rounded-full" style={{ background: TYPE_ACCENT.cask }} />Cask</p>
-                <div className="grid gap-1.5 sm:grid-cols-2">{onCaskSlots.map((s, i) => renderSlot(s, `oc${i}`, true))}</div>
+                <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">{onCaskSlots.map((s, i) => renderSlot(s, `oc${i}`, true))}</div>
               </div>
               <div className="border-t pt-3" style={{ borderColor: C.line }}>
                 <p className="mb-1 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide" style={{ color: TYPE_ACCENT.keg }}><span className="h-1.5 w-1.5 rounded-full" style={{ background: TYPE_ACCENT.keg }} />Keg</p>
-                <div className="grid gap-1.5 sm:grid-cols-2">{onKegSlots.map((s, i) => renderSlot(s, `ok${i}`, true))}</div>
+                <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">{onKegSlots.map((s, i) => renderSlot(s, `ok${i}`, true))}</div>
               </div>
               <div className="border-t pt-3" style={{ borderColor: C.line }}>
                 <p className="mb-1 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide" style={{ color: TYPE_ACCENT.cider }}><span className="h-1.5 w-1.5 rounded-full" style={{ background: TYPE_ACCENT.cider }} />Cider</p>
-                <div className="grid gap-1.5 sm:grid-cols-2">{onCiderSlots.map((s, i) => renderSlot(s, `od${i}`, true))}</div>
+                <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">{onCiderSlots.map((s, i) => renderSlot(s, `od${i}`, true))}</div>
               </div>
             </div>
           )}
@@ -1884,7 +1888,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                 {storeGroups.map((g) => (
                   <div key={g.label}>
                     <p className="mb-0.5 text-xs font-semibold uppercase tracking-wide text-slate-400">{g.label}</p>
-                    <div className="grid gap-1.5 sm:grid-cols-2">{g.items.map((l) => <LineRow key={l.id} line={l} context="store" />)}</div>
+                    <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">{g.items.map((l) => <LineRow key={l.id} line={l} context="store" />)}</div>
                   </div>
                 ))}
               </div>
@@ -2042,7 +2046,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
         </div>
 
         <div className="rounded-xl border bg-white p-4 space-y-3" style={{ borderColor: C.line }}>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="Style"><input className={inputCls} value={form.style} onChange={(e) => setF(form.drinkType === "cask" ? { style: e.target.value, category: categorise(e.target.value, form.abv) } : { style: e.target.value })} placeholder="e.g. IPA" /></Field>
             <Field label="ABV %"><input className={inputCls} value={form.abv} onChange={(e) => setF(form.drinkType === "cask" ? { abv: e.target.value, category: categorise(form.style, e.target.value) } : { abv: e.target.value })} placeholder="e.g. 5.4" /></Field>
           </div>
@@ -2056,7 +2060,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
               </div>
             </Field>
           )}
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="Price (£)"><input className={inputCls} value={form.price} onChange={(e) => setF({ price: e.target.value })} placeholder="e.g. 4.40" /></Field>
             {form.drinkType !== "cask" && <Field label="Container"><select className={inputCls} value={form.size} onChange={(e) => setF({ size: e.target.value })}>{SIZE_OPTIONS.map((s) => <option key={s}>{s}</option>)}</select></Field>}
           </div>
@@ -2085,7 +2089,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                   ))}
                 </div>
               </Field>
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Field label="Gluten status"><select className={inputCls} value={form.glutenStatus} onChange={(e) => setF({ glutenStatus: e.target.value })}>{GLUTEN_OPTIONS.map((g) => <option key={g}>{g}</option>)}</select></Field>
                 <Field label="Vegan"><button onClick={() => setF({ vegan: !form.vegan })} className={`w-full rounded-lg border px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-400 ${form.vegan ? "border-emerald-300 bg-emerald-50 text-emerald-700" : "border-slate-300 text-slate-500 hover:bg-slate-50"}`}>{form.vegan ? "Vegan friendly" : "Not vegan / unknown"}</button></Field>
               </div>
@@ -2344,7 +2348,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           <Stat label="Avg days a cask lasts" value={avgDays == null ? "--" : avgDays} sub={lasted.length ? `from ${lasted.length} finished` : "no finished casks yet"} />
           <Stat label="In the library" value={library.length} />
         </div>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="rounded-xl border bg-white p-4" style={{ borderColor: C.line }}>
             <p className="text-xs uppercase tracking-wide text-slate-400">Fastest to go</p>
             {fastest ? <p className="mt-1 text-sm" style={{ color: C.ink }}><span className="font-semibold">{fastest.name}</span> · {fastest.days} day{fastest.days === 1 ? "" : "s"}</p> : <p className="mt-1 text-sm text-slate-400">No finished casks yet.</p>}
@@ -2715,11 +2719,11 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
               </div>
             )}
             <Field label="Name"><input className={inputCls} value={beer.name} onChange={(e) => updateBeer(beer.id, { name: e.target.value })} /></Field>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Field label="Producer / brewery"><input className={inputCls} value={beer.brewery} onChange={(e) => updateBeer(beer.id, { brewery: e.target.value })} /></Field>
               <Field label="Location"><input className={inputCls} value={beer.location || ""} onChange={(e) => updateBeer(beer.id, { location: e.target.value })} /></Field>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Field label="Style"><input className={inputCls} value={beer.style || ""} onChange={(e) => updateBeer(beer.id, { style: e.target.value })} /></Field>
               <Field label="ABV %"><input className={inputCls} value={beer.abv || ""} onChange={(e) => updateBeer(beer.id, { abv: e.target.value })} /></Field>
             </div>
@@ -2731,7 +2735,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                 ))}
               </div>
             </Field>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Field label="Clarity"><select className={inputCls} value={beer.clarity || "Clear"} onChange={(e) => updateBeer(beer.id, { clarity: e.target.value })}>{CLARITY_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}</select></Field>
               <Field label="Gluten"><select className={inputCls} value={beer.glutenStatus || "Standard"} onChange={(e) => updateBeer(beer.id, { glutenStatus: e.target.value })}>{GLUTEN_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}</select></Field>
             </div>
@@ -2846,7 +2850,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                       );
                     })}
                   </ol>
-                  <div className="grid gap-2 border-t pt-3 sm:grid-cols-2" style={{ borderColor: C.line }}>
+                  <div className="grid grid-cols-1 gap-2 border-t pt-3 sm:grid-cols-2" style={{ borderColor: C.line }}>
                     <label className="text-xs text-slate-500">Best before<input type="date" value={openLine.bestBefore || ""} onChange={(e) => setBestBefore(openLine.id, e.target.value)} className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" /></label>
                     {openLine.dates.on && <label className="text-xs text-slate-500">On date<input type="date" value={openLine.dates.on.slice(0, 10)} onChange={(e) => setOnDate(openLine.id, e.target.value)} className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" /></label>}
                   </div>
