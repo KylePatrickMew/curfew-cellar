@@ -2915,8 +2915,8 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
 
   return (
     <div className="min-h-screen w-full overflow-x-hidden" style={{ background: "linear-gradient(180deg, #F6F1E4 0%, #EEE7D5 60%)", fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif" }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap');
-:root { --font-data: 'Space Grotesk', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; --font-display: 'Space Grotesk', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&display=swap');
+:root { --font-data: 'Archivo', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; --font-display: 'Archivo', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
 .cc-brandtrack{letter-spacing:0.04em;}
 html, body { overflow-x: hidden; width: 100%; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 body { touch-action: manipulation; overscroll-behavior-y: contain; }
