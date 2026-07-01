@@ -1744,7 +1744,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
       <button onClick={() => setOpenId(line.id)} className="flex w-full items-center gap-2 rounded-xl border px-3 py-2 text-left transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-amber-300 active:scale-95" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[line.drinkType] || C.line, boxShadow: "0 1px 2px rgba(28,54,54,0.05)", minHeight: 52 }}>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
-            <p className="truncate text-sm font-semibold leading-tight" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</p>
+            <p className="truncate text-sm font-semibold leading-tight" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</p>
             {!beer.allergensVerified && <AlertTriangle size={13} className="shrink-0 text-amber-500" />}
           </div>
           <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{beer.style} · {beer.abv}% · £{line.price || "--"}{beer.location ? ` · ${beer.location}` : ""}</p>
@@ -1848,7 +1848,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
       <div className="space-y-4">
         <section>
           <button onClick={() => toggleSection("on")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
-            <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>On <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {onFilled}/10</span></h2>
+            <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>On <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {onFilled}/10</span></h2>
             <ChevronDown size={20} className="text-slate-400" style={{ transform: prefs.on ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
           </button>
           {prefs.on && (
@@ -1870,7 +1870,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
         </section>
         <section className="border-t pt-4" style={{ borderColor: C.line }}>
           <button onClick={() => toggleSection("racked")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
-            <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>Racked <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {rackedFilled}/6</span></h2>
+            <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Racked <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {rackedFilled}/6</span></h2>
             <ChevronDown size={20} className="text-slate-400" style={{ transform: prefs.racked ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
           </button>
           {prefs.racked && (
@@ -1888,7 +1888,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
         {store.length > 0 && (
           <section className="border-t pt-4" style={{ borderColor: C.line }}>
             <button onClick={() => toggleSection("store")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
-              <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>In Store <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {store.length}</span></h2>
+              <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>In Store <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {store.length}</span></h2>
               <ChevronDown size={20} className="text-slate-400" style={{ transform: prefs.store ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
             </button>
             {prefs.store && (
@@ -1925,7 +1925,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
         <div className="mx-auto max-w-2xl space-y-4">
           <button onClick={() => { setAddMode("pick"); setInvoiceItems(null); }} className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"><ArrowRight size={14} className="rotate-180" /> Back</button>
           <div className="rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
-            <p className="text-base font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{batchSource === "labels" ? "Scanned labels" : batchSource === "list" ? "From your list" : "Delivery items"}</p>
+            <p className="text-base font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{batchSource === "labels" ? "Scanned labels" : batchSource === "list" ? "From your list" : "Delivery items"}</p>
             <p className="mt-1 text-sm text-slate-500">Saved to your library under "Just added". Nothing reaches the cellar until you add it{batchSource === "labels" ? ", best before and supplier carry over automatically" : ""}.</p>
             <div className="mt-3 space-y-2">
               {items.length === 0 && <p className="py-3 text-center text-sm text-slate-400">Nothing found.</p>}
@@ -1965,7 +1965,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
       const pickRow = (b) => (
         <button key={b.id} onClick={() => pickBeer(b)} className="flex w-full items-center justify-between gap-2 rounded-lg border p-2.5 text-left transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: CAT_ACCENT[b.category] || C.line }}>
           <span className="min-w-0">
-            <span className="block truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{b.brewery ? `${b.brewery} - ` : ""}{b.name}</span>
+            <span className="block truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{b.brewery ? `${b.brewery} - ` : ""}{b.name}</span>
             <span className="block truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{b.style} · {b.abv}%</span>
             <span className="block truncate text-xs text-slate-400">{b.location || ""}</span>
           </span>
@@ -1977,7 +1977,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           <input ref={labelRef} type="file" accept="image/*" multiple onChange={(e) => { const fs = Array.from(e.target.files || []); e.target.value = ""; if (fs.length === 1) scanLabel(fs[0]); else if (fs.length > 1) scanLabelsBatch(fs); }} className="hidden" />
           <input ref={invoiceRef} type="file" accept="image/*,application/pdf" onChange={(e) => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) scanInvoice(f); }} className="hidden" />
           <div className="rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
-            <p className="text-base font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>Scan it in</p>
+            <p className="text-base font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Scan it in</p>
             <div className="mt-3 flex flex-wrap gap-2">
               <button onClick={() => labelRef.current && labelRef.current.click()} disabled={scanning} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:opacity-60" style={{ background: C.ink }}><Camera size={16} /> Scan a cask label / pump clip</button>
               <button onClick={() => invoiceRef.current && invoiceRef.current.click()} disabled={scanning} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-60" style={{ borderColor: C.line }}><FileText size={16} /> Scan an invoice</button>
@@ -1996,7 +1996,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
             {scanError && <p className="mt-2 text-sm text-amber-700">{scanError}</p>}
           </div>
           <div className="rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
-            <p className="text-base font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>Add from your library</p>
+            <p className="text-base font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Add from your library</p>
             <div className="relative mt-3">
               <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input value={addPickSearch} onChange={(e) => setAddPickSearch(e.target.value)} placeholder="Search ales, breweries, styles…" className="w-full rounded-xl border bg-white py-2.5 pl-10 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
@@ -2140,7 +2140,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
         <div key={b.id} className="rounded-xl border p-2.5" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: CAT_ACCENT[b.category] || C.line }}>
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{b.brewery ? `${b.brewery} - ` : ""}{b.name}</p>
+              <p className="truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{b.brewery ? `${b.brewery} - ` : ""}{b.name}</p>
               <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{b.style} · {b.abv}%{!b.allergensVerified ? " · not staff verified" : ""}</p>
               <p className="truncate text-xs text-slate-400">{b.location || ""}</p>
             </div>
@@ -2210,7 +2210,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                 <div className="space-y-2">
                   {justAddedBeers.map((b) => (
                     <div key={b.id} className="rounded-lg border p-2.5" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: CAT_ACCENT[b.category] || C.line }}>
-                      <p className="truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{b.brewery ? `${b.brewery} - ` : ""}{b.name}</p>
+                      <p className="truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{b.brewery ? `${b.brewery} - ` : ""}{b.name}</p>
                       <p className="truncate text-xs font-medium text-slate-600">{b.style ? b.style : "--"}{b.abv ? ` · ${b.abv}%` : ""}{!b.allergensVerified ? " · not staff verified" : ""}</p>
                       <p className="truncate text-xs text-slate-400">{b.location || ""}</p>
                       <div className="mt-2 flex items-center gap-1.5">
@@ -2245,7 +2245,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     return (
       <div className="mx-auto max-w-2xl space-y-5">
         <div className="rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
-          <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>Export</h2>
+          <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Export</h2>
           <div className="mt-3 flex flex-wrap gap-2">
             <button onClick={copyBackup} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Copy size={16} /> Copy backup</button>
             <button onClick={downloadBackup} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><Download size={16} /> Download .json</button>
@@ -2254,7 +2254,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
         </div>
 
         <div className="rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
-          <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>Import</h2>
+          <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Import</h2>
           <p className="mt-1 text-sm text-slate-500">Replaces everything in the app.</p>
           <input ref={fileRef} type="file" accept="application/json,.json" onChange={handleFile} className="hidden" />
           <div className="mt-3 flex flex-wrap gap-2">
@@ -2313,7 +2313,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                     return (
                       <li key={l.id} className="flex items-start justify-between gap-2 rounded-lg border px-2.5 py-2" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[l.drinkType] || C.line }}>
                         <span className="min-w-0">
-                          <span className="block truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{beer ? `${beer.brewery ? beer.brewery + " - " : ""}${beer.name}` : "Unknown"}</span>
+                          <span className="block truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer ? `${beer.brewery ? beer.brewery + " - " : ""}${beer.name}` : "Unknown"}</span>
                           {beer && <span className="block truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{dt}{beer.style ? ` · ${beer.style}` : ""}{beer.abv ? ` · ${beer.abv}%` : ""}</span>}
                           {beer && beer.location && <span className="block truncate text-xs text-slate-400" style={{ fontFamily: "var(--font-data)" }}>{beer.location}</span>}
                           <span className="block truncate text-xs text-slate-500" style={{ fontFamily: "var(--font-data)" }}>{l.size ? `${l.size} · ` : ""}finished {l.dates.off ? fmtDate(l.dates.off.slice(0, 10)) : "--"}</span>
@@ -2345,7 +2345,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     const Stat = ({ label, value, sub }) => (
       <div className="rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
         <p className="text-xs uppercase tracking-wide text-slate-400">{label}</p>
-        <p className="mt-1 text-2xl font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{value}</p>
+        <p className="mt-1 text-2xl font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{value}</p>
         {sub && <p className="text-xs text-slate-500">{sub}</p>}
       </div>
     );
@@ -2398,7 +2398,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Printer size={15} /> Print</button>
         </div>
         <div id="allergen-sheet" className="rounded-xl border p-5" style={{ background: C.paper, borderColor: C.line }}>
-          <h1 className="text-xl font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>What's on: allergen and dietary guide</h1>
+          <h1 className="text-xl font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>What's on: allergen and dietary guide</h1>
           <p className="mt-0.5 text-xs text-slate-500">Please confirm with staff before ordering.</p>
           {fmtUpdated(lastUpdated) && <p className="mt-0.5 text-xs text-slate-400">Last updated: {fmtUpdated(lastUpdated)}</p>}
           {groups.length === 0 && <p className="mt-4 text-sm text-slate-400">Nothing on right now.</p>}
@@ -2439,7 +2439,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
       return (
         <div className="mb-1.5 flex items-start justify-between gap-3 rounded-lg border px-2.5 py-2" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[l.drinkType] || C.line }}>
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</p>
+            <p className="truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</p>
             <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{dt} · {beer.style} · {beer.abv}%</p>
             <p className="truncate text-xs text-slate-500" style={{ fontFamily: "var(--font-data)" }}>{beer.location || ""}{l.caskOwner ? `${beer.location ? " · " : ""}Supplier: ${l.caskOwner}` : ""}</p>
           </div>
@@ -2540,9 +2540,9 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
       return (
         <div className="py-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
           <div className="flex items-baseline justify-between gap-3">
-            <p className="text-lg font-semibold" style={{ color: C.cream, fontFamily: "Fraunces, Georgia, serif" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</p>
+            <p className="text-lg font-semibold" style={{ color: C.cream, fontFamily: "var(--font-display)" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</p>
             <div className="shrink-0 text-right">
-              <p className="text-lg font-semibold" style={{ color: C.brassSoft, fontFamily: "Fraunces, Georgia, serif" }}>{tlp ? tlp.pint : `£${line.price || "--"}`}</p>
+              <p className="text-lg font-semibold" style={{ color: C.brassSoft, fontFamily: "var(--font-display)" }}>{tlp ? tlp.pint : `£${line.price || "--"}`}</p>
               {tlp && <p className="text-xs" style={{ color: "rgba(243,239,230,0.55)" }}>Half {tlp.half} · Schooner {tlp.schooner}</p>}
             </div>
           </div>
@@ -2564,7 +2564,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
             <div className="flex items-center gap-3">
               <div className="grid h-11 w-11 place-items-center rounded-full" style={{ background: C.brass, color: C.ink }}><Bell size={22} /></div>
               <div>
-                <p className="text-2xl font-semibold leading-tight" style={{ color: C.cream, fontFamily: "Fraunces, Georgia, serif" }}>The Curfew</p>
+                <p className="text-2xl font-semibold leading-tight" style={{ color: C.cream, fontFamily: "var(--font-display)", letterSpacing: "0.03em" }}>The Curfew</p>
                 <p className="text-xs uppercase tracking-widest" style={{ color: C.brassSoft }}>What's on today</p>
               </div>
             </div>
@@ -2640,7 +2640,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
               </div>
               <div className="flex-1 space-y-4 overflow-y-auto p-4">
                 <div>
-                  <h2 className="text-xl font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{previewBeer.name}</h2>
+                  <h2 className="text-xl font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{previewBeer.name}</h2>
                   <p className="text-sm text-slate-500">{previewBeer.brewery} · {previewBeer.location}</p>
                 </div>
                 <div className="space-y-2.5">
@@ -2667,7 +2667,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
             <>
               <div className="sticky top-0 flex items-center justify-between gap-2 border-b bg-white p-4" style={{ borderColor: C.line }}>
                 <div className="min-w-0">
-                  <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>Choose next</h2>
+                  <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Choose next</h2>
                   {catLabel && <p className="truncate text-xs text-slate-500">{matching.length ? catLabel : `No ${catLabel} ready, showing all casks`}</p>}
                 </div>
                 <button onClick={close} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400"><X size={18} /></button>
@@ -2683,7 +2683,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                       return (
                         <button key={l.id} onClick={() => setSwapPreviewId(l.id)} className="flex w-full items-center justify-between gap-2 rounded-xl border p-3 text-left transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[swap.drink] || C.line }}>
                           <span className="min-w-0">
-                            <span className="block truncate font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</span>
+                            <span className="block truncate font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</span>
                             <span className="block truncate text-sm font-medium text-slate-600">{beer.style} · {beer.abv}%</span>
                             <span className="block truncate text-xs text-slate-400">{beer.location || ""}</span>
                           </span>
@@ -2712,7 +2712,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
       <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(28,54,54,0.45)" }} onClick={close}>
         <div className="w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white sm:rounded-2xl cc-pop" style={{ maxHeight: "92vh" }} onClick={(e) => e.stopPropagation()}>
           <div className="sticky top-0 flex items-center justify-between gap-2 border-b bg-white p-4" style={{ borderColor: C.line }}>
-            <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>Edit beer details</h2>
+            <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Edit beer details</h2>
             <button onClick={close} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400"><X size={18} /></button>
           </div>
           <div className="space-y-3 p-4">
@@ -2784,7 +2784,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
         <div className="w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white sm:rounded-2xl cc-pop" style={{ maxHeight: "92vh" }} onClick={(e) => e.stopPropagation()}>
           <div className="sticky top-0 flex items-start justify-between gap-2 border-b bg-white p-4" style={{ borderColor: C.line }}>
             <div>
-              <h2 className="text-xl font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</h2>
+              <h2 className="text-xl font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</h2>
               <p className="text-sm text-slate-500">{beer.location || ""}</p>
             </div>
             <button onClick={() => setOpenId(null)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400"><X size={18} /></button>
@@ -2881,7 +2881,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
       <div className="flex min-h-screen w-full items-center justify-center p-6" style={{ background: C.ink }}>
         <div className="w-full max-w-xs">
           <div className="mb-6 text-center">
-            <p className="text-2xl font-bold" style={{ color: C.cream, fontFamily: "Fraunces, Georgia, serif" }}>The Curfew</p>
+            <p className="text-2xl font-bold" style={{ color: C.cream, fontFamily: "var(--font-display)", letterSpacing: "0.03em" }}>The Curfew</p>
             <p className="mt-1 text-xs uppercase tracking-widest" style={{ color: C.brassSoft }}>Cellar Management</p>
           </div>
           {authChecking ? (
@@ -2905,7 +2905,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
       <div className="flex min-h-screen w-full items-center justify-center p-6" style={{ background: C.ink }}>
         <div className="w-full max-w-xs text-center">
           <AlertTriangle className="mx-auto mb-3" size={28} color={C.brassSoft} />
-          <p className="text-lg font-semibold" style={{ color: C.cream, fontFamily: "Fraunces, Georgia, serif" }}>Could not load the cellar</p>
+          <p className="text-lg font-semibold" style={{ color: C.cream, fontFamily: "var(--font-display)" }}>Could not load the cellar</p>
           <p className="mt-2 text-sm" style={{ color: "rgba(243,239,230,0.7)" }}>Check your connection and try again. Editing stays paused until this loads, so nothing gets overwritten.</p>
           <button onClick={() => loadCellar()} className="mt-4 w-full rounded-lg px-4 py-3 text-sm font-semibold transition active:scale-95" style={{ background: C.brass, color: C.ink }}>Try again</button>
         </div>
@@ -2915,8 +2915,9 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
 
   return (
     <div className="min-h-screen w-full overflow-x-hidden" style={{ background: "linear-gradient(180deg, #F6F1E4 0%, #EEE7D5 60%)", fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif" }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Space+Grotesk:wght@500;600;700&display=swap');
-:root { --font-data: 'Space Grotesk', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap');
+:root { --font-data: 'Space Grotesk', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; --font-display: 'Space Grotesk', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+.cc-brandtrack{letter-spacing:0.04em;}
 html, body { overflow-x: hidden; width: 100%; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 body { touch-action: manipulation; overscroll-behavior-y: contain; }
 @media (max-width: 640px) { input, select, textarea { font-size: 16px !important; } }
@@ -2944,7 +2945,7 @@ body { touch-action: manipulation; overscroll-behavior-y: contain; }
       <header className="no-print sticky top-0 z-40 border-b" style={{ background: C.ink, borderColor: "rgba(184,134,43,0.35)", boxShadow: "0 1px 0 rgba(184,134,43,0.22), 0 10px 26px -18px rgba(0,0,0,0.65)" }}>
         <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 py-2.5">
           <div className="flex items-baseline gap-2">
-            <p className="text-base font-semibold leading-none" style={{ color: C.cream, fontFamily: "Fraunces, Georgia, serif" }}>The Curfew</p>
+            <p className="text-base font-semibold leading-none" style={{ color: C.cream, fontFamily: "var(--font-display)", letterSpacing: "0.025em" }}>The Curfew</p>
             <p className="hidden sm:inline" style={{ color: C.brassSoft, fontFamily: "var(--font-data)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.14em", lineHeight: 1 }}>Cellar</p>
           </div>
           <nav className="relative hidden items-center gap-1 sm:flex">
@@ -2972,7 +2973,7 @@ body { touch-action: manipulation; overscroll-behavior-y: contain; }
           <>
             {VIEW_TITLES[view] && (
               <div className="no-print mb-5">
-                <h1 className="text-2xl font-bold tracking-tight" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{VIEW_TITLES[view]}</h1>
+                <h1 className="text-2xl font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)", letterSpacing: "0.02em" }}>{VIEW_TITLES[view]}</h1>
                 <div className="mt-2 h-1 w-10 rounded-full" style={{ background: C.brass }} />
               </div>
             )}
