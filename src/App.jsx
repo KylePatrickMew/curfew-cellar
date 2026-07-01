@@ -12,7 +12,7 @@ const C = {
   paper: "#FBF8F2", alert: "#A23B3B",
 };
 const TYPE_ACCENT = { cask: "#B8862B", keg: "#3E8C82", keykeg: "#3E8C82", cider: "#5E8C4F" };
-const CAT_ACCENT = { IPA: "#E8D976", Pale: "#E3A93E", Bitter: "#D6823C", "Stout/Porter": "#6E4A32", Stout: "#6E4A32", Porter: "#6E4A32", Misc: "#9AA1AC" };
+const CAT_ACCENT = { IPA: "#E8D976", Pale: "#E3A93E", Bitter: "#D6823C", "Stout/Porter": "#6E4A32", Stout: "#6E4A32", Porter: "#6E4A32", Misc: "#96A19B" };
 const STORE_KEY = "curfew-cellar:data:v1";
 const MODEL = "claude-sonnet-4-6";
 // ---- Cloud sync (active only in the deployed app; the preview uses window.storage) ----
@@ -985,7 +985,7 @@ export default function TheCurfewCellar() {
             CATEGORIES.forEach((cat) => {
               const sub = items.filter((l) => (beerById[l.beerId] && beerById[l.beerId].category || "Misc") === cat).sort(cmpBB);
               if (!sub.length) return;
-              catHead(cat); sub.forEach((l) => beerLine(l, CAT_ACCENT[cat] || "#9AA1AC", {}));
+              catHead(cat); sub.forEach((l) => beerLine(l, CAT_ACCENT[cat] || "#96A19B", {}));
             });
           } else {
             items.slice().sort(cmpBB).forEach((l) => beerLine(l, TYPE_ACCENT[dt] || "#B8862B", {}));
@@ -1004,7 +1004,7 @@ export default function TheCurfewCellar() {
             });
         owners.forEach((owner) => {
           subHead(owner);
-          empties.filter((l) => (l.caskOwner || "Unknown") === owner).forEach((l) => beerLine(l, "#9AA1AC", {}));
+          empties.filter((l) => (l.caskOwner || "Unknown") === owner).forEach((l) => beerLine(l, "#96A19B", {}));
           y += 1;
         });
       }
@@ -1113,7 +1113,7 @@ export default function TheCurfewCellar() {
         CATEGORIES.forEach((cat) => {
           const items = cask.filter((l) => (beerById[l.beerId] && beerById[l.beerId].category || "Misc") === cat);
           if (!items.length) return;
-          catHead(cat); items.forEach((l) => beerLine(l, hex(CAT_ACCENT[cat] || "#9AA1AC")));
+          catHead(cat); items.forEach((l) => beerLine(l, hex(CAT_ACCENT[cat] || "#96A19B")));
         });
         y += 1;
       }
@@ -1848,7 +1848,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
       <div className="space-y-4">
         <section>
           <button onClick={() => toggleSection("on")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
-            <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>On <span className="text-sm" style={{ color: "#9AA1AC", fontFamily: "var(--font-data)" }}>· {onFilled}/10</span></h2>
+            <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>On <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {onFilled}/10</span></h2>
             <ChevronDown size={20} className="text-slate-400" style={{ transform: prefs.on ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
           </button>
           {prefs.on && (
@@ -1870,7 +1870,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
         </section>
         <section className="border-t pt-4" style={{ borderColor: C.line }}>
           <button onClick={() => toggleSection("racked")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
-            <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>Racked <span className="text-sm" style={{ color: "#9AA1AC", fontFamily: "var(--font-data)" }}>· {rackedFilled}/6</span></h2>
+            <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>Racked <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {rackedFilled}/6</span></h2>
             <ChevronDown size={20} className="text-slate-400" style={{ transform: prefs.racked ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
           </button>
           {prefs.racked && (
@@ -1888,7 +1888,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
         {store.length > 0 && (
           <section className="border-t pt-4" style={{ borderColor: C.line }}>
             <button onClick={() => toggleSection("store")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
-              <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>In Store <span className="text-sm" style={{ color: "#9AA1AC", fontFamily: "var(--font-data)" }}>· {store.length}</span></h2>
+              <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>In Store <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {store.length}</span></h2>
               <ChevronDown size={20} className="text-slate-400" style={{ transform: prefs.store ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
             </button>
             {prefs.store && (
@@ -2437,11 +2437,11 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
       const bb = fmtBB(l.bestBefore);
       const pump = l.status === "on" && l.slot ? PUMP_LABELS[l.slot] : null;
       return (
-        <div className="flex items-start justify-between gap-3 py-2.5" style={{ borderBottom: `1px solid ${C.line}` }}>
+        <div className="mb-1.5 flex items-start justify-between gap-3 rounded-lg border px-2.5 py-2" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[l.drinkType] || C.line }}>
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</p>
             <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{dt} · {beer.style} · {beer.abv}%</p>
-            <p className="truncate text-xs text-slate-400" style={{ fontFamily: "var(--font-data)" }}>{beer.location || ""}{l.caskOwner ? `${beer.location ? " · " : ""}Supplier: ${l.caskOwner}` : ""}</p>
+            <p className="truncate text-xs text-slate-500" style={{ fontFamily: "var(--font-data)" }}>{beer.location || ""}{l.caskOwner ? `${beer.location ? " · " : ""}Supplier: ${l.caskOwner}` : ""}</p>
           </div>
           <div className="shrink-0 text-right" style={{ fontFamily: "var(--font-data)" }}>
             {pump && <p className="text-xs font-semibold" style={{ color: C.brass }}>{pump}</p>}
@@ -2477,8 +2477,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Printer size={15} /> Print</button>
         </div>
         <div className="rounded-xl border p-5" style={{ background: C.paper, borderColor: C.line }}>
-          <h1 className="text-xl font-bold" style={{ color: C.ink, fontFamily: "Fraunces, Georgia, serif" }}>Stock List</h1>
-          {fmtUpdated(lastUpdated) && <p className="mt-0.5 text-xs text-slate-400">Last updated: {fmtUpdated(lastUpdated)}</p>}
+          {fmtUpdated(lastUpdated) && <p className="text-xs text-slate-400">Last updated: {fmtUpdated(lastUpdated)}</p>}
           {total === 0 && <p className="mt-4 text-sm text-slate-400">No stock yet.</p>}
           <Section title="On" items={onL} withStage={false} />
           <Section title="In Cellar" items={prep} withStage={true} />
@@ -2528,7 +2527,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     const keg = on.filter((l) => l.drinkType === "keg").sort(byBB);
     const cider = on.filter((l) => l.drinkType === "cider").sort(byBB);
     const caskByCat = CATEGORIES.map((cat) => ({ cat, items: cask.filter((l) => (beerById[l.beerId]?.category || "Misc") === cat).sort(byBB) })).filter((g) => g.items.length);
-    const faint = "rgba(243,239,230,0.55)";
+    const faint = "rgba(243,239,230,0.68)";
 
     const Item = ({ line }) => {
       const beer = beerById[line.beerId];
@@ -2930,7 +2929,17 @@ body { touch-action: manipulation; overscroll-behavior-y: contain; }
 @keyframes ccpop{from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:none}}
 .cc-sheet{animation:ccsheet .3s cubic-bezier(.16,1,.3,1) both}
 @keyframes ccsheet{from{transform:translateY(100%)}to{transform:none}}
-@media (prefers-reduced-motion: reduce){.cc-fade,.cc-overlay,.cc-pop,.cc-sheet{animation:none}}`}</style>
+@media (prefers-reduced-motion: reduce){.cc-fade,.cc-overlay,.cc-pop,.cc-sheet{animation:none}}
+/* Retint Tailwind's default cool-blue slate scale to a warm, teal-tinted neutral so
+   secondary text and hairlines sit with the brand instead of fighting its warm palette. */
+.text-slate-300{color:#B7BCB4!important}.text-slate-400{color:#96A19B!important}
+.text-slate-500{color:#778883!important}.text-slate-600{color:#59716C!important}
+.text-slate-700{color:#3C4F4B!important}.border-slate-200{border-color:#DEDBCD!important}
+.border-slate-300{border-color:#C7C6B7!important}.bg-slate-50{background-color:#F5F2E9!important}
+.bg-slate-100{background-color:#EDEADC!important}.hover\:bg-slate-50:hover{background-color:#F5F2E9!important}
+.hover\:text-slate-600:hover{color:#59716C!important}.hover\:text-slate-700:hover{color:#3C4F4B!important}
+.focus\:ring-slate-300:focus{--tw-ring-color:#C7C6B7!important}
+.focus\:ring-slate-400:focus{--tw-ring-color:#96A19B!important}`}</style>
       {view === "taplist" ? TapList() : (<>
       <header className="no-print sticky top-0 z-40 border-b" style={{ background: C.ink, borderColor: "rgba(184,134,43,0.35)", boxShadow: "0 1px 0 rgba(184,134,43,0.22), 0 10px 26px -18px rgba(0,0,0,0.65)" }}>
         <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 py-2.5">
