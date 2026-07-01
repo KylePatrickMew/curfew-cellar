@@ -1731,7 +1731,13 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     const sig = cardSignal(line);
     const storeBB = context === "store" && line.bestBefore && !sig.alert;
     const showBadge = context === "racked" || sig.alert || storeBB;
-    const badgeText = storeBB ? `BB ${fmtDate(line.bestBefore)}` : sig.text;
+    // Always a short pill on this compact card: never the long sentence form, regardless of
+    // which signal fired (best-before passed/soon, store-context BB, or a status label).
+    const bb = bbStatus(line);
+    let badgeText = sig.text;
+    if (storeBB) badgeText = `BB ${fmtDate(line.bestBefore)}`;
+    else if (bb && bb.level === "past") badgeText = "BB passed";
+    else if (bb && bb.level === "soon") badgeText = daysUntil(line.bestBefore) === 0 ? "BB today" : `BB ${daysUntil(line.bestBefore)}d`;
     return (
       <button onClick={() => setOpenId(line.id)} className="flex w-full items-center gap-2 rounded-xl border bg-white px-3 py-2 text-left transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-amber-300 active:scale-95" style={{ borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[line.drinkType] || C.line, boxShadow: "0 1px 2px rgba(27,34,48,0.04)", minHeight: 52 }}>
         <div className="min-w-0 flex-1">
@@ -1741,9 +1747,9 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           </div>
           <p className="truncate text-xs font-medium text-slate-600">{beer.style} · {beer.abv}% · £{line.price || "--"}{beer.location ? ` · ${beer.location}` : ""}</p>
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-1">
+        <div className="flex shrink-0 flex-col items-end gap-1" style={{ maxWidth: 92 }}>
           <DietaryMini beer={beer} />
-          {showBadge && <span className={`whitespace-nowrap rounded-full border px-1.5 py-0.5 font-semibold ${sig.warn ? "bg-red-50 text-red-700 border-red-200" : "bg-slate-100 text-slate-500 border-slate-200"}`} style={{ fontSize: 10 }}>{badgeText}</span>}
+          {showBadge && <span className={`max-w-full truncate rounded-full border px-1.5 py-0.5 font-semibold ${sig.warn ? "bg-red-50 text-red-700 border-red-200" : "bg-slate-100 text-slate-500 border-slate-200"}`} style={{ fontSize: 10 }}>{badgeText}</span>}
         </div>
       </button>
     );
@@ -1834,10 +1840,19 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
             <ChevronDown size={20} className="text-slate-400" style={{ transform: prefs.on ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
           </button>
           {prefs.on && (
-            <div className="mt-2 space-y-1.5">
-              <div className="grid gap-1.5 sm:grid-cols-2">{onCaskSlots.map((s, i) => renderSlot(s, `oc${i}`, true))}</div>
-              <div className="grid gap-1.5 sm:grid-cols-2">{onKegSlots.map((s, i) => renderSlot(s, `ok${i}`, true))}</div>
-              <div className="grid gap-1.5 sm:grid-cols-2">{onCiderSlots.map((s, i) => renderSlot(s, `od${i}`, true))}</div>
+            <div className="mt-2 space-y-3">
+              <div>
+                <p className="mb-1 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide" style={{ color: TYPE_ACCENT.cask }}><span className="h-1.5 w-1.5 rounded-full" style={{ background: TYPE_ACCENT.cask }} />Cask</p>
+                <div className="grid gap-1.5 sm:grid-cols-2">{onCaskSlots.map((s, i) => renderSlot(s, `oc${i}`, true))}</div>
+              </div>
+              <div className="border-t pt-3" style={{ borderColor: C.line }}>
+                <p className="mb-1 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide" style={{ color: TYPE_ACCENT.keg }}><span className="h-1.5 w-1.5 rounded-full" style={{ background: TYPE_ACCENT.keg }} />Keg</p>
+                <div className="grid gap-1.5 sm:grid-cols-2">{onKegSlots.map((s, i) => renderSlot(s, `ok${i}`, true))}</div>
+              </div>
+              <div className="border-t pt-3" style={{ borderColor: C.line }}>
+                <p className="mb-1 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide" style={{ color: TYPE_ACCENT.cider }}><span className="h-1.5 w-1.5 rounded-full" style={{ background: TYPE_ACCENT.cider }} />Cider</p>
+                <div className="grid gap-1.5 sm:grid-cols-2">{onCiderSlots.map((s, i) => renderSlot(s, `od${i}`, true))}</div>
+              </div>
             </div>
           )}
         </section>
