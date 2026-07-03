@@ -195,7 +195,7 @@ const ALLERGEN_OPTIONS = [
 ];
 const GLUTEN_OPTIONS = ["Standard", "Low gluten", "Gluten-free"];
 const CLARITY_OPTIONS = ["Clear", "Hazy", "Cloudy"];
-const VIEW_TITLES = { cellar: "Cellar", add: "Add Stock", library: "Library", allergens: "Allergen Sheet", stock: "Stock List", empties: "Empties to Return", backup: "Backup & Restore" };
+const VIEW_TITLES = { cellar: "Cellar", add: "Add Stock", library: "Library", allergens: "Allergen Sheet", stock: "Stock List", empties: "Empties to Return", stats: "Cellar Stats", backup: "Backup & Restore" };
 const SIZE_OPTIONS = ["Keg 30L", "Keg 50L", "Bag-in-box 20L"];
 const FRESH_LIMIT = 4; // days on a cask before a quality check is worth a look
 const BB_SOON = 2;     // days before best-before to start flagging
@@ -215,12 +215,12 @@ const toISO = (s) => {
   return "";
 };
 const fmt = (iso) => {
-  if (!iso) return "--";
+  if (!iso) return "—";
   const d = new Date(iso);
   return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }) + ", " +
     d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 };
-const fmtDate = (s) => { if (!s) return "--"; return new Date(s + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" }); };
+const fmtDate = (s) => { if (!s) return "—"; return new Date(s + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" }); };
 // Splits a tasting note into a taste line and an optional fun-fact line, so it can be shown
 // as two short bullet-style lines instead of one paragraph, regardless of how it was entered.
 const splitNote = (notes) => {
@@ -496,6 +496,11 @@ export default function TheCurfewCellar() {
   const [loading, setLoading] = useState(false);
   const [librarySearch, setLibrarySearch] = useState("");
   const [historyOpen, setHistoryOpen] = useState({});
+  const [showArchived, setShowArchived] = useState(false);
+  const [confirmDupe, setConfirmDupe] = useState(false);
+  const [toast, setToast] = useState(null);
+  const toastTimer = useRef(null);
+  const showToast = (text) => { setToast(text); if (toastTimer.current) clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(null), 4000); };
   const [hydrated, setHydrated] = useState(false);
   const [storageOk, setStorageOk] = useState(null);
   const [confirmReset, setConfirmReset] = useState(false);
@@ -710,7 +715,7 @@ export default function TheCurfewCellar() {
   // Catch-all: any note longer than 70 characters is sentence-style, not keyword-style.
   // Wipe it to blank so staff re-autofill it and get the correct flashcard format.
   // Our correct keyword notes top out around 55 chars, so 70 is a safe threshold.
-  // Not guarded by a pref -- runs on every load but only changes notes that are still too long.
+  // Not guarded by a pref — runs on every load but only changes notes that are still too long.
   const migrateNotes4 = (data) => {
     if (!data) return data;
     const lib = (data.library || []).map((b) => (b.notes && b.notes.length > 70) ? { ...b, notes: "" } : b);
@@ -719,7 +724,7 @@ export default function TheCurfewCellar() {
   };
 
   // Force-rewrite every beer's tasting notes to the correct keyword/flashcard style.
-  // Unlike previous migrations, this is unconditional -- it overwrites whatever is currently
+  // Unlike previous migrations, this is unconditional — it overwrites whatever is currently
   // stored, so stale sentence-style notes from re-autofills can't survive. Only runs once,
   // guarded by prefs.notesV5.
   const NOTE_FORCED = {
@@ -1030,7 +1035,7 @@ export default function TheCurfewCellar() {
         if (!(e && e.name === "AbortError")) { try { doc.save(fname); } catch (e2) { /* ignore */ } }
       }
     } catch (e) {
-      if (typeof window !== "undefined") window.alert("Could not make the PDF just now. Check your connection and try again.");
+      showToast("Could not make the PDF just now. Check your connection and try again.");
     } finally {
       setPdfBusy(false);
     }
@@ -1131,7 +1136,7 @@ export default function TheCurfewCellar() {
       }
       await sharePdfDoc(doc, "curfew-tap-list.pdf", "Curfew tap list");
     } catch (e) {
-      if (typeof window !== "undefined") window.alert("Could not make the PDF just now. Check your connection and try again.");
+      showToast("Could not make the PDF just now. Check your connection and try again.");
     } finally {
       setPdfBusy(false);
     }
@@ -1213,7 +1218,7 @@ export default function TheCurfewCellar() {
       }
       await sharePdfDoc(doc, "curfew-allergen-guide.pdf", "Curfew allergen guide");
     } catch (e) {
-      if (typeof window !== "undefined") window.alert("Could not make the PDF just now. Check your connection and try again.");
+      showToast("Could not make the PDF just now. Check your connection and try again.");
     } finally {
       setPdfBusy(false);
     }
@@ -1387,13 +1392,23 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
 
   const addLine = () => {
     if (!form.brewery.trim() || !form.name.trim()) { setFillNote({ type: "warn", text: "Producer and name are required." }); return; }
+    // Duplicate guard: if this beer already has a live line in the cellar, ask once before
+    // adding another. A second tap of the button confirms (multiple casks is legitimate).
+    const dupSaved = findSavedBeer(form.brewery, form.name);
+    const liveDupes = dupSaved ? lines.filter((l) => l.beerId === dupSaved.id && l.status !== "off").length : 0;
+    if (liveDupes > 0 && !confirmDupe) {
+      setConfirmDupe(true);
+      setFillNote({ type: "warn", text: `Already ${liveDupes === 1 ? "one" : liveDupes} of these in the cellar. Tap "Add to cellar" again if this is another ${form.drinkType === "cask" ? "cask" : "one"}.` });
+      return;
+    }
+    setConfirmDupe(false);
     const category = form.drinkType === "cask" ? (form.category || categorise(form.style, form.abv)) : (form.category || "Misc");
     const beerFields = {
       brewery: form.brewery.trim(), location: form.location.trim(), name: form.name.trim(),
       style: form.style.trim(), abv: form.abv.trim(), clarity: form.clarity, glutenStatus: form.glutenStatus,
       vegan: form.vegan, allergens: form.allergens, notes: form.notes.trim(), allergensVerified: form.allergensVerified, category,
     };
-    const entry = { date: new Date().toISOString(), abv: form.abv.trim(), price: form.price.trim() };
+    const entry = { date: new Date().toISOString(), abv: form.abv.trim(), price: form.price.trim(), caskOwner: (form.caskOwner.trim() || form.brewery.trim()) };
     const saved = findSavedBeer(form.brewery, form.name);
     let beerId;
     if (saved) { beerId = saved.id; setLibrary((lib) => lib.map((b) => (b.id === saved.id ? { ...b, ...beerFields, history: [...(b.history || []), entry], justAdded: false, pendingBestBefore: "", pendingCaskOwner: "", pendingPrice: "", pendingDrinkType: "" } : b))); }
@@ -1532,7 +1547,8 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
   };
   const removeLine = (id) => { snapshotUndo("Removed from cellar"); setLines((ls) => ls.filter((c) => c.id !== id)); setOpenId(null); };
   const latestPrice = (beer) => { const h = beer.history || []; return h.length ? h[h.length - 1].price : ""; };
-  const loadBeerIntoForm = (beer) => setForm({ ...emptyForm, drinkType: beer.pendingDrinkType || "cask", brewery: beer.brewery, location: beer.location, name: beer.name, style: beer.style, abv: beer.abv, clarity: beer.clarity, glutenStatus: beer.glutenStatus, vegan: beer.vegan, allergens: beer.allergens, notes: beer.notes, allergensVerified: beer.allergensVerified, category: beer.category || categorise(beer.style, beer.abv), price: latestPrice(beer) || beer.pendingPrice || "", bestBefore: beer.pendingBestBefore || "", caskOwner: beer.pendingCaskOwner || "" });
+  const latestSupplier = (beer) => { const h = beer.history || []; for (let i = h.length - 1; i >= 0; i--) { if (h[i].caskOwner) return h[i].caskOwner; } return ""; };
+  const loadBeerIntoForm = (beer) => { setConfirmDupe(false); return setForm({ ...emptyForm, drinkType: beer.pendingDrinkType || "cask", brewery: beer.brewery, location: beer.location, name: beer.name, style: beer.style, abv: beer.abv, clarity: beer.clarity, glutenStatus: beer.glutenStatus, vegan: beer.vegan, allergens: beer.allergens, notes: beer.notes, allergensVerified: beer.allergensVerified, category: beer.category || categorise(beer.style, beer.abv), price: latestPrice(beer) || beer.pendingPrice || "", bestBefore: beer.pendingBestBefore || "", caskOwner: latestSupplier(beer) || beer.pendingCaskOwner || "" }); };
   const pickBeer = (beer) => { loadBeerIntoForm(beer); setShowMore(false); setFillNote({ type: "ok", text: `Loaded "${beer.name}". Just set price, best before and status.` }); setAddMode("form"); };
   const startNewBeer = () => { setForm(emptyForm); setFillNote(null); setShowMore(false); setAddMode("form"); };
   const addLineOfBeer = (beer) => { loadBeerIntoForm(beer); setShowMore(false); setFillNote({ type: "ok", text: `Loaded "${beer.name}" from your library.` }); setAddMode("form"); setView("add"); };
@@ -1747,7 +1763,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
             <p className="truncate text-sm font-semibold leading-tight" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</p>
             {!beer.allergensVerified && <AlertTriangle size={13} className="shrink-0 text-amber-500" />}
           </div>
-          <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{beer.style} · {beer.abv}% · £{line.price || "--"}{beer.location ? ` · ${beer.location}` : ""}</p>
+          <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{beer.style} · {beer.abv}% · £{line.price || "—"}{beer.location ? ` · ${beer.location}` : ""}</p>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1" style={{ maxWidth: 92 }}>
           <DietaryMini beer={beer} />
@@ -1846,6 +1862,38 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     }
     return (
       <div className="space-y-4">
+        {(() => {
+          // "Needs attention": the things a publican should see the moment the app opens,
+          // computed entirely from data the app already tracks. Hidden when all is well.
+          const attention = [];
+          live.forEach((l) => {
+            const beer = beerById[l.beerId]; if (!beer) return;
+            const nm = `${beer.brewery ? beer.brewery + " " : ""}${beer.name}`;
+            const bb = bbStatus(l);
+            if (bb && bb.level === "past") attention.push({ id: l.id, warn: true, text: `${nm} — best before has passed` });
+            else if (bb && bb.level === "soon") attention.push({ id: l.id, warn: true, text: `${nm} — best before ${daysUntil(l.bestBefore) === 0 ? "today" : `in ${daysUntil(l.bestBefore)}d`}` });
+            const f = freshness(l);
+            if (l.status === "on" && f && f.level === "check") attention.push({ id: l.id, warn: false, text: `${nm} — on for ${daysOn(l)} days, check quality` });
+            if (l.status === "vented" && l.dates.vented && dayDiff(l.dates.vented, new Date().toISOString()) >= 2) attention.push({ id: l.id, warn: false, text: `${nm} — vented ${dayDiff(l.dates.vented, new Date().toISOString())}d ago, ready to tap` });
+          });
+          if (!attention.length) return null;
+          return (
+            <section className="cc-elev rounded-xl border p-3" style={{ background: "#FCF6EA", borderColor: "#E8D5A8" }}>
+              <p className="mb-1.5 flex items-center gap-1.5 uppercase" style={{ color: C.brass, fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}><AlertTriangle size={13} /> Needs attention</p>
+              <ul className="space-y-1">
+                {attention.slice(0, 5).map((a, i) => (
+                  <li key={`${a.id}-${i}`}>
+                    <button onClick={() => setOpenId(a.id)} className="flex w-full items-start gap-1.5 text-left text-sm transition hover:opacity-70 focus:outline-none" style={{ color: a.warn ? C.alert : C.inkSoft }}>
+                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: a.warn ? C.alert : C.brass }} />
+                      <span className="min-w-0 flex-1">{a.text}</span>
+                    </button>
+                  </li>
+                ))}
+                {attention.length > 5 && <li className="text-xs text-slate-500">+ {attention.length - 5} more</li>}
+              </ul>
+            </section>
+          );
+        })()}
         <section>
           <button onClick={() => toggleSection("on")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
             <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>On <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {onFilled}/10</span></h2>
@@ -1960,8 +2008,9 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     }
     if (addMode === "pick") {
       const q = addPickSearch.trim().toLowerCase();
-      const results = q ? library.filter((b) => [b.name, b.brewery, b.style, b.category].some((x) => (x || "").toLowerCase().includes(q))) : [];
-      const recent = library.slice(-5).reverse();
+      const pickable = library.filter((b) => !b.archived);
+      const results = q ? pickable.filter((b) => [b.name, b.brewery, b.style, b.category].some((x) => (x || "").toLowerCase().includes(q))) : [];
+      const recent = pickable.slice(-5).reverse();
       const pickRow = (b) => (
         <button key={b.id} onClick={() => pickBeer(b)} className="flex w-full items-center justify-between gap-2 rounded-lg border p-2.5 text-left transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: CAT_ACCENT[b.category] || C.line }}>
           <span className="min-w-0">
@@ -2026,6 +2075,8 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     const knownBeer = findSavedBeer(form.brewery, form.name);
     const carriedPrice = knownBeer ? latestPrice(knownBeer) : "";
     const priceNeedsConfirm = !!carriedPrice && form.price.trim() === carriedPrice.trim();
+    const carriedSupplier = knownBeer ? latestSupplier(knownBeer) : "";
+    const supplierNeedsConfirm = !!carriedSupplier && form.caskOwner.trim() === carriedSupplier.trim();
     return (
       <div className="mx-auto max-w-2xl space-y-5">
         <button onClick={() => { setAddMode("pick"); setFillNote(null); }} className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"><ArrowRight size={14} className="rotate-180" /> Back to library</button>
@@ -2072,11 +2123,14 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="Price (£)">
               <input className={inputCls} value={form.price} onChange={(e) => setF({ price: e.target.value })} placeholder="e.g. 4.40" />
-              {priceNeedsConfirm && <p className="mt-1 text-xs font-medium" style={{ color: C.brass }}>Previous price -- please confirm</p>}
+              {priceNeedsConfirm && <p className="mt-1 text-xs font-medium" style={{ color: C.brass }}>Previous price — please confirm</p>}
             </Field>
             {form.drinkType !== "cask" && <Field label="Container"><select className={inputCls} value={form.size} onChange={(e) => setF({ size: e.target.value })}>{SIZE_OPTIONS.map((s) => <option key={s}>{s}</option>)}</select></Field>}
           </div>
-          <Field label="Supplied by"><input className={inputCls} value={form.caskOwner} onChange={(e) => setF({ caskOwner: e.target.value })} placeholder={form.brewery ? `Defaults to ${form.brewery}` : "Defaults to the brewery"} /></Field>
+          <Field label="Supplied by">
+            <input className={inputCls} value={form.caskOwner} onChange={(e) => setF({ caskOwner: e.target.value })} placeholder={form.brewery ? `Defaults to ${form.brewery}` : "Defaults to the brewery"} />
+            {supplierNeedsConfirm && <p className="mt-1 text-xs font-medium" style={{ color: C.brass }}>Previous supplier — please confirm</p>}
+          </Field>
           <Field label="Best before">
             <input type="date" className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" value={form.bestBefore} onChange={(e) => setF({ bestBefore: e.target.value })} />
           </Field>
@@ -2130,9 +2184,10 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
   const Library = () => {
     const q = librarySearch.trim().toLowerCase();
     const match = (b) => [b.name, b.brewery, b.style, b.category, b.location].some((x) => (x || "").toLowerCase().includes(q));
-    const justAddedBeers = library.filter((b) => b.justAdded);
+    const justAddedBeers = library.filter((b) => b.justAdded && !b.archived);
     const results = q ? library.filter(match) : [];
-    const rest = library.filter((b) => !b.justAdded).slice().sort((a, b) => {
+    const archived = library.filter((b) => b.archived).slice().sort((a, b) => (a.brewery || "").localeCompare(b.brewery || "") || (a.name || "").localeCompare(b.name || ""));
+    const rest = library.filter((b) => !b.justAdded && !b.archived).slice().sort((a, b) => {
       if (a.allergensVerified !== b.allergensVerified) return a.allergensVerified ? 1 : -1;
       return (a.brewery || "").localeCompare(b.brewery || "") || (a.name || "").localeCompare(b.name || "");
     });
@@ -2146,7 +2201,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{b.brewery ? `${b.brewery} - ` : ""}{b.name}</p>
               <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{b.style} · {b.abv}%{!b.allergensVerified ? " · not staff verified" : ""}</p>
-              <p className="truncate text-xs text-slate-400">{b.location || ""}{latestPrice(b) ? ` · Previous: £${latestPrice(b)}` : ""}</p>
+              <p className="truncate text-xs text-slate-400">{b.location || ""}{latestPrice(b) ? ` · Previous: £${latestPrice(b)}` : ""}{latestSupplier(b) ? ` · from ${latestSupplier(b)}` : ""}</p>
             </div>
             <div className="flex shrink-0 items-center gap-1">
               <button onClick={() => addLineOfBeer(b)} title="Add to cellar" className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Plus size={13} /> Add</button>
@@ -2158,7 +2213,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
             <div className="mt-2.5 rounded-lg border p-2.5" style={{ borderColor: C.line, background: "#FAFAF8" }}>
               {!h.length ? <p className="text-xs text-slate-400">No history yet.</p> : (
                 <>
-                  <div className="mb-1 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-slate-400"><span>When</span><span className="flex gap-4"><span>ABV</span><span>Price</span></span></div>
+                  <div className="mb-1 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-slate-400"><span>When</span><span className="flex gap-4"><span>ABV</span><span>Price</span><span>Supplier</span></span></div>
                   <ul className="space-y-1">
                     {h.map((e, i) => {
                       const prev = i > 0 ? h[i - 1] : null;
@@ -2170,8 +2225,9 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                         <li key={i} className="flex items-center justify-between text-xs">
                           <span className="text-slate-500">{new Date(e.date).toLocaleDateString("en-GB", { month: "short", year: "2-digit" })}</span>
                           <span className="flex items-center gap-4">
-                            <span className={abvCh ? "font-semibold text-amber-700" : "text-slate-600"}>{e.abv || "--"}%</span>
-                            <span className={priceCh ? (pN > pP ? "font-semibold text-red-600" : "font-semibold text-emerald-600") : "text-slate-600"}>£{e.price || "--"}{priceCh ? (pN > pP ? " ↑" : " ↓") : ""}</span>
+                            <span className={abvCh ? "font-semibold text-amber-700" : "text-slate-600"}>{e.abv || "—"}%</span>
+                            <span className={priceCh ? (pN > pP ? "font-semibold text-red-600" : "font-semibold text-emerald-600") : "text-slate-600"}>£{e.price || "—"}{priceCh ? (pN > pP ? " ↑" : " ↓") : ""}</span>
+                            <span className="text-slate-600">{e.caskOwner || "—"}</span>
                           </span>
                         </li>
                       );
@@ -2215,7 +2271,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                   {justAddedBeers.map((b) => (
                     <div key={b.id} className="rounded-lg border p-2.5" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: CAT_ACCENT[b.category] || C.line }}>
                       <p className="truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{b.brewery ? `${b.brewery} - ` : ""}{b.name}</p>
-                      <p className="truncate text-xs font-medium text-slate-600">{b.style ? b.style : "--"}{b.abv ? ` · ${b.abv}%` : ""}{!b.allergensVerified ? " · not staff verified" : ""}</p>
+                      <p className="truncate text-xs font-medium text-slate-600">{b.style ? b.style : "—"}{b.abv ? ` · ${b.abv}%` : ""}{!b.allergensVerified ? " · not staff verified" : ""}</p>
                       <p className="truncate text-xs text-slate-400">{b.location || ""}</p>
                       <div className="mt-2 flex items-center gap-1.5">
                         <button onClick={() => setEditBeerId(b.id)} className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50 focus:outline-none" style={{ borderColor: C.line }}><Pencil size={13} /> Check &amp; edit</button>
@@ -2238,7 +2294,109 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                 <div className="space-y-2">{rest.map(libRow)}</div>
               </div>
             )}
+            {archived.length > 0 && (
+              <div>
+                <button onClick={() => setShowArchived((v) => !v)} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Archived <span className="font-normal">· {archived.length}</span></p>
+                  <ChevronDown size={16} className="text-slate-400" style={{ transform: showArchived ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
+                </button>
+                {showArchived && <div className="mt-1.5 space-y-2" style={{ opacity: 0.75 }}>{archived.map(libRow)}</div>}
+              </div>
+            )}
           </>
+        )}
+      </div>
+    );
+  };
+
+  const Stats = () => {
+    const histOf = (b) => (b.history || []).slice().sort((x, y) => new Date(x.date) - new Date(y.date));
+    const active = library.filter((b) => !b.archived);
+
+    // Most restocked: how many times each beer has been delivered
+    const restocked = active.map((b) => ({ b, n: (b.history || []).length })).filter((x) => x.n >= 2).sort((a, z) => z.n - a.n).slice(0, 5);
+
+    // Price rises: beers whose latest price is above their first recorded price
+    const risers = active.map((b) => {
+      const h = histOf(b).filter((e) => e.price && !isNaN(parseFloat(e.price)));
+      if (h.length < 2) return null;
+      const first = parseFloat(h[0].price), last = parseFloat(h[h.length - 1].price);
+      if (last <= first) return null;
+      return { b, first, last, up: last - first };
+    }).filter(Boolean).sort((a, z) => z.up - a.up).slice(0, 5);
+
+    // Deliveries by supplier, from history entries
+    const bySupplier = {};
+    active.forEach((b) => (b.history || []).forEach((e) => { const k = e.caskOwner || null; if (k) bySupplier[k] = (bySupplier[k] || 0) + 1; }));
+    const suppliers = Object.entries(bySupplier).sort((a, z) => z[1] - a[1]).slice(0, 6);
+    const supMax = suppliers.length ? suppliers[0][1] : 0;
+
+    // Average cask lifespan from finished cask lines with real on/off dates
+    const finishedCasks = lines.filter((l) => l.drinkType === "cask" && l.status === "off" && l.dates.on && l.dates.off);
+    const avgDays = finishedCasks.length ? Math.round(finishedCasks.reduce((t, l) => t + dayDiff(l.dates.on, l.dates.off), 0) / finishedCasks.length * 10) / 10 : null;
+
+    const nothingYet = !restocked.length && !risers.length && !suppliers.length && avgDays === null;
+    const rowName = (b) => `${b.brewery ? b.brewery + " - " : ""}${b.name}`;
+
+    return (
+      <div className="space-y-4">
+        {nothingYet && (
+          <div className="cc-elev rounded-xl border p-6 text-center" style={{ background: C.paper, borderColor: C.line }}>
+            <BarChart3 size={22} className="mx-auto mb-2 text-slate-300" />
+            <p className="font-semibold" style={{ color: C.ink }}>Not enough history yet</p>
+            <p className="mt-1 text-sm text-slate-500">Stats build up as beers are delivered and finished. Check back after a few restocks.</p>
+          </div>
+        )}
+        {avgDays !== null && (
+          <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Average cask lifespan</p>
+            <p className="mt-1 text-2xl font-bold" style={{ color: C.ink, fontFamily: "var(--font-data)" }}>{avgDays} days <span className="text-sm font-normal text-slate-400">on the pump · from {finishedCasks.length} finished cask{finishedCasks.length === 1 ? "" : "s"}</span></p>
+          </div>
+        )}
+        {restocked.length > 0 && (
+          <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Most restocked</p>
+            <ul className="space-y-1.5">
+              {restocked.map(({ b, n }) => (
+                <li key={b.id} className="flex items-center justify-between gap-2 text-sm">
+                  <span className="min-w-0 truncate" style={{ color: C.inkSoft }}>{rowName(b)}</span>
+                  <span className="shrink-0 font-semibold" style={{ color: C.brass, fontFamily: "var(--font-data)" }}>{n}×</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {suppliers.length > 0 && (
+          <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Deliveries by supplier</p>
+            <ul className="space-y-2">
+              {suppliers.map(([name, n]) => (
+                <li key={name}>
+                  <div className="mb-0.5 flex items-center justify-between text-sm">
+                    <span style={{ color: C.inkSoft }}>{name}</span>
+                    <span className="font-semibold" style={{ color: C.ink, fontFamily: "var(--font-data)" }}>{n}</span>
+                  </div>
+                  <div className="h-1.5 overflow-hidden rounded-full" style={{ background: C.stone }}>
+                    <div className="h-full rounded-full" style={{ width: `${Math.round((n / supMax) * 100)}%`, background: C.brass }} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 text-xs text-slate-400">Counted from delivery history. Older deliveries from before supplier tracking aren't included.</p>
+          </div>
+        )}
+        {risers.length > 0 && (
+          <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Price rises since first stocked</p>
+            <ul className="space-y-1.5">
+              {risers.map(({ b, first, last, up }) => (
+                <li key={b.id} className="flex items-center justify-between gap-2 text-sm">
+                  <span className="min-w-0 truncate" style={{ color: C.inkSoft }}>{rowName(b)}</span>
+                  <span className="shrink-0" style={{ fontFamily: "var(--font-data)" }}><span className="text-slate-400">£{first.toFixed(2)} →</span> <span className="font-semibold" style={{ color: C.alert }}>£{last.toFixed(2)}</span></span>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
       </div>
     );
@@ -2320,7 +2478,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                           <span className="block truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer ? `${beer.brewery ? beer.brewery + " - " : ""}${beer.name}` : "Unknown"}</span>
                           {beer && <span className="block truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{dt}{beer.style ? ` · ${beer.style}` : ""}{beer.abv ? ` · ${beer.abv}%` : ""}</span>}
                           {beer && beer.location && <span className="block truncate text-xs text-slate-400" style={{ fontFamily: "var(--font-data)" }}>{beer.location}</span>}
-                          <span className="block truncate text-xs text-slate-500" style={{ fontFamily: "var(--font-data)" }}>{l.size ? `${l.size} · ` : ""}finished {l.dates.off ? fmtDate(l.dates.off.slice(0, 10)) : "--"}</span>
+                          <span className="block truncate text-xs text-slate-500" style={{ fontFamily: "var(--font-data)" }}>{l.size ? `${l.size} · ` : ""}finished {l.dates.off ? fmtDate(l.dates.off.slice(0, 10)) : "—"}</span>
                         </span>
                         <button onClick={() => markCollected(l.id)} className="inline-flex shrink-0 items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><Check size={13} /> Collected</button>
                       </li>
@@ -2357,7 +2515,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
       <div className="space-y-5">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <Stat label="On now" value={onNow.length} />
-          <Stat label="Avg days a cask lasts" value={avgDays == null ? "--" : avgDays} sub={lasted.length ? `from ${lasted.length} finished` : "no finished casks yet"} />
+          <Stat label="Avg days a cask lasts" value={avgDays == null ? "—" : avgDays} sub={lasted.length ? `from ${lasted.length} finished` : "no finished casks yet"} />
           <Stat label="In the library" value={library.length} />
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -2546,7 +2704,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           <div className="flex items-baseline justify-between gap-3">
             <p className="text-lg font-semibold" style={{ color: C.cream, fontFamily: "var(--font-display)" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</p>
             <div className="shrink-0 text-right">
-              <p className="text-lg font-semibold" style={{ color: C.brassSoft, fontFamily: "var(--font-display)" }}>{tlp ? tlp.pint : `£${line.price || "--"}`}</p>
+              <p className="text-lg font-semibold" style={{ color: C.brassSoft, fontFamily: "var(--font-display)" }}>{tlp ? tlp.pint : `£${line.price || "—"}`}</p>
               {tlp && <p className="text-xs" style={{ color: "rgba(243,239,230,0.55)" }}>Half {tlp.half} · Schooner {tlp.schooner}</p>}
             </div>
           </div>
@@ -2632,7 +2790,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     const emptyMsg = isCask ? "Nothing racked, vented or tapped yet. Rack and vent a cask to get one ready." : `Nothing in the store to put on. Add ${swap.drink === "keg" ? "a keg" : "a cider"} first.`;
     const previewLine = swapPreviewId ? lines.find((l) => l.id === swapPreviewId) : null;
     const previewBeer = previewLine ? beerById[previewLine.beerId] : null;
-    const pmeta = previewBeer ? [DRINK_TYPES.find((t) => t.key === previewLine.drinkType)?.label, previewBeer.style, `${previewBeer.abv}%`, `£${previewLine.price || "--"}`, previewLine.size ? previewLine.size.replace("Bag-in-box ", "").replace("Keg ", "") : ""].filter(Boolean).join("  ·  ") : "";
+    const pmeta = previewBeer ? [DRINK_TYPES.find((t) => t.key === previewLine.drinkType)?.label, previewBeer.style, `${previewBeer.abv}%`, `£${previewLine.price || "—"}`, previewLine.size ? previewLine.size.replace("Bag-in-box ", "").replace("Keg ", "") : ""].filter(Boolean).join("  ·  ") : "";
     return (
       <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(28,54,54,0.45)" }} onClick={close}>
         <div className="flex w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-white sm:rounded-2xl cc-pop" style={{ maxHeight: "85vh" }} onClick={(e) => e.stopPropagation()}>
@@ -2760,6 +2918,10 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
             </Field>
             <label className="flex items-center gap-2 rounded-lg bg-slate-50 p-2.5 text-sm"><input type="checkbox" checked={!!beer.allergensVerified} onChange={(e) => updateBeer(beer.id, { allergensVerified: e.target.checked })} className="h-4 w-4" /><span className="text-slate-700">Allergens verified against the producer's own information</span></label>
             <Field label="Tasting notes"><textarea className={inputCls} rows={3} value={beer.notes || ""} onChange={(e) => updateBeer(beer.id, { notes: e.target.value })} /></Field>
+            <button onClick={() => { updateBeer(beer.id, { archived: !beer.archived }); close(); }} className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium text-slate-500 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>
+              <Package size={15} /> {beer.archived ? "Restore from archive" : "Archive this beer"}
+            </button>
+            {!beer.archived && <p className="text-xs text-slate-400">Archiving hides it from your library and search without deleting its history. You can restore it any time.</p>}
             <button onClick={close} className="mt-1 inline-flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}>Done</button>
           </div>
         </div>
@@ -2975,7 +3137,7 @@ body { touch-action: manipulation; overscroll-behavior-y: contain; }
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
                 <div className="absolute right-0 top-full z-50 mt-1 w-44 overflow-hidden rounded-lg border bg-white shadow-lg" style={{ borderColor: C.line }}>
-                  {[["library", "Library", BookOpen], ["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["backup", "Backup", Database]].map(([id, label, Icon]) => (
+                  {[["library", "Library", BookOpen], ["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["stats", "Cellar Stats", BarChart3], ["backup", "Backup", Database]].map(([id, label, Icon]) => (
                     <button key={id} onClick={() => { setMenuOpen(false); go(id); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"><Icon size={15} className="text-slate-400" />{label}</button>
                   ))}
                 </div>
@@ -3002,6 +3164,7 @@ body { touch-action: manipulation; overscroll-behavior-y: contain; }
             {view === "allergens" && AllergenSheet()}
             {view === "stock" && StockSheet()}
             {view === "empties" && Empties()}
+            {view === "stats" && Stats()}
             {view === "backup" && Backup()}
             </div>
           </>
@@ -3033,7 +3196,7 @@ body { touch-action: manipulation; overscroll-behavior-y: contain; }
           <div className="cc-sheet absolute inset-x-0 bottom-0 rounded-t-2xl bg-white p-4" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 16px)" }}>
             <div className="mx-auto mb-3 h-1.5 w-10 rounded-full" style={{ background: C.line }} />
             <div className="grid grid-cols-3 gap-2.5">
-              {[["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["backup", "Backup", Database]].map(([id, label, Icon]) => (
+              {[["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["stats", "Cellar Stats", BarChart3], ["backup", "Backup", Database]].map(([id, label, Icon]) => (
                 <button key={id} onClick={() => { setMenuOpen(false); go(id); }} className="flex flex-col items-center gap-1.5 rounded-xl border p-3 transition active:scale-95" style={{ borderColor: C.line, color: C.ink }}>
                   <Icon size={20} style={{ color: C.brass }} />
                   <span className="text-center text-xs font-medium leading-tight">{label}</span>
@@ -3044,6 +3207,14 @@ body { touch-action: manipulation; overscroll-behavior-y: contain; }
         </div>
       )}
       </>)}
+      {toast && (
+        <div className="no-print fixed inset-x-0 bottom-24 z-50 flex justify-center px-4 sm:bottom-4">
+          <div className="cc-pop flex items-center gap-2 rounded-full px-4 py-2 text-sm text-white shadow-lg" style={{ background: C.ink }}>
+            <AlertTriangle size={14} style={{ color: C.brassSoft }} />
+            <span>{toast}</span>
+          </div>
+        </div>
+      )}
       {undoState && (
         <div className="no-print fixed inset-x-0 bottom-24 z-50 flex justify-center px-4 sm:bottom-4">
           <div className="flex items-center gap-3 rounded-full px-4 py-2 text-sm text-white shadow-lg" style={{ background: C.ink }}>
