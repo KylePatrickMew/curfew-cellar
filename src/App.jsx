@@ -1819,7 +1819,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     const renderSlot = (slot, k, urgent) => (
       <div key={k} className={urgent ? "flex items-center gap-2" : ""}>
         {urgent ? (
-          <span className="grid shrink-0 place-items-center" style={{ width: 22, height: 27, borderRadius: "11px 11px 3px 3px", background: C.ink, color: C.brassSoft, fontFamily: "var(--font-data)", fontSize: 10, fontWeight: 700, paddingTop: 2 }}>{String(PUMP_NUMBER[slot.slot]).padStart(2, "0")}</span>
+          <span className="grid shrink-0 place-items-center rounded-md" style={{ width: 22, height: 22, background: C.ink, color: C.brassSoft, fontFamily: "var(--font-data)", fontSize: 10, fontWeight: 700 }}>{String(PUMP_NUMBER[slot.slot]).padStart(2, "0")}</span>
         ) : (
           <p className="mb-0.5 text-xs font-semibold uppercase tracking-wide text-slate-400">{slot.label}</p>
         )}
@@ -2023,6 +2023,9 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
       );
     }
     const allergenSummary = [form.allergens.length ? form.allergens.join(", ") : "no allergens set", form.vegan ? "vegan" : null, form.glutenStatus !== "Standard" ? form.glutenStatus.toLowerCase() : null, form.allergensVerified ? "verified" : "unverified"].filter(Boolean).join(" · ");
+    const knownBeer = findSavedBeer(form.brewery, form.name);
+    const carriedPrice = knownBeer ? latestPrice(knownBeer) : "";
+    const priceNeedsConfirm = !!carriedPrice && form.price.trim() === carriedPrice.trim();
     return (
       <div className="mx-auto max-w-2xl space-y-5">
         <button onClick={() => { setAddMode("pick"); setFillNote(null); }} className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"><ArrowRight size={14} className="rotate-180" /> Back to library</button>
@@ -2037,11 +2040,11 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
               ))}
             </div>
           </Field>
+          <div className="mt-3"><Field label="Name"><input className={inputCls} value={form.name} onChange={(e) => setF({ name: e.target.value })} placeholder="e.g. Border Reiver IPA" /></Field></div>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <Field label="Producer / brewery"><input className={inputCls} value={form.brewery} onChange={(e) => setF({ brewery: e.target.value })} placeholder="e.g. Wylam" /></Field>
             <Field label="Location"><input className={inputCls} value={form.location} onChange={(e) => setF({ location: e.target.value })} placeholder="e.g. Berwick-upon-Tweed" /></Field>
           </div>
-          <div className="mt-3"><Field label="Name"><input className={inputCls} value={form.name} onChange={(e) => setF({ name: e.target.value })} placeholder="e.g. Border Reiver IPA" /></Field></div>
           <button onClick={autoFill} disabled={loading} className="mt-3 inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:opacity-60" style={{ borderColor: C.brass, color: C.brass }}>
             {loading ? <><Loader2 size={16} className="animate-spin" /> Filling in…</> : <><Sparkles size={16} /> Auto-fill</>}
           </button>
@@ -2058,18 +2061,19 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
             <Field label="Style"><input className={inputCls} value={form.style} onChange={(e) => setF(form.drinkType === "cask" ? { style: e.target.value, category: categorise(e.target.value, form.abv) } : { style: e.target.value })} placeholder="e.g. IPA" /></Field>
             <Field label="ABV %"><input className={inputCls} value={form.abv} onChange={(e) => setF(form.drinkType === "cask" ? { abv: e.target.value, category: categorise(form.style, e.target.value) } : { abv: e.target.value })} placeholder="e.g. 5.4" /></Field>
           </div>
-          {form.drinkType === "cask" && (
-            <Field label="Category">
-              <div className="flex flex-wrap gap-2">
-                {CATEGORIES.map((cat) => (
-                  <button key={cat} onClick={() => setF({ category: cat })} className="rounded-full border px-3 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-slate-400"
-                    style={form.category === cat ? { background: C.ink, color: "#fff", borderColor: C.ink } : { borderColor: C.line, color: C.inkSoft }}>{cat}</button>
-                ))}
-              </div>
-            </Field>
-          )}
+          <Field label="Category">
+            <div className="flex flex-wrap gap-2">
+              {[...CATEGORIES, "Cider", "Sour"].map((cat) => (
+                <button key={cat} onClick={() => setF({ category: cat })} className="rounded-full border px-3 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-slate-400"
+                  style={form.category === cat ? { background: C.ink, color: "#fff", borderColor: C.ink } : { borderColor: C.line, color: C.inkSoft }}>{cat}</button>
+              ))}
+            </div>
+          </Field>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field label="Price (£)"><input className={inputCls} value={form.price} onChange={(e) => setF({ price: e.target.value })} placeholder="e.g. 4.40" /></Field>
+            <Field label="Price (£)">
+              <input className={inputCls} value={form.price} onChange={(e) => setF({ price: e.target.value })} placeholder="e.g. 4.40" />
+              {priceNeedsConfirm && <p className="mt-1 text-xs font-medium" style={{ color: C.brass }}>Previous price -- please confirm</p>}
+            </Field>
             {form.drinkType !== "cask" && <Field label="Container"><select className={inputCls} value={form.size} onChange={(e) => setF({ size: e.target.value })}>{SIZE_OPTIONS.map((s) => <option key={s}>{s}</option>)}</select></Field>}
           </div>
           <Field label="Supplied by"><input className={inputCls} value={form.caskOwner} onChange={(e) => setF({ caskOwner: e.target.value })} placeholder={form.brewery ? `Defaults to ${form.brewery}` : "Defaults to the brewery"} /></Field>
@@ -2099,8 +2103,8 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
               </Field>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Field label="Gluten status"><select className={inputCls} value={form.glutenStatus} onChange={(e) => setF({ glutenStatus: e.target.value })}>{GLUTEN_OPTIONS.map((g) => <option key={g}>{g}</option>)}</select></Field>
-                <Field label="Vegan"><button onClick={() => setF({ vegan: !form.vegan })} className={`w-full rounded-lg border px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-400 ${form.vegan ? "border-emerald-300 bg-emerald-50 text-emerald-700" : "border-slate-300 text-slate-500 hover:bg-slate-50"}`}>{form.vegan ? "Vegan friendly" : "Not vegan / unknown"}</button></Field>
               </div>
+              <button onClick={() => setF({ vegan: !form.vegan })} className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-400" style={form.vegan ? { background: C.ink, color: "#fff", borderColor: C.ink } : { borderColor: C.line, color: C.inkSoft }}>{form.vegan ? <Check size={15} /> : null} Vegan</button>
               <Field label="Allergens">
                 <div className="flex flex-wrap gap-2">
                   {ALLERGEN_OPTIONS.map((a) => (
@@ -2142,7 +2146,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{b.brewery ? `${b.brewery} - ` : ""}{b.name}</p>
               <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{b.style} · {b.abv}%{!b.allergensVerified ? " · not staff verified" : ""}</p>
-              <p className="truncate text-xs text-slate-400">{b.location || ""}</p>
+              <p className="truncate text-xs text-slate-400">{b.location || ""}{latestPrice(b) ? ` · Previous: £${latestPrice(b)}` : ""}</p>
             </div>
             <div className="flex shrink-0 items-center gap-1">
               <button onClick={() => addLineOfBeer(b)} title="Add to cellar" className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Plus size={13} /> Add</button>
@@ -2300,9 +2304,9 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           const items = empties.filter((l) => (l.caskOwner || "Unknown") === owner);
           const open = !!prefs.empties[owner];
           return (
-            <div key={owner} className="cc-elev rounded-xl border" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: C.brass }}>
+            <div key={owner} className="rounded-xl border" style={{ background: C.paper, borderColor: C.line }}>
               <button onClick={() => setPrefs((p) => ({ ...p, empties: { ...p.empties, [owner]: !p.empties[owner] } }))} className="flex w-full items-center justify-between gap-2 p-3 text-left focus:outline-none">
-                <p className="font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{owner} <span className="text-sm font-bold" style={{ color: C.brass, fontFamily: "var(--font-data)" }}>· {items.length}</span></p>
+                <p className="font-semibold" style={{ color: C.ink }}>{owner} <span className="text-sm font-normal text-slate-400">· {items.length}</span></p>
                 <ChevronDown size={18} className="text-slate-400" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
               </button>
               {open && (
@@ -2393,17 +2397,14 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     ].filter((g) => g.items.length);
     return (
       <div className="space-y-4">
-        <div className="no-print flex items-center justify-between gap-2">
-          <p className="min-w-0 truncate text-xs" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>{fmtUpdated(lastUpdated) ? `Updated ${fmtUpdated(lastUpdated)}` : ""}</p>
-          <div className="flex shrink-0 items-center gap-2">
-            <button onClick={shareAllergenPDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-1.5 py-1.5 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40 focus:outline-none" style={{ color: "#778883" }}>{pdfBusy ? <Loader2 className="animate-spin" size={13} /> : <Download size={13} />} Share PDF</button>
-            <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Printer size={15} /> Print</button>
-          </div>
+        <div className="no-print flex items-center justify-end gap-2">
+          <button onClick={shareAllergenPDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-1.5 py-1.5 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40 focus:outline-none" style={{ color: "#778883" }}>{pdfBusy ? <Loader2 className="animate-spin" size={13} /> : <Download size={13} />} Share PDF</button>
+          <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Printer size={15} /> Print</button>
         </div>
         <div id="allergen-sheet" className="cc-elev rounded-xl border p-5" style={{ background: C.paper, borderColor: C.line }}>
           <h1 className="text-xl font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>What's on: allergen and dietary guide</h1>
           <p className="mt-0.5 text-xs text-slate-500">Please confirm with staff before ordering.</p>
-          {fmtUpdated(lastUpdated) && <p className="print-only mt-0.5 text-xs text-slate-400">Last updated: {fmtUpdated(lastUpdated)}</p>}
+          {fmtUpdated(lastUpdated) && <p className="mt-0.5 text-xs text-slate-400">Last updated: {fmtUpdated(lastUpdated)}</p>}
           {groups.length === 0 && <p className="mt-4 text-sm text-slate-400">Nothing on right now.</p>}
           {groups.map((g) => (
             <div key={g.title} className="mt-4">
@@ -2475,15 +2476,12 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     }).filter(Boolean);
     return (
       <div className="space-y-4">
-        <div className="no-print flex items-center justify-between gap-2">
-          <p className="min-w-0 truncate text-xs" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>{fmtUpdated(lastUpdated) ? `Updated ${fmtUpdated(lastUpdated)}` : ""}</p>
-          <div className="flex shrink-0 items-center gap-2">
-            <button onClick={sharePDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-1.5 py-1.5 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40 focus:outline-none" style={{ color: "#778883" }}>{pdfBusy ? <Loader2 className="animate-spin" size={13} /> : <Download size={13} />} Share PDF</button>
-            <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Printer size={15} /> Print</button>
-          </div>
+        <div className="no-print flex items-center justify-end gap-2">
+          <button onClick={sharePDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-1.5 py-1.5 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40 focus:outline-none" style={{ color: "#778883" }}>{pdfBusy ? <Loader2 className="animate-spin" size={13} /> : <Download size={13} />} Share PDF</button>
+          <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Printer size={15} /> Print</button>
         </div>
         <div className="cc-elev rounded-xl border p-5" style={{ background: C.paper, borderColor: C.line }}>
-          {fmtUpdated(lastUpdated) && <p className="print-only text-xs text-slate-400">Last updated: {fmtUpdated(lastUpdated)}</p>}
+          {fmtUpdated(lastUpdated) && <p className="text-xs text-slate-400">Last updated: {fmtUpdated(lastUpdated)}</p>}
           {total === 0 && <p className="mt-4 text-sm text-slate-400">No stock yet.</p>}
           <Section title="On" items={onL} withStage={false} />
           <Section title="In Cellar" items={prep} withStage={true} />
@@ -2563,62 +2561,21 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
       );
     };
 
-    // Poster arch header: pale-aqua sky gradient, simplified tower mark, full wordmark
-    // lockup and the five-pint bridge arcade, mirroring Kyle's merch poster. The bell
-    // stays as the staff-facing app chrome; the tower lockup is customer-facing only.
-    const PINTS = ["#E3C84B", "#E8A83C", "#D07A33", "#C04B37", "#7A4A2E"];
-    const TowerMark = () => (
-      <svg viewBox="0 0 100 112" width="66" height="74" aria-hidden="true" style={{ display: "block", margin: "0 auto" }}>
-        <g fill={C.ink}>
-          <rect x="53" y="2" width="2.5" height="19" />
-          <path d="M55.5 3 C 66 -1.5, 78 0.5, 89 6.5 C 78 10, 66.5 11.5, 55.5 15.5 Z" />
-          <path d="M16 21 h12 v7 h10 v-7 h12 v7 h10 v-7 h12 v7 h10 v-7 h2 v15 h-68 Z" />
-          <rect x="16" y="36" width="8" height="72" />
-          <rect x="76" y="36" width="8" height="72" />
-          <rect x="24" y="36" width="52" height="6" />
-          <rect x="24" y="46" width="52" height="2.2" />
-          {[28, 38, 48, 58, 68].map((x) => <path key={x} d={`M${x} 42 h3.2 v9 l-1.6 5 l-1.6 -5 Z`} />)}
-          <circle cx="50" cy="86" r="3.4" fill="none" stroke={C.ink} strokeWidth="2.6" />
-          <path d="M48.7 84 L48.9 68 L50 63.5 L51.1 68 L51.3 84 Z" />
-          <path d="M47.6 87.5 L36.5 92.5 L33 92.2 L36.2 89.5 L47 84.8 Z" />
-        </g>
-      </svg>
-    );
-    const Arcade = () => (
-      <svg viewBox="0 0 320 60" preserveAspectRatio="none" aria-hidden="true" style={{ display: "block", width: "100%", height: 58, marginTop: 20 }}>
-        {PINTS.map((col, i) => {
-          const x = i * 64;
-          return (
-            <g key={i}>
-              <rect x={x + 7} y={22} width={50} height={38} fill={col} />
-              <rect x={x + 7} y={22} width={50} height={6} fill="#F6F1E4" />
-            </g>
-          );
-        })}
-        <path fillRule="evenodd" fill={C.ink} d={`M0 0 H320 V60 H0 Z ${PINTS.map((_, i) => { const x = i * 64; return `M${x + 8} 60 V32 A24 17 0 0 1 ${x + 56} 32 V60 Z`; }).join(" ")}`} />
-      </svg>
-    );
     return (
       <div className="min-h-screen" style={{ background: C.ink }}>
-        <div className="relative mx-auto max-w-2xl px-5 py-8">
-          <button onClick={() => go("cellar")} className="absolute right-5 top-6 z-10 rounded-lg border px-3 py-1.5 text-xs font-medium" style={{ borderColor: C.brass, color: C.brassSoft, background: "rgba(28,54,54,0.6)" }}>Exit preview</button>
-          <div className="mx-auto cc-fade" style={{ maxWidth: 290 }}>
-            <div className="overflow-hidden" style={{ borderRadius: "145px 145px 10px 10px", background: "linear-gradient(180deg, #9CCFC9 0%, #CBDFD3 42%, #F6F1E4 76%)", boxShadow: "0 24px 48px -20px rgba(0,0,0,0.6), 0 2px 0 rgba(209,164,74,0.35)" }}>
-              <div className="px-6 pb-0 pt-12 text-center">
-                <TowerMark />
-                <p className="mt-3 font-semibold uppercase" style={{ color: C.ink, fontFamily: "var(--font-display)", fontSize: 11, letterSpacing: "0.45em", marginRight: "-0.45em" }}>The</p>
-                <p className="font-extrabold uppercase leading-none" style={{ color: C.ink, fontFamily: "var(--font-display)", fontSize: 34, letterSpacing: "0.14em", marginRight: "-0.14em" }}>Curfew</p>
-                <div className="mx-auto mt-2" style={{ height: 5, width: 92, background: C.ink }} />
-                <p className="mt-2 font-bold uppercase" style={{ color: C.ink, fontFamily: "var(--font-data)", fontSize: 11, letterSpacing: "0.3em", marginRight: "-0.3em" }}>Micropub</p>
+        <div className="mx-auto max-w-2xl px-5 py-8">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="grid h-11 w-11 place-items-center rounded-full" style={{ background: C.brass, color: C.ink }}><Bell size={22} /></div>
+              <div>
+                <p className="text-2xl font-semibold leading-tight" style={{ color: C.cream, fontFamily: "var(--font-display)", letterSpacing: "0.03em" }}>The Curfew</p>
+                <p className="text-xs uppercase tracking-widest" style={{ color: C.brassSoft }}>What's on today</p>
               </div>
-              <Arcade />
             </div>
+            <button onClick={() => go("cellar")} className="shrink-0 rounded-lg border px-3 py-1.5 text-xs font-medium" style={{ borderColor: C.brass, color: C.brassSoft }}>Exit preview</button>
           </div>
-          <div className="mt-6 text-center">
-            <p className="text-sm font-semibold uppercase" style={{ color: C.brassSoft, letterSpacing: "0.28em", marginRight: "-0.28em", fontFamily: "var(--font-data)" }}>What's on today</p>
-            {fmtUpdated(lastUpdated) && <p className="mt-2 text-xs" style={{ color: "rgba(243,239,230,0.5)" }}>Last updated: {fmtUpdated(lastUpdated)}</p>}
-            <button onClick={shareTapListPDF} disabled={pdfBusy} className="mt-1.5 inline-flex items-center gap-1 px-0 py-1 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40" style={{ color: "rgba(209,164,74,0.75)" }}>{pdfBusy ? <Loader2 className="animate-spin" size={12} /> : <Download size={12} />} Share PDF</button>
-          </div>
+          {fmtUpdated(lastUpdated) && <p className="mt-3 text-xs" style={{ color: "rgba(243,239,230,0.5)" }}>Last updated: {fmtUpdated(lastUpdated)}</p>}
+          <button onClick={shareTapListPDF} disabled={pdfBusy} className="mt-2 inline-flex items-center gap-1 px-0 py-1 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40" style={{ color: "rgba(209,164,74,0.75)" }}>{pdfBusy ? <Loader2 className="animate-spin" size={12} /> : <Download size={12} />} Share PDF</button>
 
           <div className="mt-8">
             {on.length === 0 && <p className="py-12 text-center" style={{ color: "rgba(243,239,230,0.6)" }}>Nothing on just now. Check back soon.</p>}
@@ -2651,7 +2608,6 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
 
 
             <p className="mt-10 text-center text-xs" style={{ color: "rgba(243,239,230,0.4)" }}>Please confirm allergens with staff before ordering.</p>
-            <p className="mt-3 text-center text-xs font-semibold uppercase" style={{ color: "rgba(209,164,74,0.6)", fontFamily: "var(--font-data)", letterSpacing: "0.2em", marginRight: "-0.2em" }}>Bridge Street | Berwick · Est. 2014</p>
           </div>
         </div>
       </div>
@@ -2802,10 +2758,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                 ))}
               </div>
             </Field>
-            <div className="flex items-center justify-between gap-2 rounded-lg border p-2.5" style={{ borderColor: C.line }}>
-              <span className="text-sm text-slate-600">Allergens verified by staff</span>
-              <button onClick={() => updateBeer(beer.id, { allergensVerified: !beer.allergensVerified })} className="rounded-md border px-2.5 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-slate-400" style={chip(!!beer.allergensVerified)}>{beer.allergensVerified ? "Verified" : "Verify"}</button>
-            </div>
+            <label className="flex items-center gap-2 rounded-lg bg-slate-50 p-2.5 text-sm"><input type="checkbox" checked={!!beer.allergensVerified} onChange={(e) => updateBeer(beer.id, { allergensVerified: e.target.checked })} className="h-4 w-4" /><span className="text-slate-700">Allergens verified against the producer's own information</span></label>
             <Field label="Tasting notes"><textarea className={inputCls} rows={3} value={beer.notes || ""} onChange={(e) => updateBeer(beer.id, { notes: e.target.value })} /></Field>
             <button onClick={close} className="mt-1 inline-flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}>Done</button>
           </div>
@@ -2969,8 +2922,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
 html, body { overflow-x: hidden; width: 100%; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 body { touch-action: manipulation; overscroll-behavior-y: contain; }
 @media (max-width: 640px) { input, select, textarea { font-size: 16px !important; } }
-.print-only { display: none; }
-@media print { .no-print { display: none !important; } .print-only { display: block !important; } body { background: #fff; } }
+@media print { .no-print { display: none !important; } body { background: #fff; } }
 .cc-fade{animation:ccfade .34s cubic-bezier(.16,1,.3,1) both}
 @keyframes ccfade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 .cc-rise{animation:ccrise .42s cubic-bezier(.16,1,.3,1) both}
