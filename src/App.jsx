@@ -515,6 +515,7 @@ export default function TheCurfewCellar() {
   const [addMode, setAddMode] = useState("pick");
   const [addPickSearch, setAddPickSearch] = useState("");
   const [showMore, setShowMore] = useState(false);
+  const [showAlerts, setShowAlerts] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState(null);
   const [scanProgress, setScanProgress] = useState(null);
@@ -528,6 +529,26 @@ export default function TheCurfewCellar() {
   const invoiceRef = useRef(null);
 
   const beerById = useMemo(() => Object.fromEntries(library.map((b) => [b.id, b])), [library]);
+
+  // "Needs attention": things a publican should see at a glance, computed from data the app
+  // already tracks. Shared by the header notification bell and its dropdown.
+  const attentionItems = useMemo(() => {
+    const out = [];
+    lines.filter((l) => l.status !== "off").forEach((l) => {
+      const beer = beerById[l.beerId]; if (!beer) return;
+      const nm = `${beer.brewery ? beer.brewery + " " : ""}${beer.name}`;
+      const bb = bbStatus(l);
+      if (bb && bb.level === "past") out.push({ id: l.id, warn: true, text: `${nm}: best before has passed` });
+      else if (bb && bb.level === "soon") out.push({ id: l.id, warn: true, text: `${nm}: best before ${daysUntil(l.bestBefore) === 0 ? "today" : `in ${daysUntil(l.bestBefore)}d`}` });
+      const f = freshness(l);
+      if (l.status === "on" && f && f.level === "check") out.push({ id: l.id, warn: false, text: `${nm}: on for ${daysOn(l)} days, check quality` });
+      if (l.status === "vented" && l.dates.vented && dayDiff(l.dates.vented, new Date().toISOString()) >= 2) out.push({ id: l.id, warn: false, text: `${nm}: vented ${dayDiff(l.dates.vented, new Date().toISOString())}d ago, ready to tap` });
+    });
+    const backupAge = prefs.lastBackup ? dayDiff(prefs.lastBackup, new Date().toISOString()) : null;
+    if (lines.length > 3 && (backupAge === null || backupAge > 30)) out.push({ id: null, warn: false, backup: true, text: backupAge === null ? "No backup saved yet. Takes ten seconds" : `Last backup ${backupAge} days ago. Worth a fresh one` });
+    return out;
+  }, [lines, beerById, prefs.lastBackup]);
+
   const setF = (patch) => setForm((f) => ({ ...f, ...patch }));
   const findSavedBeer = (brewery, name) =>
     library.find((b) => b.brewery.trim().toLowerCase() === brewery.trim().toLowerCase() && b.name.trim().toLowerCase() === name.trim().toLowerCase());
@@ -1883,40 +1904,6 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     }
     return (
       <div className="space-y-4">
-        {(() => {
-          // "Needs attention": the things a publican should see the moment the app opens,
-          // computed entirely from data the app already tracks. Hidden when all is well.
-          const attention = [];
-          live.forEach((l) => {
-            const beer = beerById[l.beerId]; if (!beer) return;
-            const nm = `${beer.brewery ? beer.brewery + " " : ""}${beer.name}`;
-            const bb = bbStatus(l);
-            if (bb && bb.level === "past") attention.push({ id: l.id, warn: true, text: `${nm}: best before has passed` });
-            else if (bb && bb.level === "soon") attention.push({ id: l.id, warn: true, text: `${nm}: best before ${daysUntil(l.bestBefore) === 0 ? "today" : `in ${daysUntil(l.bestBefore)}d`}` });
-            const f = freshness(l);
-            if (l.status === "on" && f && f.level === "check") attention.push({ id: l.id, warn: false, text: `${nm}: on for ${daysOn(l)} days, check quality` });
-            if (l.status === "vented" && l.dates.vented && dayDiff(l.dates.vented, new Date().toISOString()) >= 2) attention.push({ id: l.id, warn: false, text: `${nm}: vented ${dayDiff(l.dates.vented, new Date().toISOString())}d ago, ready to tap` });
-          });
-          const backupAge = prefs.lastBackup ? dayDiff(prefs.lastBackup, new Date().toISOString()) : null;
-          if (lines.length > 3 && (backupAge === null || backupAge > 30)) attention.push({ id: null, warn: false, backup: true, text: backupAge === null ? "No backup saved yet. Takes ten seconds" : `Last backup ${backupAge} days ago. Worth a fresh one` });
-          if (!attention.length) return null;
-          return (
-            <section className="cc-elev rounded-xl border p-3" style={{ background: "#FCF6EA", borderColor: "#E8D5A8" }}>
-              <p className="mb-1.5 flex items-center gap-1.5 uppercase" style={{ color: C.brass, fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}><AlertTriangle size={13} /> Needs attention</p>
-              <ul className="space-y-1">
-                {attention.slice(0, 5).map((a, i) => (
-                  <li key={`${a.id}-${i}`}>
-                    <button onClick={() => (a.backup ? go("backup") : setOpenId(a.id))} className="flex w-full items-start gap-1.5 text-left text-sm transition hover:opacity-70 focus:outline-none" style={{ color: a.warn ? C.alert : C.inkSoft }}>
-                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: a.warn ? C.alert : C.brass }} />
-                      <span className="min-w-0 flex-1">{a.text}</span>
-                    </button>
-                  </li>
-                ))}
-                {attention.length > 5 && <li className="text-xs text-slate-500">+ {attention.length - 5} more</li>}
-              </ul>
-            </section>
-          );
-        })()}
         <section>
           <button onClick={() => toggleSection("on")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
             <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>On <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {onFilled}/10</span></h2>
@@ -3148,7 +3135,42 @@ body { touch-action: manipulation; overscroll-behavior-y: contain; }
       <header className="no-print sticky top-0 z-40 border-b" style={{ background: C.ink, borderColor: "rgba(184,134,43,0.35)", boxShadow: "0 1px 0 rgba(184,134,43,0.22), 0 10px 26px -18px rgba(0,0,0,0.65)" }}>
         <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 py-2.5">
           <div className="flex items-center gap-2.5">
-            <Bell size={19} style={{ color: C.brassSoft, flexShrink: 0 }} aria-hidden="true" />
+            <div className="relative">
+              <button onClick={() => setShowAlerts((v) => !v)} className="relative flex items-center rounded-lg p-0.5 transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-amber-300" aria-label={`Needs attention: ${attentionItems.length}`}>
+                <Bell size={19} style={{ color: attentionItems.length ? C.brassSoft : "rgba(209,164,74,0.6)", flexShrink: 0 }} />
+                {attentionItems.length > 0 && (
+                  <span className="absolute -right-1 -top-1 grid place-items-center rounded-full px-1" style={{ height: 16, minWidth: 16, background: C.alert, color: "#fff", fontFamily: "var(--font-data)", fontSize: 10, fontWeight: 700, lineHeight: 1 }}>{attentionItems.length > 9 ? "9+" : attentionItems.length}</span>
+                )}
+              </button>
+              {showAlerts && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowAlerts(false)} />
+                  <div className="cc-pop absolute left-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-xl border bg-white shadow-xl" style={{ borderColor: C.line }}>
+                    <div className="flex items-center gap-1.5 border-b px-3 py-2" style={{ borderColor: C.line }}>
+                      <AlertTriangle size={13} style={{ color: C.brass }} />
+                      <span className="uppercase" style={{ color: C.brass, fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}>Needs attention</span>
+                    </div>
+                    {attentionItems.length === 0 ? (
+                      <div className="px-3 py-6 text-center">
+                        <CheckCircle2 size={20} className="mx-auto mb-1.5" style={{ color: "#5E8C4F" }} />
+                        <p className="text-sm text-slate-500">All good. Nothing needs a look right now.</p>
+                      </div>
+                    ) : (
+                      <ul className="max-h-80 overflow-y-auto py-1">
+                        {attentionItems.map((a, i) => (
+                          <li key={`${a.id}-${i}`}>
+                            <button onClick={() => { setShowAlerts(false); a.backup ? go("backup") : (go("cellar"), setOpenId(a.id)); }} className="flex w-full items-start gap-2 px-3 py-2 text-left text-sm transition hover:bg-slate-50 focus:outline-none" style={{ color: a.warn ? C.alert : C.inkSoft }}>
+                              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: a.warn ? C.alert : C.brass }} />
+                              <span className="min-w-0 flex-1">{a.text}</span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
             <p className="text-base font-semibold leading-none" style={{ color: C.cream, fontFamily: "var(--font-display)", letterSpacing: "0.025em" }}>The Curfew</p>
             <p className="hidden sm:inline" style={{ color: C.brassSoft, fontFamily: "var(--font-data)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.14em", lineHeight: 1 }}>Cellar</p>
           </div>
