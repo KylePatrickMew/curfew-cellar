@@ -1311,7 +1311,15 @@ export default function TheCurfewCellar() {
   };
 
   const exportData = () => JSON.stringify({ app: "thecurfewcellar", version: 1, exportedAt: new Date().toISOString(), library, lines }, null, 2);
-  const noteBackupTaken = () => setPrefs((p) => ({ ...p, lastBackup: new Date().toISOString() }));
+  const noteBackupTaken = () => {
+    const stamp = new Date().toISOString();
+    const nextPrefs = { ...prefs, lastBackup: stamp };
+    setPrefs(nextPrefs);
+    if (saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = null; }
+    if (store && storageOk === true && (!cloudMode || (authed && cloudReady))) {
+      (async () => { try { await store.set(STORE_KEY, JSON.stringify({ library, lines, distributors, prefs: nextPrefs, lastUpdated }), false); } catch (e) { /* ignore */ } })();
+    }
+  };
   const copyBackup = async () => {
     try { await navigator.clipboard.writeText(exportData()); noteBackupTaken(); setBackupMsg({ type: "ok", text: "Backup copied to clipboard." }); }
     catch (e) { setBackupMsg({ type: "warn", text: "Couldn't copy automatically. Select the text below and copy it manually." }); }
