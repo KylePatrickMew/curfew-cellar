@@ -1507,15 +1507,23 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     const cat = slot.drink === "cask" ? (slot.slot === "cask2" ? "Bitter" : slot.slot === "cask3" ? "Stout/Porter" : "IPA") : null;
     setSwap({ drink: slot.drink, category: cat, oldId: null, slot: slot.slot });
   };
+  const openRack = (label) => {
+    const cat = label === "Bitter" ? "Bitter" : label === "Stout" ? "Stout/Porter" : label === "Pale" ? "Pale" : label === "IPA" ? "IPA" : null;
+    setSwap({ drink: "cask", category: cat, oldId: null, slot: null, toRack: true });
+  };
   const doSwap = (newId, oldId, slot) => {
-    snapshotUndo("Beer changed");
+    const toRack = swap && swap.toRack;
+    snapshotUndo(toRack ? "Cask racked" : "Beer changed");
     const now = new Date().toISOString();
     setLines((ls) => {
       const newLine = ls.find((c) => c.id === newId);
       const pump = slot || (newLine ? freePumpFor(ls, newLine, oldId) : null);
       return ls.map((c) => {
         if (oldId && c.id === oldId) return { ...c, status: "off", slot: null, dates: { ...c.dates, off: now } };
-        if (c.id === newId) return { ...c, status: "on", slot: pump, dates: { ...c.dates, on: c.dates.on || now } };
+        if (c.id === newId) {
+          if (toRack) return { ...c, status: "racked", dates: { ...c.dates, racked: c.dates.racked || now } };
+          return { ...c, status: "on", slot: pump, dates: { ...c.dates, on: c.dates.on || now } };
+        }
         return c;
       });
     });
@@ -1885,7 +1893,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           {slot.line ? <LineRow line={slot.line} context={urgent ? "on" : "racked"} /> : (
             urgent
               ? <button onClick={() => openPump(slot)} className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed text-sm font-medium transition hover:bg-amber-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ borderColor: "#e2c98a", color: "#b45309", minHeight: 52 }}><Plus size={15} /> Empty · {slot.label}</button>
-              : <button onClick={() => go("add")} className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed text-sm font-medium text-slate-400 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line, minHeight: 52 }}>Empty</button>
+              : <button onClick={() => openRack(slot.label)} className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed text-sm font-medium text-slate-500 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line, minHeight: 52 }}><Plus size={15} /> Rack from store</button>
           )}
         </div>
       </div>
@@ -2789,16 +2797,16 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     const isCask = swap.drink === "cask";
     const allowedCats = (!isCask || !swap.category) ? null : (swap.category === "IPA" || swap.category === "Pale") ? ["IPA", "Pale"] : [swap.category];
     const catLabel = allowedCats ? (allowedCats.length > 1 ? "IPA or Pale" : allowedCats[0]) : null;
-    const candStatuses = isCask ? ["tapped", "vented", "racked"] : ["in_cellar"];
+    const candStatuses = isCask ? (swap.toRack ? ["in_cellar"] : ["tapped", "vented", "racked"]) : ["in_cellar"];
     const statusRank = { tapped: 0, vented: 1, racked: 2, in_cellar: 3 };
     const dateForStatus = (l) => l.status === "tapped" ? l.dates.tapped : l.status === "vented" ? l.dates.vented : l.status === "racked" ? l.dates.racked : l.dates.delivered;
     const pool = lines.filter((l) => l.drinkType === swap.drink && candStatuses.includes(l.status));
     const matching = allowedCats ? pool.filter((l) => allowedCats.includes(beerById[l.beerId]?.category || "Misc")) : pool;
     const base = matching.length ? matching : pool;
     const list = base.slice().sort((a, b) => (statusRank[a.status] - statusRank[b.status]) || ((dateForStatus(a) || "").localeCompare(dateForStatus(b) || "")));
-    const groupDefs = isCask ? [["tapped", "Tapped and Ready"], ["vented", "Vented"], ["racked", "Racked"]] : [["in_cellar", "Ready to go on"]];
+    const groupDefs = swap.toRack ? [["in_cellar", "In Store"]] : (isCask ? [["tapped", "Tapped and Ready"], ["vented", "Vented"], ["racked", "Racked"]] : [["in_cellar", "Ready to go on"]]);
     const groups = groupDefs.map(([k, label]) => ({ k, label, items: list.filter((l) => l.status === k) })).filter((g) => g.items.length);
-    const emptyMsg = isCask ? "Nothing racked, vented or tapped yet. Rack and vent a cask to get one ready." : `Nothing in the store to put on. Add ${swap.drink === "keg" ? "a keg" : "a cider"} first.`;
+    const emptyMsg = swap.toRack ? "Nothing in the store to rack. Add a cask from your library first." : (isCask ? "Nothing racked, vented or tapped yet. Rack and vent a cask to get one ready." : `Nothing in the store to put on. Add ${swap.drink === "keg" ? "a keg" : "a cider"} first.`);
     const previewLine = swapPreviewId ? lines.find((l) => l.id === swapPreviewId) : null;
     const previewBeer = previewLine ? beerById[previewLine.beerId] : null;
     const pmeta = previewBeer ? [DRINK_TYPES.find((t) => t.key === previewLine.drinkType)?.label, previewBeer.style, `${previewBeer.abv}%`, `£${previewLine.price || "--"}`, previewLine.size ? previewLine.size.replace("Bag-in-box ", "").replace("Keg ", "") : ""].filter(Boolean).join("  ·  ") : "";
@@ -2833,15 +2841,15 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                 {previewBeer.notes && <div><p className="mb-1.5 text-sm font-medium text-slate-500">Tasting notes</p><ul className="space-y-1">{splitNote(previewBeer.notes).map((line, i) => <li key={i} className="flex gap-1.5 text-sm leading-snug text-slate-600"><span style={{ color: C.brass }}>•</span><span>{line}.</span></li>)}</ul></div>}
               </div>
               <div className="sticky bottom-0 border-t bg-white p-4" style={{ borderColor: C.line }}>
-                <button onClick={() => doSwap(previewLine.id, swap.oldId, swap.slot)} className="flex w-full items-center justify-center gap-1.5 rounded-lg px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Check size={16} /> Put on</button>
+                <button onClick={() => doSwap(previewLine.id, swap.oldId, swap.slot)} className="flex w-full items-center justify-center gap-1.5 rounded-lg px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Check size={16} /> {swap.toRack ? "Rack this cask" : "Put on"}</button>
               </div>
             </>
           ) : (
             <>
               <div className="sticky top-0 flex items-center justify-between gap-2 border-b bg-white p-4" style={{ borderColor: C.line }}>
                 <div className="min-w-0">
-                  <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Choose next</h2>
-                  {catLabel && <p className="truncate text-xs text-slate-500">{matching.length ? catLabel : `No ${catLabel} ready, showing all casks`}</p>}
+                  <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{swap.toRack ? "Rack from store" : "Choose next"}</h2>
+                  {catLabel && <p className="truncate text-xs text-slate-500">{matching.length ? catLabel : `No ${catLabel} ${swap.toRack ? "in store" : "ready"}, showing all casks`}</p>}
                 </div>
                 <button onClick={close} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400"><X size={18} /></button>
               </div>
