@@ -89,7 +89,7 @@ const STATUSES = [
   { key: "racked", label: "Racked", dateKey: "racked" },
   { key: "vented", label: "Vented", dateKey: "vented" },
   { key: "tapped", label: "Tapped and Ready", dateKey: "tapped" },
-  { key: "on", label: "On", dateKey: "on" },
+  { key: "on", label: "Pouring", dateKey: "on" },
   { key: "off", label: "Finished", dateKey: "off" },
 ];
 const STATUS_INDEX = Object.fromEntries(STATUSES.map((s, i) => [s.key, i]));
@@ -1759,8 +1759,8 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     if (bb && bb.level === "past") return { text: "Best before passed", warn: true, alert: true };
     if (bb && bb.level === "soon") return { text: bb.text, warn: false, alert: true };
     if (line.status === "on" && f && f.level === "check") return { text: f.text, warn: false, alert: true };
-    if (line.status === "on") return { text: f ? f.text : "On", warn: false, alert: false };
-    if (line.status === "tapped") return { text: "Tapped", warn: false, alert: false };
+    if (line.status === "on") return { text: f ? f.text : "Pouring", warn: false, alert: false };
+    if (line.status === "tapped") return { text: "Ready", warn: false, alert: false };
     return { text: STATUSES[STATUS_INDEX[line.status]].label, warn: false, alert: false };
   };
 
