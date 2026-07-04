@@ -195,6 +195,7 @@ const ALLERGEN_OPTIONS = [
 ];
 const GLUTEN_OPTIONS = ["Standard", "Low gluten", "Gluten-free"];
 const CLARITY_OPTIONS = ["Clear", "Hazy", "Cloudy"];
+const CIDER_SWEETNESS = ["Sweet", "Medium Sweet", "Medium", "Medium Dry", "Dry"];
 const VIEW_TITLES = { cellar: "Cellar", add: "Add Stock", library: "Library", allergens: "Allergen Sheet", stock: "Stock List", empties: "Empties to Return", stats: "Cellar Stats", backup: "Backup & Restore" };
 const SIZE_OPTIONS = ["Keg 30L", "Keg 50L", "Bag-in-box 20L"];
 const FRESH_LIMIT = 4; // days on a cask before a quality check is worth a look
@@ -281,8 +282,8 @@ const aiDraft = (name) => {
   if (/stout|porter/.test(l)) d = { ...d, style: /porter/.test(l) ? "Porter" : "Stout", abv: "4.8", allergens: ["Barley (gluten)", "Oats (gluten)"], notes: "Dark and roasty, coffee and dark chocolate, smooth and dry." };
   else if (/ipa/.test(l)) d = { ...d, style: "IPA", abv: "5.6", clarity: /hazy|juic|neipa/.test(l) ? "Hazy" : "Clear", allergens: ["Barley (gluten)", "Wheat (gluten)"], notes: "Hop-forward, tropical fruit and citrus over a firm bitterness." };
   else if (/bitter/.test(l)) d = { ...d, style: "Best Bitter", abv: "3.9", notes: "Amber, biscuity malt with earthy English hops." };
-  else if (/cider|scrumpy|apple/.test(l)) d = { style: "Medium", abv: "5.2", clarity: "Clear", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Traditional medium cider, crisp apple with a gentle tannic finish." };
-  else if (/pear|perry/.test(l)) d = { style: "Perry", abv: "4.5", clarity: "Clear", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Soft, lightly sweet perry with ripe pear notes." };
+  else if (/cider|scrumpy|apple/.test(l)) d = { style: "Medium", abv: "5.2", clarity: "Clear", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Traditional medium cider, crisp apple with a gentle tannic finish.", sweetness: /dry/.test(l) ? "Dry" : /sweet/.test(l) ? "Sweet" : "Medium" };
+  else if (/pear|perry/.test(l)) d = { style: "Perry", abv: "4.5", clarity: "Clear", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Soft, lightly sweet perry with ripe pear notes.", sweetness: "Medium Sweet" };
   return { ...d, allergensVerified: false };
 };
 
@@ -420,7 +421,7 @@ const emptyForm = {
   drinkType: "cask", brewery: "", location: "", name: "", style: "", abv: "",
   clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "",
   allergensVerified: false, category: "Misc", size: "", price: "",
-  status: "in_cellar", bestBefore: "", caskOwner: "",
+  status: "in_cellar", bestBefore: "", caskOwner: "", sweetness: "",
 };
 
 // ---------- UI atoms ----------
@@ -1364,7 +1365,7 @@ export default function TheCurfewCellar() {
     if (!form.name.trim()) { setFillNote({ type: "warn", text: "Add a name first." }); return; }
     const saved = form.brewery.trim() ? findSavedBeer(form.brewery, form.name) : null;
     if (saved) {
-      setF({ style: saved.style, abv: saved.abv, clarity: saved.clarity, glutenStatus: saved.glutenStatus, vegan: saved.vegan, allergens: saved.allergens, notes: saved.notes, allergensVerified: saved.allergensVerified, category: form.drinkType === "cask" ? categorise(saved.style, saved.abv) : saved.category });
+      setF({ style: saved.style, abv: saved.abv, clarity: saved.clarity, glutenStatus: saved.glutenStatus, vegan: saved.vegan, allergens: saved.allergens, notes: saved.notes, allergensVerified: saved.allergensVerified, category: form.drinkType === "cask" ? categorise(saved.style, saved.abv) : saved.category, sweetness: saved.sweetness || form.sweetness });
       setFillNote({ type: "ok", text: `Found in your library. Pulled saved details for "${saved.name}".` });
       return;
     }
@@ -1387,7 +1388,8 @@ Return exactly:
   "clarity": "Clear | Hazy | Cloudy",
   "glutenStatus": "Standard | Low gluten | Gluten-free",
   "vegan": true or false,
-  "allergens": ["choose ONLY from: ${ALLERGEN_OPTIONS.join(", ")}"],
+  "allergens": ["choose ONLY from: ${ALLERGEN_OPTIONS.join(", ")}"],${isCider ? `
+  "sweetness": "one of exactly: ${CIDER_SWEETNESS.join(" | ")}, your best knowledge of how this cider is actually described",` : ""}
   "notes": "FLASHCARD FORMAT, like revision cards, not sentences. Part 1: 3 to 5 single words or very short phrases separated by commas, no linking words like \"and\" or \"with\", ending in a period (e.g. \"Biscuity, citrus, pear.\"). Part 2, ONLY if you know a real fun fact about the beer or brewery (what the name refers to, a notable first, an award), written as one short plain clause under 10 words, still no padding (e.g. \"Named after a Para Handy character.\"). If you do not know a real fact, output part 1 only. Never invent a fact, never write more than these two short parts"
 }
 
@@ -1426,11 +1428,12 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
         notes: form.notes.trim() ? form.notes : (p.notes ? String(p.notes) : ""),
         allergensVerified: form.allergensVerified,
         category: form.drinkType === "cask" ? categorise(style, abv) : form.category,
+        sweetness: form.sweetness ? form.sweetness : (CIDER_SWEETNESS.includes(p.sweetness) ? p.sweetness : form.sweetness),
       });
       setFillNote({ type: "ai", text: "Draft filled in. Check it, then confirm allergens against the producer's own information before serving." });
     } catch (err) {
       const d = aiDraft(form.name);
-      setF({ ...d, category: form.drinkType === "cask" ? categorise(d.style, d.abv) : form.category });
+      setF({ ...d, category: form.drinkType === "cask" ? categorise(d.style, d.abv) : form.category, sweetness: form.sweetness ? form.sweetness : (d.sweetness || form.sweetness) });
       const msg = stage === "parse"
         ? "The draft came back in an odd format, so a quick local one was used instead. Try again, or just check the details."
         : "Couldn't reach the lookup service just now. A quick local draft was used, so double-check the details.";
@@ -1456,7 +1459,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     const beerFields = {
       brewery: form.brewery.trim(), location: form.location.trim(), name: form.name.trim(),
       style: form.style.trim(), abv: form.abv.trim(), clarity: form.clarity, glutenStatus: form.glutenStatus,
-      vegan: form.vegan, allergens: form.allergens, notes: form.notes.trim(), allergensVerified: form.allergensVerified, category,
+      vegan: form.vegan, allergens: form.allergens, notes: form.notes.trim(), allergensVerified: form.allergensVerified, category, sweetness: form.sweetness,
     };
     const entry = { date: new Date().toISOString(), abv: form.abv.trim(), price: form.price.trim(), caskOwner: (form.caskOwner.trim() || form.brewery.trim()) };
     const saved = findSavedBeer(form.brewery, form.name);
@@ -1565,7 +1568,8 @@ Return exactly:
   "clarity": "Clear | Hazy | Cloudy",
   "glutenStatus": "Standard | Low gluten | Gluten-free",
   "vegan": true or false,
-  "allergens": ["choose ONLY from: ${ALLERGEN_OPTIONS.join(", ")}"],
+  "allergens": ["choose ONLY from: ${ALLERGEN_OPTIONS.join(", ")}"],${isCider ? `
+  "sweetness": "one of exactly: ${CIDER_SWEETNESS.join(" | ")}, your best knowledge of how this cider is actually described",` : ""}
   "notes": "FLASHCARD FORMAT, like revision cards, not sentences. Part 1: 3 to 5 single words or very short phrases separated by commas, no linking words like \"and\" or \"with\", ending in a period (e.g. \"Biscuity, citrus, pear.\"). Part 2, ONLY if you know a real fun fact about the beer or brewery (what the name refers to, a notable first, an award), written as one short plain clause under 10 words, still no padding (e.g. \"Named after a Para Handy character.\"). If you do not know a real fact, output part 1 only. Never invent a fact, never write more than these two short parts"
 }
 
@@ -1597,6 +1601,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
         notes: beer.notes ? beer.notes : (p.notes ? String(p.notes) : beer.notes),
         allergensVerified: false,
         category: beer.category || categorise(style, abv),
+        sweetness: beer.sweetness ? beer.sweetness : (CIDER_SWEETNESS.includes(p.sweetness) ? p.sweetness : beer.sweetness),
       });
       setEditNote({ type: "ai", text: "Draft filled in. Check it, then confirm allergens before serving." });
     } catch (err) {
@@ -1606,7 +1611,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
   const removeLine = (id) => { snapshotUndo("Removed from cellar"); setLines((ls) => ls.filter((c) => c.id !== id)); setOpenId(null); };
   const latestPrice = (beer) => { const h = beer.history || []; return h.length ? h[h.length - 1].price : ""; };
   const latestSupplier = (beer) => { const h = beer.history || []; for (let i = h.length - 1; i >= 0; i--) { if (h[i].caskOwner) return h[i].caskOwner; } return ""; };
-  const loadBeerIntoForm = (beer) => { setConfirmDupe(false); return setForm({ ...emptyForm, drinkType: beer.pendingDrinkType || "cask", brewery: beer.brewery, location: beer.location, name: beer.name, style: beer.style, abv: beer.abv, clarity: beer.clarity, glutenStatus: beer.glutenStatus, vegan: beer.vegan, allergens: beer.allergens, notes: beer.notes, allergensVerified: beer.allergensVerified, category: beer.category || categorise(beer.style, beer.abv), price: latestPrice(beer) || beer.pendingPrice || "", bestBefore: beer.pendingBestBefore || "", caskOwner: latestSupplier(beer) || beer.pendingCaskOwner || "" }); };
+  const loadBeerIntoForm = (beer) => { setConfirmDupe(false); return setForm({ ...emptyForm, drinkType: beer.pendingDrinkType || "cask", brewery: beer.brewery, location: beer.location, name: beer.name, style: beer.style, abv: beer.abv, clarity: beer.clarity, glutenStatus: beer.glutenStatus, vegan: beer.vegan, allergens: beer.allergens, notes: beer.notes, allergensVerified: beer.allergensVerified, category: beer.category || categorise(beer.style, beer.abv), sweetness: beer.sweetness || "", price: latestPrice(beer) || beer.pendingPrice || "", bestBefore: beer.pendingBestBefore || "", caskOwner: latestSupplier(beer) || beer.pendingCaskOwner || "" }); };
   const pickBeer = (beer) => { loadBeerIntoForm(beer); setShowMore(false); setFillNote({ type: "ok", text: `Loaded "${beer.name}". Just set price, best before and status.` }); setAddMode("form"); };
   const startNewBeer = () => { setForm(emptyForm); setFillNote(null); setShowMore(false); setAddMode("form"); };
   const addLineOfBeer = (beer) => { loadBeerIntoForm(beer); setShowMore(false); setFillNote({ type: "ok", text: `Loaded "${beer.name}" from your library.` }); setAddMode("form"); setView("add"); };
@@ -2041,7 +2046,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
         <button key={b.id} onClick={() => pickBeer(b)} className="flex w-full items-center justify-between gap-2 rounded-lg border p-2.5 text-left transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: CAT_ACCENT[b.category] || C.line }}>
           <span className="min-w-0">
             <span className="block truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{b.brewery ? `${b.brewery} - ` : ""}{b.name}</span>
-            <span className="block truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{b.style} · {b.abv}%</span>
+            <span className="block truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{b.style} · {b.abv}%{b.sweetness ? ` · ${b.sweetness}` : ""}</span>
             <span className="block truncate text-xs text-slate-400">{b.location || ""}</span>
           </span>
           <span className="shrink-0 text-xs text-slate-400">{latestPrice(b) ? `last £${latestPrice(b)} ` : ""}→</span>
@@ -2146,6 +2151,16 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
               ))}
             </div>
           </Field>
+          {form.category === "Cider" && (
+            <Field label="Sweetness">
+              <div className="flex flex-wrap gap-2">
+                {CIDER_SWEETNESS.map((s) => (
+                  <button key={s} onClick={() => setF({ sweetness: s })} className="rounded-full border px-3 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    style={form.sweetness === s ? { background: C.ink, color: "#fff", borderColor: C.ink } : { borderColor: C.line, color: C.inkSoft }}>{s}</button>
+                ))}
+              </div>
+            </Field>
+          )}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="Price (£ per pint)">
               <input className={inputCls} inputMode="decimal" value={form.price} onChange={(e) => setF({ price: e.target.value })} placeholder="e.g. 4.40" />
@@ -2226,7 +2241,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{b.brewery ? `${b.brewery} - ` : ""}{b.name}</p>
-              <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{b.style} · {b.abv}%{!b.allergensVerified ? " · not staff verified" : ""}</p>
+              <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{b.style} · {b.abv}%{b.sweetness ? ` · ${b.sweetness}` : ""}{!b.allergensVerified ? " · not staff verified" : ""}</p>
               <p className="truncate text-xs text-slate-400">{b.location || ""}{latestPrice(b) ? ` · Previous: £${latestPrice(b)}` : ""}{latestSupplier(b) ? ` · from ${latestSupplier(b)}` : ""}</p>
             </div>
             <div className="flex shrink-0 items-center gap-1">
@@ -2931,6 +2946,15 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                 ))}
               </div>
             </Field>
+            {beer.category === "Cider" && (
+              <Field label="Sweetness">
+                <div className="flex flex-wrap gap-2">
+                  {CIDER_SWEETNESS.map((s) => (
+                    <button key={s} onClick={() => updateBeer(beer.id, { sweetness: s })} className="rounded-full border px-3 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-slate-400" style={chip(beer.sweetness === s)}>{s}</button>
+                  ))}
+                </div>
+              </Field>
+            )}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Field label="Clarity"><select className={inputCls} value={beer.clarity || "Clear"} onChange={(e) => updateBeer(beer.id, { clarity: e.target.value })}>{CLARITY_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}</select></Field>
               <Field label="Gluten status"><select className={inputCls} value={beer.glutenStatus || "Standard"} onChange={(e) => updateBeer(beer.id, { glutenStatus: e.target.value })}>{GLUTEN_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}</select></Field>
