@@ -197,12 +197,51 @@ const GLUTEN_OPTIONS = ["Standard", "Low gluten", "Gluten-free"];
 const CLARITY_OPTIONS = ["Clear", "Hazy", "Cloudy"];
 const CIDER_SWEETNESS = ["Sweet", "Medium Sweet", "Medium", "Medium Dry", "Dry"];
 
+const GUIDE_SECTIONS = [
+  { title: "The Cellar screen", steps: [
+    ["Pouring board", "The numbered tiles 1 to 10 match the pump run along the bar: IPA, Pale, Bitter, Stout, then the kegs and ciders. Tap any beer to open it."],
+    ["Racked", "Casks up on stillage, settling or vented. The IPA and Pale slots fill by strength: the two strongest go to IPA."],
+    ["In Store", "Everything delivered but not yet racked. Starts collapsed to keep the screen tidy."],
+    ["The bell", "Top left. A red count means something needs a look: best before dates, casks on too long, vented casks ready to tap, or a backup nudge. Tap an item to jump straight to it."],
+  ]},
+  { title: "When a delivery arrives", steps: [
+    ["Scan it in", "On the Add tab, Scan a cask label fills the details from a photo, including best before and supplier. Scan an invoice or Paste a list handles a whole delivery at once."],
+    ["Or pick from your library", "Search any beer you have stocked before. Details carry over, including the last price and supplier, each marked Please confirm so nothing is assumed."],
+    ["Autofill", "Autofill only ever fills blank fields. Anything you have typed stays put. Always confirm allergens against the producer's own information."],
+  ]},
+  { title: "The cask lifecycle", steps: [
+    ["In Store", "Delivered and waiting."],
+    ["Racked", "Up on stillage to settle."],
+    ["Vented", "Soft spile in, conditioning. The bell reminds you when one has sat vented for two days."],
+    ["Ready", "Tapped and ready to serve."],
+    ["Pouring", "On the bar."],
+    ["Finished", "Empty. Moves to Empties for collection."],
+  ]},
+  { title: "When a beer finishes", steps: [
+    ["Line finished", "Open the beer and tap Line finished. Pick the next one from what is Ready, Vented or Racked."],
+    ["Fill the empty rack", "The rack slot it leaves behind shows Rack from store. Tap it to bring a cask up from In Store."],
+    ["The empty cask", "It joins Empties automatically, grouped by supplier, so nothing gets missed on collection day."],
+  ]},
+  { title: "The Library", steps: [
+    ["Every beer, remembered", "Details, tasting notes, allergens, plus every past price and supplier. The history button on each row shows the full trail."],
+    ["Archive, not delete", "Edit a beer and tap Archive to hide one you will not stock again. Its history stays and you can restore it any time."],
+  ]},
+  { title: "Sharing and printing", steps: [
+    ["Stock List and Allergen Sheet", "Under More. Print or Share PDF for staff reference and allergen queries."],
+    ["Customer Tap List", "A customer-friendly what's on, priced by pint, half and schooner. Share PDF or show it on the bar."],
+  ]},
+  { title: "Keeping it safe", steps: [
+    ["Everything syncs", "Changes save to the cloud within a second and appear on every phone."],
+    ["Take a backup", "The bell nudges you monthly. Backup, under More, copies everything to a file in ten seconds."],
+  ]},
+];
+
 // The unlock and error screens return before the main app shell (where the full style
 // block lives), so they need their own font bootstrap or the wordmark falls back to
 // the system font. The browser dedupes the duplicate @import.
 const FontBoot = () => <style>{`@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&display=swap');
 :root { --font-data: 'Archivo', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; --font-display: 'Archivo', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }`}</style>;
-const VIEW_TITLES = { cellar: "Cellar", add: "Add Stock", library: "Library", allergens: "Allergen Sheet", stock: "Stock List", empties: "Empties to Return", stats: "Cellar Stats", backup: "Backup & Restore" };
+const VIEW_TITLES = { cellar: "Cellar", add: "Add Stock", library: "Library", allergens: "Allergen Sheet", stock: "Stock List", empties: "Empties to Return", stats: "Cellar Stats", guide: "How to Use", backup: "Backup & Restore" };
 const SIZE_OPTIONS = ["Keg 30L", "Keg 50L", "Bag-in-box 20L"];
 const FRESH_LIMIT = 4; // days on a cask before a quality check is worth a look
 const BB_SOON = 2;     // days before best-before to start flagging
@@ -1191,6 +1230,49 @@ export default function TheCurfewCellar() {
   };
 
   // Builds the allergen and dietary guide as a shareable PDF.
+  const shareGuidePDF = async () => {
+    if (pdfBusy) return;
+    setPdfBusy(true);
+    try {
+      const JsPDF = await _loadJsPDF();
+      if (!JsPDF) throw new Error("no pdf lib");
+      const doc = new JsPDF({ unit: "mm", format: "a4" });
+      const W = 210, H = 297, M = 14; let y = M;
+      const ink = [28, 54, 54], brassSoft = [199, 154, 62], gray = [110, 118, 115];
+      const ensure = (need) => { if (y + need > H - M) { doc.addPage(); y = M; } };
+
+      doc.setFillColor(ink[0], ink[1], ink[2]); doc.rect(0, 0, W, 28, "F");
+      doc.setFont("helvetica", "bold"); doc.setFontSize(17); doc.setTextColor(243, 239, 230);
+      doc.text("How to use The Curfew Cellar", M, 13);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(brassSoft[0], brassSoft[1], brassSoft[2]);
+      doc.text("THE CURFEW MICROPUB · STAFF GUIDE", M, 20.5);
+      doc.setFontSize(8.5); doc.setTextColor(200, 196, 186);
+      doc.text(new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }), W - M, 13, { align: "right" });
+      y = 36;
+
+      GUIDE_SECTIONS.forEach((sec) => {
+        ensure(18);
+        doc.setFont("helvetica", "bold"); doc.setFontSize(12.5); doc.setTextColor(ink[0], ink[1], ink[2]);
+        doc.text(sec.title, M, y); y += 2.5;
+        doc.setDrawColor(brassSoft[0], brassSoft[1], brassSoft[2]); doc.setLineWidth(0.5);
+        doc.line(M, y, M + 10, y); y += 5;
+        sec.steps.forEach(([h, t]) => {
+          const lines = doc.splitTextToSize(t, W - M * 2 - 4);
+          ensure(5 + lines.length * 4 + 3);
+          doc.setFont("helvetica", "bold"); doc.setFontSize(9.5); doc.setTextColor(ink[0], ink[1], ink[2]);
+          doc.text(h, M, y); y += 4.2;
+          doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(gray[0], gray[1], gray[2]);
+          doc.text(lines, M + 4, y); y += lines.length * 4 + 3;
+        });
+        y += 3;
+      });
+
+      await sharePdfDoc(doc, "curfew-cellar-guide.pdf", "How to use The Curfew Cellar");
+    } catch (e) {
+      showToast("Could not make the PDF just now. Check your connection and try again.");
+    } finally { setPdfBusy(false); }
+  };
+
   const shareAllergenPDF = async () => {
     if (pdfBusy) return;
     setPdfBusy(true);
@@ -2362,6 +2444,28 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     );
   };
 
+  const Guide = () => (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <button onClick={shareGuidePDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-1.5 py-1.5 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40 focus:outline-none" style={{ color: "#778883" }}>{pdfBusy ? <Loader2 className="animate-spin" size={13} /> : <Download size={13} />} Share PDF</button>
+      </div>
+      {GUIDE_SECTIONS.map((sec) => (
+        <div key={sec.title} className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
+          <h2 className="text-base font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{sec.title}</h2>
+          <div className="mt-1 mb-3 h-0.5 w-8 rounded-full" style={{ background: C.brass }} />
+          <ul className="space-y-2.5">
+            {sec.steps.map(([h, t]) => (
+              <li key={h}>
+                <p className="text-sm font-semibold" style={{ color: C.ink }}>{h}</p>
+                <p className="mt-0.5 text-sm text-slate-500">{t}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
+
   const Stats = () => {
     const histOf = (b) => (b.history || []).slice().sort((x, y) => new Date(x.date) - new Date(y.date));
     const active = library.filter((b) => !b.archived);
@@ -3238,7 +3342,7 @@ body { touch-action: manipulation; overscroll-behavior-y: contain; }
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
                 <div className="absolute right-0 top-full z-50 mt-1 w-44 overflow-hidden rounded-lg border bg-white shadow-lg" style={{ borderColor: C.line }}>
-                  {[["library", "Library", BookOpen], ["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["stats", "Cellar Stats", BarChart3], ["backup", "Backup", Database]].map(([id, label, Icon]) => (
+                  {[["library", "Library", BookOpen], ["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["stats", "Cellar Stats", BarChart3], ["guide", "How to Use", Compass], ["backup", "Backup", Database]].map(([id, label, Icon]) => (
                     <button key={id} onClick={() => { setMenuOpen(false); go(id); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"><Icon size={15} className="text-slate-400" />{label}</button>
                   ))}
                 </div>
@@ -3266,6 +3370,7 @@ body { touch-action: manipulation; overscroll-behavior-y: contain; }
             {view === "stock" && StockSheet()}
             {view === "empties" && Empties()}
             {view === "stats" && Stats()}
+            {view === "guide" && Guide()}
             {view === "backup" && Backup()}
             </div>
           </>
@@ -3297,7 +3402,7 @@ body { touch-action: manipulation; overscroll-behavior-y: contain; }
           <div className="cc-sheet absolute inset-x-0 bottom-0 rounded-t-2xl bg-white p-4" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 16px)" }}>
             <div className="mx-auto mb-3 h-1.5 w-10 rounded-full" style={{ background: C.line }} />
             <div className="grid grid-cols-3 gap-2.5">
-              {[["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["stats", "Cellar Stats", BarChart3], ["backup", "Backup", Database]].map(([id, label, Icon]) => (
+              {[["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["stats", "Cellar Stats", BarChart3], ["guide", "How to Use", Compass], ["backup", "Backup", Database]].map(([id, label, Icon]) => (
                 <button key={id} onClick={() => { setMenuOpen(false); go(id); }} className="flex flex-col items-center gap-1.5 rounded-xl border p-3 transition active:scale-95" style={{ borderColor: C.line, color: C.ink }}>
                   <Icon size={20} style={{ color: C.brass }} />
                   <span className="text-center text-xs font-medium leading-tight">{label}</span>
