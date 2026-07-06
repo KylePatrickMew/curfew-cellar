@@ -89,7 +89,7 @@ const STATUSES = [
   { key: "racked", label: "Racked", dateKey: "racked" },
   { key: "vented", label: "Vented", dateKey: "vented" },
   { key: "tapped", label: "Tapped and Ready", dateKey: "tapped" },
-  { key: "on", label: "On", dateKey: "on" },
+  { key: "on", label: "Pouring", dateKey: "on" },
   { key: "off", label: "Finished", dateKey: "off" },
 ];
 const STATUS_INDEX = Object.fromEntries(STATUSES.map((s, i) => [s.key, i]));
@@ -195,7 +195,62 @@ const ALLERGEN_OPTIONS = [
 ];
 const GLUTEN_OPTIONS = ["Standard", "Low gluten", "Gluten-free"];
 const CLARITY_OPTIONS = ["Clear", "Hazy", "Cloudy"];
-const VIEW_TITLES = { cellar: "Cellar", add: "Add Stock", library: "Library", allergens: "Allergen Sheet", stock: "Stock List", empties: "Empties to Return", stats: "Cellar Stats", backup: "Backup & Restore" };
+const CIDER_SWEETNESS = ["Sweet", "Medium Sweet", "Medium", "Medium Dry", "Dry"];
+
+// Web Push: the public half of the VAPID keypair (the private half lives only in Vercel).
+const PUSH_PUBLIC_KEY = "BN-lqhCSKqtRWwfwxJMnnsj_e9BZ5kXzaIya9Zi7P8eNYgQZHrBiT5xkhc0AyVixtzolnxD6fesELFarqisdwIE";
+const b64ToBytes = (b64) => {
+  const pad = "=".repeat((4 - (b64.length % 4)) % 4);
+  const raw = atob((b64 + pad).replace(/-/g, "+").replace(/_/g, "/"));
+  const out = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+};
+
+const GUIDE_SECTIONS = [
+  { title: "The Cellar screen", steps: [
+    ["Pouring board", "The numbered tiles 1 to 10 match the pumps that are on the bar: IPA, Pale, Bitter, Stout, then the kegs and ciders. Tap any beer to open it."],
+    ["Racked", "Casks that are Racked or Vented, settling before they go on. The IPA and Pale slots fill by strength: the two strongest go to IPA."],
+    ["In Store", "Everything delivered but not yet racked."],
+  ]},
+  { title: "When a delivery arrives", steps: [
+    ["Scan it in", "On the Add tab, Scan a cask label fills the details from a photo, including best before and supplier. Scan an invoice or Paste a list handles a whole delivery at once."],
+    ["Or pick from your library", "Search any beer you have stocked before. Details carry over, including the last price and supplier, each marked Please confirm so nothing is assumed."],
+    ["Autofill", "Type the name and tap Autofill to pull in the style, ABV, allergens, vegan and gluten status, and tasting notes. Always confirm allergens against the producer's own information."],
+  ]},
+  { title: "The cask lifecycle", steps: [
+    ["In Store", "Delivered and waiting."],
+    ["Racked", "Up on the stillage to settle."],
+    ["Vented", "Soft spile in, conditioning."],
+    ["Ready", "Tapped and ready to serve."],
+    ["Pouring", "On the bar."],
+    ["Finished", "Empty. Moves to Empties for collection."],
+  ]},
+  { title: "When a beer finishes", steps: [
+    ["Line finished", "Open the beer and tap Line finished. Pick the next one from what is Ready, Vented or Racked."],
+    ["Fill the empty rack", "The rack slot it leaves behind shows Rack from store. Tap it to bring a cask up from In Store."],
+    ["The empty cask", "It joins Empties automatically, grouped by supplier, so nothing gets missed on collection day."],
+  ]},
+  { title: "The Library", steps: [
+    ["Every beer, remembered", "Details, tasting notes, allergens, plus every past price and supplier. The history button on each row shows the full trail."],
+    ["Archive, not delete", "Edit a beer and tap Archive to hide one you will not stock again. Its history stays and you can restore it any time."],
+  ]},
+  { title: "Sharing and printing", steps: [
+    ["Stock List and Allergen Sheet", "Under More. Print or Share PDF for staff reference and allergen queries."],
+    ["Customer Tap List", "A customer-friendly what's on, priced by pint, half and schooner."],
+  ]},
+  { title: "Keeping it safe", steps: [
+    ["Everything syncs", "Changes save to the cloud within a second and appear on every phone."],
+    ["Take a backup", "Backup, under More, copies everything to a file in ten seconds. Worth doing every so often."],
+  ]},
+];
+
+// The unlock and error screens return before the main app shell (where the full style
+// block lives), so they need their own font bootstrap or the wordmark falls back to
+// the system font. The browser dedupes the duplicate @import.
+const FontBoot = () => <style>{`@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&display=swap');
+:root { --font-data: 'Archivo', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; --font-display: 'Archivo', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }`}</style>;
+const VIEW_TITLES = { cellar: "Cellar", add: "Add Stock", library: "Library", allergens: "Allergen Sheet", stock: "Stock List", empties: "Empties to Return", stats: "Cellar Stats", guide: "How to Use", notify: "Notifications", backup: "Backup & Restore" };
 const SIZE_OPTIONS = ["Keg 30L", "Keg 50L", "Bag-in-box 20L"];
 const FRESH_LIMIT = 4; // days on a cask before a quality check is worth a look
 const BB_SOON = 2;     // days before best-before to start flagging
@@ -281,8 +336,8 @@ const aiDraft = (name) => {
   if (/stout|porter/.test(l)) d = { ...d, style: /porter/.test(l) ? "Porter" : "Stout", abv: "4.8", allergens: ["Barley (gluten)", "Oats (gluten)"], notes: "Dark and roasty, coffee and dark chocolate, smooth and dry." };
   else if (/ipa/.test(l)) d = { ...d, style: "IPA", abv: "5.6", clarity: /hazy|juic|neipa/.test(l) ? "Hazy" : "Clear", allergens: ["Barley (gluten)", "Wheat (gluten)"], notes: "Hop-forward, tropical fruit and citrus over a firm bitterness." };
   else if (/bitter/.test(l)) d = { ...d, style: "Best Bitter", abv: "3.9", notes: "Amber, biscuity malt with earthy English hops." };
-  else if (/cider|scrumpy|apple/.test(l)) d = { style: "Medium", abv: "5.2", clarity: "Clear", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Traditional medium cider, crisp apple with a gentle tannic finish." };
-  else if (/pear|perry/.test(l)) d = { style: "Perry", abv: "4.5", clarity: "Clear", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Soft, lightly sweet perry with ripe pear notes." };
+  else if (/cider|scrumpy|apple/.test(l)) d = { style: "Medium", abv: "5.2", clarity: "Clear", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Traditional medium cider, crisp apple with a gentle tannic finish.", sweetness: /dry/.test(l) ? "Dry" : /sweet/.test(l) ? "Sweet" : "Medium" };
+  else if (/pear|perry/.test(l)) d = { style: "Perry", abv: "4.5", clarity: "Clear", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Soft, lightly sweet perry with ripe pear notes.", sweetness: "Medium Sweet" };
   return { ...d, allergensVerified: false };
 };
 
@@ -420,7 +475,7 @@ const emptyForm = {
   drinkType: "cask", brewery: "", location: "", name: "", style: "", abv: "",
   clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "",
   allergensVerified: false, category: "Misc", size: "", price: "",
-  status: "in_cellar", bestBefore: "", caskOwner: "",
+  status: "in_cellar", bestBefore: "", caskOwner: "", sweetness: "",
 };
 
 // ---------- UI atoms ----------
@@ -515,6 +570,7 @@ export default function TheCurfewCellar() {
   const [addMode, setAddMode] = useState("pick");
   const [addPickSearch, setAddPickSearch] = useState("");
   const [showMore, setShowMore] = useState(false);
+  const [showAlerts, setShowAlerts] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState(null);
   const [scanProgress, setScanProgress] = useState(null);
@@ -528,6 +584,105 @@ export default function TheCurfewCellar() {
   const invoiceRef = useRef(null);
 
   const beerById = useMemo(() => Object.fromEntries(library.map((b) => [b.id, b])), [library]);
+
+  // "Needs attention": things a publican should see at a glance, computed from data the app
+  // already tracks. Shared by the header notification bell and its dropdown.
+  const attentionItems = useMemo(() => {
+    const out = [];
+    lines.filter((l) => l.status !== "off").forEach((l) => {
+      const beer = beerById[l.beerId]; if (!beer) return;
+      const nm = `${beer.brewery ? beer.brewery + " " : ""}${beer.name}`;
+      const bb = bbStatus(l);
+      if (bb && bb.level === "past") out.push({ id: l.id, warn: true, text: `${nm}: best before has passed` });
+      else if (bb && bb.level === "soon") out.push({ id: l.id, warn: true, text: `${nm}: best before ${daysUntil(l.bestBefore) === 0 ? "today" : `in ${daysUntil(l.bestBefore)}d`}` });
+      const f = freshness(l);
+      if (l.status === "on" && f && f.level === "check") out.push({ id: l.id, warn: false, text: `${nm}: on for ${daysOn(l)} days, check quality` });
+      if (l.status === "vented" && l.dates.vented && dayDiff(l.dates.vented, new Date().toISOString()) >= 2) out.push({ id: l.id, warn: false, text: `${nm}: vented ${dayDiff(l.dates.vented, new Date().toISOString())}d ago, ready to tap` });
+    });
+    const backupAge = prefs.lastBackup ? dayDiff(prefs.lastBackup, new Date().toISOString()) : null;
+    if (lines.length > 3 && (backupAge === null || backupAge > 30)) out.push({ id: null, warn: false, backup: true, text: backupAge === null ? "No backup saved yet. Takes ten seconds" : `Last backup ${backupAge} days ago. Worth a fresh one` });
+    return out;
+  // Deliberately NOT dependent on beerById: editing a beer's name/brewery/style/notes etc.
+  // changes library (and therefore beerById) on every keystroke, and this memo doing an O(n)
+  // date-maths walk over every line each time is what caused the typing stutter. Attention
+  // items are really about line status and dates, not beer detail text, so beerById is read
+  // from the closure (whatever it is at the point lines/backup last changed) rather than
+  // forcing a recompute here. Worst case a beer's name is a beat stale in the bell dropdown
+  // mid-edit, self-corrects the next time lines changes (which is constantly, in normal use).
+  }, [lines, prefs.lastBackup]);
+
+
+
+  // ---- Push notifications (managers get a ping when a beer goes on or finishes) ----
+  const [pushState, setPushState] = useState("checking"); // checking | unsupported | need-install | blocked | off | on
+  const [pushBusy, setPushBusy] = useState(false);
+  const checkPush = async () => {
+    if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) { setPushState("unsupported"); return; }
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const standalone = window.matchMedia && window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+    if (isIOS && !standalone) { setPushState("need-install"); return; }
+    if (Notification.permission === "denied") { setPushState("blocked"); return; }
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      setPushState(sub ? "on" : "off");
+    } catch (e) { setPushState("off"); }
+  };
+  useEffect(() => {
+    if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+    checkPush();
+  }, []);
+  const enablePush = async () => {
+    if (pushBusy) return;
+    setPushBusy(true);
+    try {
+      const perm = await Notification.requestPermission();
+      if (perm !== "granted") { setPushState(perm === "denied" ? "blocked" : "off"); return; }
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(PUSH_PUBLIC_KEY) });
+      const c = await _client();
+      const { error } = await c.from("push_subs").upsert({ endpoint: sub.endpoint, sub: sub.toJSON() }, { onConflict: "endpoint" });
+      if (error) throw error;
+      try { localStorage.setItem("cc-push-endpoint", sub.endpoint); } catch (e) { /* ignore */ }
+      setPushState("on");
+      showToast("Notifications are on for this phone.");
+    } catch (e) {
+      showToast("Could not turn notifications on. Check your connection and try again.");
+    } finally { setPushBusy(false); }
+  };
+  const disablePush = async () => {
+    if (pushBusy) return;
+    setPushBusy(true);
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) {
+        try { const c = await _client(); await c.from("push_subs").delete().eq("endpoint", sub.endpoint); } catch (e) { /* best effort */ }
+        await sub.unsubscribe();
+      }
+      try { localStorage.removeItem("cc-push-endpoint"); } catch (e) { /* ignore */ }
+      setPushState("off");
+      showToast("Notifications are off for this phone.");
+    } catch (e) {
+      showToast("Could not turn notifications off just now.");
+    } finally { setPushBusy(false); }
+  };
+  const sendCellarPush = (title, body) => {
+    if (!cloudMode) return;
+    (async () => {
+      try {
+        const c = await _client();
+        const { data } = await c.auth.getSession();
+        const token = data && data.session ? data.session.access_token : null;
+        if (!token) return;
+        let exclude = null;
+        try { exclude = localStorage.getItem("cc-push-endpoint"); } catch (e) { /* ignore */ }
+        await fetch("/api/notify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token, title, body, tag: "curfew-pump", exclude }) });
+      } catch (e) { /* never block the bar over a notification */ }
+    })();
+  };
+
   const setF = (patch) => setForm((f) => ({ ...f, ...patch }));
   const findSavedBeer = (brewery, name) =>
     library.find((b) => b.brewery.trim().toLowerCase() === brewery.trim().toLowerCase() && b.name.trim().toLowerCase() === name.trim().toLowerCase());
@@ -857,6 +1012,24 @@ export default function TheCurfewCellar() {
     return () => { cancelled = true; };
   }, [authed]);
 
+  // iOS suspends live subscriptions while the app is backgrounded and doesn't reliably
+  // reconnect them, so on returning to the foreground, pull fresh data once. Throttled
+  // so quick app switches don't hammer the cloud.
+  const lastRefetch = useRef(0);
+  useEffect(() => {
+    if (!cloudMode || !authed || !cloudReady) return;
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      if (saveTimer.current) return; // a local edit hasn't synced yet; don't pull over it
+      const now = Date.now();
+      if (now - lastRefetch.current < 10000) return;
+      lastRefetch.current = now;
+      loadCellar();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [authed, cloudReady]);
+
   const doLogin = async () => {
     if (authBusy) return;
     setAuthBusy(true); setAuthErr(null);
@@ -1143,6 +1316,49 @@ export default function TheCurfewCellar() {
   };
 
   // Builds the allergen and dietary guide as a shareable PDF.
+  const shareGuidePDF = async () => {
+    if (pdfBusy) return;
+    setPdfBusy(true);
+    try {
+      const JsPDF = await _loadJsPDF();
+      if (!JsPDF) throw new Error("no pdf lib");
+      const doc = new JsPDF({ unit: "mm", format: "a4" });
+      const W = 210, H = 297, M = 14; let y = M;
+      const ink = [28, 54, 54], brassSoft = [199, 154, 62], gray = [110, 118, 115];
+      const ensure = (need) => { if (y + need > H - M) { doc.addPage(); y = M; } };
+
+      doc.setFillColor(ink[0], ink[1], ink[2]); doc.rect(0, 0, W, 28, "F");
+      doc.setFont("helvetica", "bold"); doc.setFontSize(17); doc.setTextColor(243, 239, 230);
+      doc.text("How to use The Curfew Cellar", M, 13);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(brassSoft[0], brassSoft[1], brassSoft[2]);
+      doc.text("THE CURFEW MICROPUB · STAFF GUIDE", M, 20.5);
+      doc.setFontSize(8.5); doc.setTextColor(200, 196, 186);
+      doc.text(new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }), W - M, 13, { align: "right" });
+      y = 36;
+
+      GUIDE_SECTIONS.forEach((sec) => {
+        ensure(18);
+        doc.setFont("helvetica", "bold"); doc.setFontSize(12.5); doc.setTextColor(ink[0], ink[1], ink[2]);
+        doc.text(sec.title, M, y); y += 2.5;
+        doc.setDrawColor(brassSoft[0], brassSoft[1], brassSoft[2]); doc.setLineWidth(0.5);
+        doc.line(M, y, M + 10, y); y += 5;
+        sec.steps.forEach(([h, t]) => {
+          const lines = doc.splitTextToSize(t, W - M * 2 - 4);
+          ensure(5 + lines.length * 4 + 3);
+          doc.setFont("helvetica", "bold"); doc.setFontSize(9.5); doc.setTextColor(ink[0], ink[1], ink[2]);
+          doc.text(h, M, y); y += 4.2;
+          doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(gray[0], gray[1], gray[2]);
+          doc.text(lines, M + 4, y); y += lines.length * 4 + 3;
+        });
+        y += 3;
+      });
+
+      await sharePdfDoc(doc, "curfew-cellar-guide.pdf", "How to use The Curfew Cellar");
+    } catch (e) {
+      showToast("Could not make the PDF just now. Check your connection and try again.");
+    } finally { setPdfBusy(false); }
+  };
+
   const shareAllergenPDF = async () => {
     if (pdfBusy) return;
     setPdfBusy(true);
@@ -1170,7 +1386,7 @@ export default function TheCurfewCellar() {
         const b = beerById[l.beerId]; if (!b) return;
         const name = `${b.brewery ? b.brewery + " - " : ""}${b.name || ""}`;
         const diet = [b.vegan ? "Vegan" : "", b.glutenStatus === "Gluten-free" ? "Gluten-free" : b.glutenStatus === "Low gluten" ? "Low gluten" : ""].filter(Boolean).join("  ·  ");
-        const allergenText = (b.allergensVerified ? (b.allergens.length ? `Contains: ${b.allergens.join(", ")}` : "No declared allergens") : "Allergens: please ask staff") + (b.allergensVerified ? "" : "  ·  not yet staff verified");
+        const allergenText = (b.allergensVerified ? (b.allergens.length ? `Contains: ${b.allergens.join(", ")}` : "No declared allergens") : "Allergens: please ask staff") + (b.allergensVerified ? "" : "  ·  not staff verified");
         doc.setFont("helvetica", "bold"); doc.setFontSize(9.5);
         const nameLines = doc.splitTextToSize(name, W - 2 * M - 40);
         doc.setFont("helvetica", "normal"); doc.setFontSize(7.8);
@@ -1224,6 +1440,97 @@ export default function TheCurfewCellar() {
     }
   };
 
+  // Builds the empties-to-return list as a shareable PDF, grouped by supplier like the screen.
+  const shareEmptiesPDF = async () => {
+    if (pdfBusy) return;
+    setPdfBusy(true);
+    try {
+      const JsPDF = await _loadJsPDF();
+      if (!JsPDF) throw new Error("no pdf lib");
+      const doc = new JsPDF({ unit: "mm", format: "a4" });
+      const W = 210, H = 297, M = 14; let y = M;
+      const ink = [27, 34, 48], brass = [122, 86, 18], brassSoft = [199, 154, 62], gray = [128, 128, 128], lineCol = [225, 222, 215], paleBg = [250, 249, 246], muted = [150, 161, 155];
+      const ensure = (need) => { if (y + need > H - M) { doc.addPage(); y = M; } };
+      const fmtD = (d) => { if (!d) return ""; try { return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" }); } catch (e) { return ""; } };
+
+      doc.setFillColor(ink[0], ink[1], ink[2]); doc.rect(0, 0, W, 28, "F");
+      doc.setFont("helvetica", "bold"); doc.setFontSize(19); doc.setTextColor(243, 239, 230);
+      doc.text("The Curfew", M, 14);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(brassSoft[0], brassSoft[1], brassSoft[2]);
+      doc.text("MICROPUB · EMPTIES TO RETURN", M, 20.5);
+      doc.setFontSize(8.5); doc.setTextColor(200, 196, 186);
+      doc.text(new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }), W - M, 14, { align: "right" });
+      y = 36;
+
+      const sectionHead = (t, n) => {
+        ensure(16);
+        y += 4;
+        doc.setFillColor(brass[0], brass[1], brass[2]); doc.rect(M, y - 4, 2.2, 5.2, "F");
+        doc.setFont("helvetica", "bold"); doc.setFontSize(11.5); doc.setTextColor(ink[0], ink[1], ink[2]);
+        doc.text(t, M + 4.5, y);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(gray[0], gray[1], gray[2]);
+        doc.text(String(n), W - M, y, { align: "right" });
+        y += 5.5;
+      };
+
+      const beerLine = (l) => {
+        const b = beerById[l.beerId]; if (!b) return;
+        const name = `${b.brewery ? b.brewery + " - " : ""}${b.name || ""}`;
+        const dt = (DRINK_TYPES.find((t) => t.key === l.drinkType) || {}).label || l.drinkType;
+        const meta = [dt, b.style, b.abv ? b.abv + "%" : "", b.location || ""].filter(Boolean).join("  ·  ");
+        const finished = l.dates.off ? `Finished ${fmtD(l.dates.off)}` : "";
+        doc.setFont("helvetica", "bold"); doc.setFontSize(9.5);
+        const nameLines = doc.splitTextToSize(name, W - 2 * M - 8);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(7.8);
+        const metaLines = doc.splitTextToSize(meta, W - 2 * M - 8);
+        const topPad = 4.2, lhName = 3.9, lhMeta = 3.5, lhFinished = 3.5, bottomPad = 2.4;
+        const contentH = lhName * nameLines.length + lhMeta * metaLines.length + (finished ? lhFinished : 0);
+        const rowH = Math.max(topPad + contentH + bottomPad, 10.5);
+        ensure(rowH + 1.2);
+
+        doc.setFillColor(paleBg[0], paleBg[1], paleBg[2]); doc.rect(M, y, W - 2 * M, rowH, "F");
+        doc.setFillColor(muted[0], muted[1], muted[2]); doc.rect(M, y, 1.4, rowH, "F");
+
+        let ty = y + topPad;
+        doc.setFont("helvetica", "bold"); doc.setFontSize(9.5); doc.setTextColor(ink[0], ink[1], ink[2]);
+        doc.text(nameLines, M + 4.5, ty); ty += lhName * nameLines.length;
+        doc.setFont("helvetica", "normal"); doc.setFontSize(7.8); doc.setTextColor(gray[0], gray[1], gray[2]);
+        doc.text(metaLines, M + 4.5, ty); ty += lhMeta * metaLines.length;
+        if (finished) { doc.setFont("helvetica", "normal"); doc.setFontSize(7.4); doc.setTextColor(gray[0], gray[1], gray[2]); doc.text(finished, M + 4.5, ty); }
+        y += rowH + 1.4;
+      };
+
+      const empties = lines.filter((l) => l.status === "off" && !l.collected && l.drinkType !== "cider" && l.drinkType !== "keykeg");
+      if (!empties.length) {
+        doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(gray[0], gray[1], gray[2]);
+        doc.text("No empties waiting for collection.", M, y);
+      } else {
+        const owners = [...new Set(empties.map((l) => l.caskOwner || "Unknown"))].sort((a, b) => {
+          const diff = empties.filter((l) => (l.caskOwner || "Unknown") === b).length - empties.filter((l) => (l.caskOwner || "Unknown") === a).length;
+          return diff !== 0 ? diff : a.localeCompare(b);
+        });
+        owners.forEach((owner) => {
+          const items = empties.filter((l) => (l.caskOwner || "Unknown") === owner);
+          sectionHead(owner, items.length);
+          items.forEach((l) => beerLine(l));
+        });
+      }
+
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let p = 1; p <= pageCount; p++) {
+        doc.setPage(p);
+        doc.setDrawColor(lineCol[0], lineCol[1], lineCol[2]); doc.line(M, H - 10, W - M, H - 10);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(gray[0], gray[1], gray[2]);
+        doc.text(`Page ${p} of ${pageCount}`, W - M, H - 6, { align: "right" });
+      }
+      await sharePdfDoc(doc, "curfew-empties.pdf", "Curfew empties to return");
+    } catch (e) {
+      showToast("Could not make the PDF just now. Check your connection and try again.");
+    } finally {
+      setPdfBusy(false);
+    }
+  };
+
   // Save when data changes, debounced so fast typing (e.g. prices) stays smooth.
   // The write (full serialise + cloud upsert) runs ~half a second after the last change.
   const saveTimer = useRef(null);
@@ -1231,9 +1538,10 @@ export default function TheCurfewCellar() {
     if (!hydrated || !store || storageOk !== true || (cloudMode && (!authed || !cloudReady))) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
+      saveTimer.current = null;
       (async () => { try { await store.set(STORE_KEY, JSON.stringify({ library, lines, distributors, prefs, lastUpdated }), false); } catch (e) { /* ignore */ } })();
     }, 500);
-    return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
+    return () => { if (saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = null; } };
   }, [library, lines, distributors, prefs, lastUpdated, hydrated, storageOk, authed, cloudReady]);
 
   // Stamp "last updated" whenever a beer is added or changed (not on first load or a remote sync)
@@ -1271,8 +1579,17 @@ export default function TheCurfewCellar() {
   };
 
   const exportData = () => JSON.stringify({ app: "thecurfewcellar", version: 1, exportedAt: new Date().toISOString(), library, lines }, null, 2);
+  const noteBackupTaken = () => {
+    const stamp = new Date().toISOString();
+    const nextPrefs = { ...prefs, lastBackup: stamp };
+    setPrefs(nextPrefs);
+    if (saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = null; }
+    if (store && storageOk === true && (!cloudMode || (authed && cloudReady))) {
+      (async () => { try { await store.set(STORE_KEY, JSON.stringify({ library, lines, distributors, prefs: nextPrefs, lastUpdated }), false); } catch (e) { /* ignore */ } })();
+    }
+  };
   const copyBackup = async () => {
-    try { await navigator.clipboard.writeText(exportData()); setBackupMsg({ type: "ok", text: "Backup copied to clipboard." }); }
+    try { await navigator.clipboard.writeText(exportData()); noteBackupTaken(); setBackupMsg({ type: "ok", text: "Backup copied to clipboard." }); }
     catch (e) { setBackupMsg({ type: "warn", text: "Couldn't copy automatically. Select the text below and copy it manually." }); }
   };
   const downloadBackup = () => {
@@ -1283,6 +1600,7 @@ export default function TheCurfewCellar() {
       a.href = url; a.download = `curfew-cellar-backup-${new Date().toISOString().slice(0, 10)}.json`;
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 1000);
+      noteBackupTaken();
       setBackupMsg({ type: "ok", text: "Backup file downloaded." });
     } catch (e) { setBackupMsg({ type: "warn", text: "Download isn't available in this view. Use Copy backup instead." }); }
   };
@@ -1314,7 +1632,7 @@ export default function TheCurfewCellar() {
     if (!form.name.trim()) { setFillNote({ type: "warn", text: "Add a name first." }); return; }
     const saved = form.brewery.trim() ? findSavedBeer(form.brewery, form.name) : null;
     if (saved) {
-      setF({ style: saved.style, abv: saved.abv, clarity: saved.clarity, glutenStatus: saved.glutenStatus, vegan: saved.vegan, allergens: saved.allergens, notes: saved.notes, allergensVerified: saved.allergensVerified, category: form.drinkType === "cask" ? categorise(saved.style, saved.abv) : saved.category });
+      setF({ style: saved.style, abv: saved.abv, clarity: saved.clarity, glutenStatus: saved.glutenStatus, vegan: saved.vegan, allergens: saved.allergens, notes: saved.notes, allergensVerified: saved.allergensVerified, category: form.drinkType === "cask" ? categorise(saved.style, saved.abv) : saved.category, sweetness: saved.sweetness || form.sweetness });
       setFillNote({ type: "ok", text: `Found in your library. Pulled saved details for "${saved.name}".` });
       return;
     }
@@ -1337,7 +1655,8 @@ Return exactly:
   "clarity": "Clear | Hazy | Cloudy",
   "glutenStatus": "Standard | Low gluten | Gluten-free",
   "vegan": true or false,
-  "allergens": ["choose ONLY from: ${ALLERGEN_OPTIONS.join(", ")}"],
+  "allergens": ["choose ONLY from: ${ALLERGEN_OPTIONS.join(", ")}"],${isCider ? `
+  "sweetness": "one of exactly: ${CIDER_SWEETNESS.join(" | ")}, your best knowledge of how this cider is actually described",` : ""}
   "notes": "FLASHCARD FORMAT, like revision cards, not sentences. Part 1: 3 to 5 single words or very short phrases separated by commas, no linking words like \"and\" or \"with\", ending in a period (e.g. \"Biscuity, citrus, pear.\"). Part 2, ONLY if you know a real fun fact about the beer or brewery (what the name refers to, a notable first, an award), written as one short plain clause under 10 words, still no padding (e.g. \"Named after a Para Handy character.\"). If you do not know a real fact, output part 1 only. Never invent a fact, never write more than these two short parts"
 }
 
@@ -1376,11 +1695,12 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
         notes: form.notes.trim() ? form.notes : (p.notes ? String(p.notes) : ""),
         allergensVerified: form.allergensVerified,
         category: form.drinkType === "cask" ? categorise(style, abv) : form.category,
+        sweetness: form.sweetness ? form.sweetness : (CIDER_SWEETNESS.includes(p.sweetness) ? p.sweetness : form.sweetness),
       });
-      setFillNote({ type: "ai", text: "Draft filled in. Check everything, then confirm allergens and dietary status against the producer's own information before serving." });
+      setFillNote({ type: "ai", text: "Draft filled in. Check it, then confirm allergens against the producer's own information before serving." });
     } catch (err) {
       const d = aiDraft(form.name);
-      setF({ ...d, category: form.drinkType === "cask" ? categorise(d.style, d.abv) : form.category });
+      setF({ ...d, category: form.drinkType === "cask" ? categorise(d.style, d.abv) : form.category, sweetness: form.sweetness ? form.sweetness : (d.sweetness || form.sweetness) });
       const msg = stage === "parse"
         ? "The draft came back in an odd format, so a quick local one was used instead. Try again, or just check the details."
         : "Couldn't reach the lookup service just now. A quick local draft was used, so double-check the details.";
@@ -1406,7 +1726,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     const beerFields = {
       brewery: form.brewery.trim(), location: form.location.trim(), name: form.name.trim(),
       style: form.style.trim(), abv: form.abv.trim(), clarity: form.clarity, glutenStatus: form.glutenStatus,
-      vegan: form.vegan, allergens: form.allergens, notes: form.notes.trim(), allergensVerified: form.allergensVerified, category,
+      vegan: form.vegan, allergens: form.allergens, notes: form.notes.trim(), allergensVerified: form.allergensVerified, category, sweetness: form.sweetness,
     };
     const entry = { date: new Date().toISOString(), abv: form.abv.trim(), price: form.price.trim(), caskOwner: (form.caskOwner.trim() || form.brewery.trim()) };
     const saved = findSavedBeer(form.brewery, form.name);
@@ -1427,7 +1747,18 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     if (drink === "cask") { const p = caskPrefPumps(catOfLine(line)).find((x) => !taken.has(x)); if (p) return p; }
     return PUMPS[drink].find((x) => !taken.has(x)) || null;
   };
-  const advance = (id) => setLines((ls) => {
+  const advance = (id) => {
+    const before = lines.find((x) => x.id === id);
+    if (before) {
+      const flow0 = flowFor(before.drinkType);
+      const i0 = flow0.indexOf(before.status);
+      const nk = i0 >= 0 && i0 < flow0.length - 1 ? flow0[i0 + 1] : null;
+      const b = beerById[before.beerId];
+      const nm = b ? `${b.brewery ? b.brewery + " " : ""}${b.name}` : "A beer";
+      if (nk === "on") sendCellarPush("Now pouring", nm);
+      if (nk === "off") sendCellarPush("Line finished", nm);
+    }
+    return setLines((ls) => {
     const cur = ls.find((x) => x.id === id);
     if (!cur) return ls;
     const flow = flowFor(cur.drinkType);
@@ -1443,6 +1774,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
       return { ...c, status: nextKey, dates, slot };
     });
   });
+  };
   const goBack = (id) => setLines((ls) => ls.map((c) => {
     if (c.id !== id) return c;
     const flow = flowFor(c.drinkType);
@@ -1455,6 +1787,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
   const setBestBefore = (id, v) => setLines((ls) => ls.map((c) => (c.id === id ? { ...c, bestBefore: v } : c)));
   const finishAndChoose = (line) => {
     const beer = beerById[line.beerId];
+    sendCellarPush("Line finished", beer ? `${beer.brewery ? beer.brewery + " " : ""}${beer.name}` : "A beer");
     snapshotUndo("Line finished");
     const now = new Date().toISOString();
     setLines((ls) => ls.map((c) => (c.id === line.id ? { ...c, status: "off", slot: null, dates: { ...c.dates, off: now } } : c)));
@@ -1465,15 +1798,27 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     const cat = slot.drink === "cask" ? (slot.slot === "cask2" ? "Bitter" : slot.slot === "cask3" ? "Stout/Porter" : "IPA") : null;
     setSwap({ drink: slot.drink, category: cat, oldId: null, slot: slot.slot });
   };
+  const openRack = (label) => {
+    const cat = label === "Bitter" ? "Bitter" : label === "Stout" ? "Stout/Porter" : label === "Pale" ? "Pale" : label === "IPA" ? "IPA" : null;
+    setSwap({ drink: "cask", category: cat, oldId: null, slot: null, toRack: true });
+  };
   const doSwap = (newId, oldId, slot) => {
-    snapshotUndo("Beer changed");
+    const toRack = swap && swap.toRack;
+    if (!toRack) {
+      const nb = (() => { const l = lines.find((c) => c.id === newId); const b = l && beerById[l.beerId]; return b ? `${b.brewery ? b.brewery + " " : ""}${b.name}` : "A beer"; })();
+      sendCellarPush("Now pouring", nb);
+    }
+    snapshotUndo(toRack ? "Cask racked" : "Beer changed");
     const now = new Date().toISOString();
     setLines((ls) => {
       const newLine = ls.find((c) => c.id === newId);
       const pump = slot || (newLine ? freePumpFor(ls, newLine, oldId) : null);
       return ls.map((c) => {
         if (oldId && c.id === oldId) return { ...c, status: "off", slot: null, dates: { ...c.dates, off: now } };
-        if (c.id === newId) return { ...c, status: "on", slot: pump, dates: { ...c.dates, on: c.dates.on || now } };
+        if (c.id === newId) {
+          if (toRack) return { ...c, status: "racked", dates: { ...c.dates, racked: c.dates.racked || now } };
+          return { ...c, status: "on", slot: pump, dates: { ...c.dates, on: c.dates.on || now } };
+        }
         return c;
       });
     });
@@ -1507,7 +1852,8 @@ Return exactly:
   "clarity": "Clear | Hazy | Cloudy",
   "glutenStatus": "Standard | Low gluten | Gluten-free",
   "vegan": true or false,
-  "allergens": ["choose ONLY from: ${ALLERGEN_OPTIONS.join(", ")}"],
+  "allergens": ["choose ONLY from: ${ALLERGEN_OPTIONS.join(", ")}"],${isCider ? `
+  "sweetness": "one of exactly: ${CIDER_SWEETNESS.join(" | ")}, your best knowledge of how this cider is actually described",` : ""}
   "notes": "FLASHCARD FORMAT, like revision cards, not sentences. Part 1: 3 to 5 single words or very short phrases separated by commas, no linking words like \"and\" or \"with\", ending in a period (e.g. \"Biscuity, citrus, pear.\"). Part 2, ONLY if you know a real fun fact about the beer or brewery (what the name refers to, a notable first, an award), written as one short plain clause under 10 words, still no padding (e.g. \"Named after a Para Handy character.\"). If you do not know a real fact, output part 1 only. Never invent a fact, never write more than these two short parts"
 }
 
@@ -1539,6 +1885,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
         notes: beer.notes ? beer.notes : (p.notes ? String(p.notes) : beer.notes),
         allergensVerified: false,
         category: beer.category || categorise(style, abv),
+        sweetness: beer.sweetness ? beer.sweetness : (CIDER_SWEETNESS.includes(p.sweetness) ? p.sweetness : beer.sweetness),
       });
       setEditNote({ type: "ai", text: "Draft filled in. Check it, then confirm allergens before serving." });
     } catch (err) {
@@ -1548,7 +1895,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
   const removeLine = (id) => { snapshotUndo("Removed from cellar"); setLines((ls) => ls.filter((c) => c.id !== id)); setOpenId(null); };
   const latestPrice = (beer) => { const h = beer.history || []; return h.length ? h[h.length - 1].price : ""; };
   const latestSupplier = (beer) => { const h = beer.history || []; for (let i = h.length - 1; i >= 0; i--) { if (h[i].caskOwner) return h[i].caskOwner; } return ""; };
-  const loadBeerIntoForm = (beer) => { setConfirmDupe(false); return setForm({ ...emptyForm, drinkType: beer.pendingDrinkType || "cask", brewery: beer.brewery, location: beer.location, name: beer.name, style: beer.style, abv: beer.abv, clarity: beer.clarity, glutenStatus: beer.glutenStatus, vegan: beer.vegan, allergens: beer.allergens, notes: beer.notes, allergensVerified: beer.allergensVerified, category: beer.category || categorise(beer.style, beer.abv), price: latestPrice(beer) || beer.pendingPrice || "", bestBefore: beer.pendingBestBefore || "", caskOwner: latestSupplier(beer) || beer.pendingCaskOwner || "" }); };
+  const loadBeerIntoForm = (beer) => { setConfirmDupe(false); return setForm({ ...emptyForm, drinkType: beer.pendingDrinkType || "cask", brewery: beer.brewery, location: beer.location, name: beer.name, style: beer.style, abv: beer.abv, clarity: beer.clarity, glutenStatus: beer.glutenStatus, vegan: beer.vegan, allergens: beer.allergens, notes: beer.notes, allergensVerified: beer.allergensVerified, category: beer.category || categorise(beer.style, beer.abv), sweetness: beer.sweetness || "", price: latestPrice(beer) || beer.pendingPrice || "", bestBefore: beer.pendingBestBefore || "", caskOwner: latestSupplier(beer) || beer.pendingCaskOwner || "" }); };
   const pickBeer = (beer) => { loadBeerIntoForm(beer); setShowMore(false); setFillNote({ type: "ok", text: `Loaded "${beer.name}". Just set price, best before and status.` }); setAddMode("form"); };
   const startNewBeer = () => { setForm(emptyForm); setFillNote(null); setShowMore(false); setAddMode("form"); };
   const addLineOfBeer = (beer) => { loadBeerIntoForm(beer); setShowMore(false); setFillNote({ type: "ok", text: `Loaded "${beer.name}" from your library.` }); setAddMode("form"); setView("add"); };
@@ -1738,8 +2085,8 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     if (bb && bb.level === "past") return { text: "Best before passed", warn: true, alert: true };
     if (bb && bb.level === "soon") return { text: bb.text, warn: false, alert: true };
     if (line.status === "on" && f && f.level === "check") return { text: f.text, warn: false, alert: true };
-    if (line.status === "on") return { text: f ? f.text : "On", warn: false, alert: false };
-    if (line.status === "tapped") return { text: "Tapped", warn: false, alert: false };
+    if (line.status === "on") return { text: f ? f.text : "Pouring", warn: false, alert: false };
+    if (line.status === "tapped") return { text: "Ready", warn: false, alert: false };
     return { text: STATUSES[STATUS_INDEX[line.status]].label, warn: false, alert: false };
   };
 
@@ -1773,21 +2120,25 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     );
   };
 
-  const NavButton = ({ id, icon: Icon, label }) => {
+  const NavButton = ({ id, icon: Icon, label, badge }) => {
     const active = view === id;
     return (
       <button onClick={() => go(id)} style={active ? { background: C.brass, color: C.ink, fontFamily: "var(--font-data)" } : { color: C.cream, fontFamily: "var(--font-data)" }}
         className={`flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-semibold transition active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300 ${active ? "" : "hover:opacity-80"}`}>
         <Icon size={16} /> <span className="hidden sm:inline">{label}</span>
+        {badge > 0 && <span className="grid place-items-center rounded-full px-1" style={{ height: 15, minWidth: 15, background: active ? C.ink : C.brass, color: active ? C.brassSoft : C.ink, fontSize: 9.5, fontWeight: 700, lineHeight: 1 }}>{badge > 9 ? "9+" : badge}</span>}
       </button>
     );
   };
 
-  const BottomTab = ({ id, icon: Icon, label, onClick }) => {
+  const BottomTab = ({ id, icon: Icon, label, onClick, badge }) => {
     const active = view === id;
     return (
       <button onClick={onClick || (() => go(id))} className="flex flex-1 flex-col items-center justify-center gap-0.5 py-2 transition active:scale-95 focus:outline-none" style={{ color: active ? C.brass : C.inkSoft }}>
-        <Icon size={21} />
+        <span className="relative inline-flex">
+          <Icon size={21} />
+          {badge > 0 && <span className="absolute grid place-items-center rounded-full px-1" style={{ top: -4, right: -8, height: 14, minWidth: 14, background: C.brass, color: C.ink, fontFamily: "var(--font-data)", fontSize: 9, fontWeight: 700, lineHeight: 1 }}>{badge > 9 ? "9+" : badge}</span>}
+        </span>
         <span className="text-xs font-semibold" style={{ fontFamily: "var(--font-data)" }}>{label}</span>
       </button>
     );
@@ -1828,14 +2179,14 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     const storeCask = store.filter((l) => l.drinkType === "cask");
     const storeGroups = [
       ...STYLE_ORDER.map((cat) => ({ label: cat === "Stout/Porter" ? "Stout & Porter" : cat, items: storeCask.filter((l) => (beerById[l.beerId]?.category || "Misc") === cat).sort(byBB) })),
-      { label: "Keg", items: store.filter((l) => l.drinkType === "keg").sort(byBB) },
+      { label: "Keg", items: store.filter((l) => PUMP_DRINK(l.drinkType) === "keg").sort(byBB) },
       { label: "Cider", items: store.filter((l) => l.drinkType === "cider").sort(byBB) },
     ].filter((g) => g.items.length);
 
     const renderSlot = (slot, k, urgent) => (
       <div key={k} className={urgent ? "flex items-center gap-2" : ""}>
         {urgent ? (
-          <span className="grid shrink-0 place-items-center rounded-md" style={{ width: 22, height: 22, background: C.ink, color: C.brassSoft, fontFamily: "var(--font-data)", fontSize: 10, fontWeight: 700 }}>{String(PUMP_NUMBER[slot.slot]).padStart(2, "0")}</span>
+          <span className="grid shrink-0 place-items-center rounded-md" style={{ width: 22, height: 22, background: "linear-gradient(180deg, #26494B 0%, #1C3636 100%)", color: C.brassSoft, fontFamily: "var(--font-data)", fontSize: 10, fontWeight: 700, border: "1px solid rgba(184,134,43,0.45)", boxShadow: "inset 0 1px 0 rgba(209,164,74,0.28), 0 1px 2px rgba(28,54,54,0.35)" }}>{String(PUMP_NUMBER[slot.slot]).padStart(2, "0")}</span>
         ) : (
           <p className="mb-0.5 text-xs font-semibold uppercase tracking-wide text-slate-400">{slot.label}</p>
         )}
@@ -1843,7 +2194,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           {slot.line ? <LineRow line={slot.line} context={urgent ? "on" : "racked"} /> : (
             urgent
               ? <button onClick={() => openPump(slot)} className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed text-sm font-medium transition hover:bg-amber-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ borderColor: "#e2c98a", color: "#b45309", minHeight: 52 }}><Plus size={15} /> Empty · {slot.label}</button>
-              : <button onClick={() => go("add")} className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed text-sm font-medium text-slate-400 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line, minHeight: 52 }}>Empty</button>
+              : <button onClick={() => openRack(slot.label)} className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed text-sm font-medium text-slate-500 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line, minHeight: 52 }}><Plus size={15} /> Rack from store</button>
           )}
         </div>
       </div>
@@ -1862,38 +2213,6 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     }
     return (
       <div className="space-y-4">
-        {(() => {
-          // "Needs attention": the things a publican should see the moment the app opens,
-          // computed entirely from data the app already tracks. Hidden when all is well.
-          const attention = [];
-          live.forEach((l) => {
-            const beer = beerById[l.beerId]; if (!beer) return;
-            const nm = `${beer.brewery ? beer.brewery + " " : ""}${beer.name}`;
-            const bb = bbStatus(l);
-            if (bb && bb.level === "past") attention.push({ id: l.id, warn: true, text: `${nm} -- best before has passed` });
-            else if (bb && bb.level === "soon") attention.push({ id: l.id, warn: true, text: `${nm} -- best before ${daysUntil(l.bestBefore) === 0 ? "today" : `in ${daysUntil(l.bestBefore)}d`}` });
-            const f = freshness(l);
-            if (l.status === "on" && f && f.level === "check") attention.push({ id: l.id, warn: false, text: `${nm} -- on for ${daysOn(l)} days, check quality` });
-            if (l.status === "vented" && l.dates.vented && dayDiff(l.dates.vented, new Date().toISOString()) >= 2) attention.push({ id: l.id, warn: false, text: `${nm} -- vented ${dayDiff(l.dates.vented, new Date().toISOString())}d ago, ready to tap` });
-          });
-          if (!attention.length) return null;
-          return (
-            <section className="cc-elev rounded-xl border p-3" style={{ background: "#FCF6EA", borderColor: "#E8D5A8" }}>
-              <p className="mb-1.5 flex items-center gap-1.5 uppercase" style={{ color: C.brass, fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}><AlertTriangle size={13} /> Needs attention</p>
-              <ul className="space-y-1">
-                {attention.slice(0, 5).map((a, i) => (
-                  <li key={`${a.id}-${i}`}>
-                    <button onClick={() => setOpenId(a.id)} className="flex w-full items-start gap-1.5 text-left text-sm transition hover:opacity-70 focus:outline-none" style={{ color: a.warn ? C.alert : C.inkSoft }}>
-                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: a.warn ? C.alert : C.brass }} />
-                      <span className="min-w-0 flex-1">{a.text}</span>
-                    </button>
-                  </li>
-                ))}
-                {attention.length > 5 && <li className="text-xs text-slate-500">+ {attention.length - 5} more</li>}
-              </ul>
-            </section>
-          );
-        })()}
         <section>
           <button onClick={() => toggleSection("on")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
             <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>On <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {onFilled}/10</span></h2>
@@ -1902,15 +2221,15 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           {prefs.on && (
             <div className="mt-2 space-y-3">
               <div>
-                <p className="mb-1.5 flex items-center gap-1.5 uppercase" style={{ color: TYPE_ACCENT.cask, fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}><span className="h-1.5 w-1.5 rounded-full" style={{ background: TYPE_ACCENT.cask }} />Cask</p>
+                <p className="mb-1.5 flex items-center gap-2 uppercase" style={{ color: TYPE_ACCENT.cask, fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}><span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: TYPE_ACCENT.cask }} />Cask<span className="h-px flex-1" style={{ background: "linear-gradient(90deg, rgba(28,54,54,0.18), rgba(28,54,54,0))" }} /></p>
                 <div className="cc-stagger grid grid-cols-1 gap-1.5 sm:grid-cols-2">{onCaskSlots.map((s, i) => renderSlot(s, `oc${i}`, true))}</div>
               </div>
               <div className="border-t pt-3" style={{ borderColor: C.line }}>
-                <p className="mb-1.5 flex items-center gap-1.5 uppercase" style={{ color: TYPE_ACCENT.keg, fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}><span className="h-1.5 w-1.5 rounded-full" style={{ background: TYPE_ACCENT.keg }} />Keg</p>
+                <p className="mb-1.5 flex items-center gap-2 uppercase" style={{ color: TYPE_ACCENT.keg, fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}><span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: TYPE_ACCENT.keg }} />Keg<span className="h-px flex-1" style={{ background: "linear-gradient(90deg, rgba(28,54,54,0.18), rgba(28,54,54,0))" }} /></p>
                 <div className="cc-stagger grid grid-cols-1 gap-1.5 sm:grid-cols-2">{onKegSlots.map((s, i) => renderSlot(s, `ok${i}`, true))}</div>
               </div>
               <div className="border-t pt-3" style={{ borderColor: C.line }}>
-                <p className="mb-1.5 flex items-center gap-1.5 uppercase" style={{ color: TYPE_ACCENT.cider, fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}><span className="h-1.5 w-1.5 rounded-full" style={{ background: TYPE_ACCENT.cider }} />Cider</p>
+                <p className="mb-1.5 flex items-center gap-2 uppercase" style={{ color: TYPE_ACCENT.cider, fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}><span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: TYPE_ACCENT.cider }} />Cider<span className="h-px flex-1" style={{ background: "linear-gradient(90deg, rgba(28,54,54,0.18), rgba(28,54,54,0))" }} /></p>
                 <div className="cc-stagger grid grid-cols-1 gap-1.5 sm:grid-cols-2">{onCiderSlots.map((s, i) => renderSlot(s, `od${i}`, true))}</div>
               </div>
             </div>
@@ -1985,8 +2304,8 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                   </div>
                   <div className={`mt-2 grid grid-cols-2 gap-2 ${batchSource === "invoice" ? "sm:grid-cols-3" : "sm:grid-cols-4"}`}>
                     <input value={x.brewery} onChange={(e) => updateInvoice(idx, { brewery: e.target.value })} placeholder="Brewery" className="rounded border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
-                    <input value={x.abv} onChange={(e) => updateInvoice(idx, { abv: e.target.value })} placeholder="ABV %" className="rounded border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
-                    {batchSource !== "invoice" && <input value={x.price} onChange={(e) => updateInvoice(idx, { price: e.target.value })} placeholder="£ price" className="rounded border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />}
+                    <input value={x.abv} onChange={(e) => updateInvoice(idx, { abv: e.target.value })} inputMode="decimal" placeholder="ABV %" className="rounded border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
+                    {batchSource !== "invoice" && <input value={x.price} onChange={(e) => updateInvoice(idx, { price: e.target.value })} inputMode="decimal" placeholder="£ price" className="rounded border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />}
                     <select value={x.drinkType} onChange={(e) => updateInvoice(idx, { drinkType: e.target.value })} className="rounded border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }}>{DRINK_TYPES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}</select>
                   </div>
                   {batchSource === "labels" && (
@@ -2015,7 +2334,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
         <button key={b.id} onClick={() => pickBeer(b)} className="flex w-full items-center justify-between gap-2 rounded-lg border p-2.5 text-left transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: CAT_ACCENT[b.category] || C.line }}>
           <span className="min-w-0">
             <span className="block truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{b.brewery ? `${b.brewery} - ` : ""}{b.name}</span>
-            <span className="block truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{b.style} · {b.abv}%</span>
+            <span className="block truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{b.style} · {b.abv}%{b.sweetness ? ` · ${b.sweetness}` : ""}</span>
             <span className="block truncate text-xs text-slate-400">{b.location || ""}</span>
           </span>
           <span className="shrink-0 text-xs text-slate-400">{latestPrice(b) ? `last £${latestPrice(b)} ` : ""}→</span>
@@ -2110,7 +2429,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
         <div className="cc-elev rounded-xl border p-4 space-y-3" style={{ background: C.paper, borderColor: C.line }}>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="Style"><input className={inputCls} value={form.style} onChange={(e) => setF(form.drinkType === "cask" ? { style: e.target.value, category: categorise(e.target.value, form.abv) } : { style: e.target.value })} placeholder="e.g. IPA" /></Field>
-            <Field label="ABV %"><input className={inputCls} value={form.abv} onChange={(e) => setF(form.drinkType === "cask" ? { abv: e.target.value, category: categorise(form.style, e.target.value) } : { abv: e.target.value })} placeholder="e.g. 5.4" /></Field>
+            <Field label="ABV %"><input className={inputCls} inputMode="decimal" value={form.abv} onChange={(e) => setF(form.drinkType === "cask" ? { abv: e.target.value, category: categorise(form.style, e.target.value) } : { abv: e.target.value })} placeholder="e.g. 5.4" /></Field>
           </div>
           <Field label="Category">
             <div className="flex flex-wrap gap-2">
@@ -2120,16 +2439,26 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
               ))}
             </div>
           </Field>
+          {form.category === "Cider" && (
+            <Field label="Sweetness">
+              <div className="flex flex-wrap gap-2">
+                {CIDER_SWEETNESS.map((s) => (
+                  <button key={s} onClick={() => setF({ sweetness: s })} className="rounded-full border px-3 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    style={form.sweetness === s ? { background: C.ink, color: "#fff", borderColor: C.ink } : { borderColor: C.line, color: C.inkSoft }}>{s}</button>
+                ))}
+              </div>
+            </Field>
+          )}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field label="Price (£)">
-              <input className={inputCls} value={form.price} onChange={(e) => setF({ price: e.target.value })} placeholder="e.g. 4.40" />
-              {priceNeedsConfirm && <p className="mt-1 text-xs font-medium" style={{ color: C.brass }}>Previous price -- please confirm</p>}
+            <Field label="Price (£ per pint)">
+              <input className={inputCls} inputMode="decimal" value={form.price} onChange={(e) => setF({ price: e.target.value })} placeholder="e.g. 4.40" />
+              {priceNeedsConfirm && <p className="mt-1 text-xs font-medium" style={{ color: C.brass }}>Previous price. Please confirm</p>}
             </Field>
             {form.drinkType !== "cask" && <Field label="Container"><select className={inputCls} value={form.size} onChange={(e) => setF({ size: e.target.value })}>{SIZE_OPTIONS.map((s) => <option key={s}>{s}</option>)}</select></Field>}
           </div>
           <Field label="Supplied by">
             <input className={inputCls} value={form.caskOwner} onChange={(e) => setF({ caskOwner: e.target.value })} placeholder={form.brewery ? `Defaults to ${form.brewery}` : "Defaults to the brewery"} />
-            {supplierNeedsConfirm && <p className="mt-1 text-xs font-medium" style={{ color: C.brass }}>Previous supplier -- please confirm</p>}
+            {supplierNeedsConfirm && <p className="mt-1 text-xs font-medium" style={{ color: C.brass }}>Previous supplier. Please confirm</p>}
           </Field>
           <Field label="Best before">
             <input type="date" className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" value={form.bestBefore} onChange={(e) => setF({ bestBefore: e.target.value })} />
@@ -2200,7 +2529,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{b.brewery ? `${b.brewery} - ` : ""}{b.name}</p>
-              <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{b.style} · {b.abv}%{!b.allergensVerified ? " · not staff verified" : ""}</p>
+              <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{b.style} · {b.abv}%{b.sweetness ? ` · ${b.sweetness}` : ""}{!b.allergensVerified ? " · not staff verified" : ""}</p>
               <p className="truncate text-xs text-slate-400">{b.location || ""}{latestPrice(b) ? ` · Previous: £${latestPrice(b)}` : ""}{latestSupplier(b) ? ` · from ${latestSupplier(b)}` : ""}</p>
             </div>
             <div className="flex shrink-0 items-center gap-1">
@@ -2309,6 +2638,66 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     );
   };
 
+  const NotifySettings = () => (
+    <div className="space-y-4">
+      <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
+        <h2 className="text-base font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Pump notifications</h2>
+        <div className="mt-1 mb-3 h-0.5 w-8 rounded-full" style={{ background: C.brass }} />
+        <p className="text-sm text-slate-500">Get a ping on this phone whenever a beer goes on or a line finishes, even with the app closed. Each phone turns this on separately, so every manager who wants it enables it on their own phone.</p>
+        <div className="mt-4">
+          {pushState === "checking" && <p className="text-sm text-slate-400">Checking this phone…</p>}
+          {pushState === "unsupported" && <p className="text-sm text-slate-500">This browser cannot receive push notifications. On iPhone, use the app added to your Home Screen.</p>}
+          {pushState === "need-install" && (
+            <div className="rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
+              <p className="font-semibold" style={{ color: C.ink }}>One step first</p>
+              <p className="mt-1">iPhones only allow notifications for installed apps. In Safari, tap Share, then Add to Home Screen, then open the app from its new icon and come back here.</p>
+            </div>
+          )}
+          {pushState === "blocked" && <p className="text-sm text-slate-500">Notifications are blocked for this app in your phone settings. Allow them there, then come back and try again.</p>}
+          {pushState === "off" && (
+            <button onClick={enablePush} disabled={pushBusy} className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}>{pushBusy ? <Loader2 className="animate-spin" size={15} /> : <Bell size={15} />} Turn on for this phone</button>
+          )}
+          {pushState === "on" && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 rounded-lg p-3 text-sm font-medium" style={{ background: "#EDF3E7", color: "#3E6B33" }}><CheckCircle2 size={16} /> Notifications are on for this phone.</div>
+              <button onClick={disablePush} disabled={pushBusy} className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border px-4 py-2.5 text-sm font-medium text-slate-500 transition hover:bg-slate-50 active:scale-95 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>Turn off for this phone</button>
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
+        <p className="text-sm font-semibold" style={{ color: C.ink }}>What you will get</p>
+        <ul className="mt-2 space-y-1.5 text-sm text-slate-500">
+          <li>Now pouring: when a beer goes on the bar.</li>
+          <li>Line finished: when one comes off.</li>
+        </ul>
+        <p className="mt-2 text-xs text-slate-400">The phone that makes the change does not get pinged about it.</p>
+      </div>
+    </div>
+  );
+
+  const Guide = () => (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <button onClick={shareGuidePDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-1.5 py-1.5 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40 focus:outline-none" style={{ color: "#778883" }}>{pdfBusy ? <Loader2 className="animate-spin" size={13} /> : <Download size={13} />} Share PDF</button>
+      </div>
+      {GUIDE_SECTIONS.map((sec) => (
+        <div key={sec.title} className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
+          <h2 className="text-base font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{sec.title}</h2>
+          <div className="mt-1 mb-3 h-0.5 w-8 rounded-full" style={{ background: C.brass }} />
+          <ul className="space-y-2.5">
+            {sec.steps.map(([h, t]) => (
+              <li key={h}>
+                <p className="text-sm font-semibold" style={{ color: C.ink }}>{h}</p>
+                <p className="mt-0.5 text-sm text-slate-500">{t}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
+
   const Stats = () => {
     const histOf = (b) => (b.history || []).slice().sort((x, y) => new Date(x.date) - new Date(y.date));
     const active = library.filter((b) => !b.archived);
@@ -2408,6 +2797,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
       <div className="mx-auto max-w-2xl space-y-5">
         <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
           <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Export</h2>
+          <p className="mt-0.5 text-xs text-slate-400">{prefs.lastBackup ? `Last backup: ${fmtUpdated(prefs.lastBackup)}` : "No backup taken yet. The cloud keeps no history, so a saved copy is your safety net."}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             <button onClick={copyBackup} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Copy size={16} /> Copy backup</button>
             <button onClick={downloadBackup} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><Download size={16} /> Download .json</button>
@@ -2449,6 +2839,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-end gap-2">
+          <button onClick={shareEmptiesPDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-1.5 py-1.5 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40 focus:outline-none" style={{ color: "#778883" }}>{pdfBusy ? <Loader2 className="animate-spin" size={13} /> : <Download size={13} />} Share PDF</button>
           <button onClick={() => go("cellar")} className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"><ArrowRight size={14} className="rotate-180" /> Back</button>
         </div>
         {empties.length === 0 && (
@@ -2474,12 +2865,12 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                     const dt = (DRINK_TYPES.find((t) => t.key === l.drinkType) || {}).label || l.drinkType;
                     return (
                       <li key={l.id} className="flex items-start justify-between gap-2 rounded-lg border px-2.5 py-2" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[l.drinkType] || C.line }}>
-                        <span className="min-w-0">
+                        <button onClick={() => setOpenId(l.id)} className="min-w-0 flex-1 rounded text-left focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ WebkitTapHighlightColor: "transparent" }}>
                           <span className="block truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer ? `${beer.brewery ? beer.brewery + " - " : ""}${beer.name}` : "Unknown"}</span>
                           {beer && <span className="block truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{dt}{beer.style ? ` · ${beer.style}` : ""}{beer.abv ? ` · ${beer.abv}%` : ""}</span>}
                           {beer && beer.location && <span className="block truncate text-xs text-slate-400" style={{ fontFamily: "var(--font-data)" }}>{beer.location}</span>}
                           <span className="block truncate text-xs text-slate-500" style={{ fontFamily: "var(--font-data)" }}>{l.size ? `${l.size} · ` : ""}finished {l.dates.off ? fmtDate(l.dates.off.slice(0, 10)) : "--"}</span>
-                        </span>
+                        </button>
                         <button onClick={() => markCollected(l.id)} className="inline-flex shrink-0 items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><Check size={13} /> Collected</button>
                       </li>
                     );
@@ -2602,7 +2993,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
         <div className="mb-1.5 flex items-start justify-between gap-3 rounded-lg border px-2.5 py-2" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[l.drinkType] || C.line }}>
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</p>
-            <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{dt} · {beer.style} · {beer.abv}%</p>
+            <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{dt} · {beer.style}{beer.sweetness ? ` · ${beer.sweetness}` : ""} · {beer.abv}%</p>
             <p className="truncate text-xs text-slate-500" style={{ fontFamily: "var(--font-data)" }}>{beer.location || ""}{l.caskOwner ? `${beer.location ? " · " : ""}Supplier: ${l.caskOwner}` : ""}</p>
           </div>
           <div className="shrink-0 text-right" style={{ fontFamily: "var(--font-data)" }}>
@@ -2686,7 +3077,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     const on = lines.filter((l) => l.status === "on");
     const soon = lines.filter((l) => ["tapped", "vented", "in_cellar"].includes(l.status));
     const cask = on.filter((l) => l.drinkType === "cask");
-    const keg = on.filter((l) => l.drinkType === "keg").sort(byBB);
+    const keg = on.filter((l) => PUMP_DRINK(l.drinkType) === "keg").sort(byBB);
     const cider = on.filter((l) => l.drinkType === "cider").sort(byBB);
     const caskByCat = CATEGORIES.map((cat) => ({ cat, items: cask.filter((l) => (beerById[l.beerId]?.category || "Misc") === cat).sort(byBB) })).filter((g) => g.items.length);
     const faint = "rgba(243,239,230,0.68)";
@@ -2708,7 +3099,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
               {tlp && <p className="text-xs" style={{ color: "rgba(243,239,230,0.55)" }}>Half {tlp.half} · Schooner {tlp.schooner}</p>}
             </div>
           </div>
-          <p className="text-sm font-medium" style={{ color: "rgba(243,239,230,0.85)" }}>{beer.style} · {beer.abv}%{beer.clarity ? ` · ${beer.clarity}` : ""}</p>
+          <p className="text-sm font-medium" style={{ color: "rgba(243,239,230,0.85)" }}>{beer.style}{beer.sweetness ? ` · ${beer.sweetness}` : ""} · {beer.abv}%{beer.clarity ? ` · ${beer.clarity}` : ""}</p>
           {beer.location && <p className="text-xs" style={{ color: "rgba(243,239,230,0.5)" }}>{beer.location}</p>}
           {beer.notes && <ul className="mt-1 space-y-0.5">{splitNote(beer.notes).map((line, i) => <li key={i} className="flex gap-1.5 text-sm italic" style={{ color: faint }}><span>·</span><span>{line}.</span></li>)}</ul>}
           <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -2722,20 +3113,20 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     return (
       <div className="min-h-screen" style={{ background: C.ink }}>
         <div className="mx-auto max-w-2xl px-5 py-8">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-3">
+          <div style={{ border: "1.5px solid rgba(184,134,43,0.4)", borderBottom: "none", borderTopLeftRadius: 130, borderTopRightRadius: 130, padding: "28px 22px 4px" }}>
+            <div className="flex flex-col items-center text-center">
               <div className="grid h-11 w-11 place-items-center rounded-full" style={{ background: C.brass, color: C.ink }}><Bell size={22} /></div>
-              <div>
-                <p className="text-2xl font-semibold leading-tight" style={{ color: C.cream, fontFamily: "var(--font-display)", letterSpacing: "0.03em" }}>The Curfew</p>
-                <p className="text-xs uppercase tracking-widest" style={{ color: C.brassSoft }}>What's on today</p>
+              <p className="mt-2.5 text-2xl font-semibold leading-tight" style={{ color: C.cream, fontFamily: "var(--font-display)", letterSpacing: "0.03em" }}>The Curfew</p>
+              <p className="mt-0.5 text-xs uppercase tracking-widest" style={{ color: C.brassSoft }}>What's on today</p>
+              {fmtUpdated(lastUpdated) && <p className="mt-2 text-xs" style={{ color: "rgba(243,239,230,0.5)" }}>Last updated: {fmtUpdated(lastUpdated)}</p>}
+              <div className="mt-1 flex items-center gap-4">
+                <button onClick={shareTapListPDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-0 py-1 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40" style={{ color: "rgba(209,164,74,0.75)" }}>{pdfBusy ? <Loader2 className="animate-spin" size={12} /> : <Download size={12} />} Share PDF</button>
+                <button onClick={() => go("cellar")} className="inline-flex items-center px-0 py-1 text-xs font-medium transition hover:opacity-70" style={{ color: "rgba(209,164,74,0.75)" }}>Exit preview</button>
               </div>
             </div>
-            <button onClick={() => go("cellar")} className="shrink-0 rounded-lg border px-3 py-1.5 text-xs font-medium" style={{ borderColor: C.brass, color: C.brassSoft }}>Exit preview</button>
           </div>
-          {fmtUpdated(lastUpdated) && <p className="mt-3 text-xs" style={{ color: "rgba(243,239,230,0.5)" }}>Last updated: {fmtUpdated(lastUpdated)}</p>}
-          <button onClick={shareTapListPDF} disabled={pdfBusy} className="mt-2 inline-flex items-center gap-1 px-0 py-1 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40" style={{ color: "rgba(209,164,74,0.75)" }}>{pdfBusy ? <Loader2 className="animate-spin" size={12} /> : <Download size={12} />} Share PDF</button>
 
-          <div className="mt-8">
+          <div className="mt-6">
             {on.length === 0 && <p className="py-12 text-center" style={{ color: "rgba(243,239,230,0.6)" }}>Nothing on just now. Check back soon.</p>}
 
             {caskByCat.length > 0 && (
@@ -2778,16 +3169,16 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     const isCask = swap.drink === "cask";
     const allowedCats = (!isCask || !swap.category) ? null : (swap.category === "IPA" || swap.category === "Pale") ? ["IPA", "Pale"] : [swap.category];
     const catLabel = allowedCats ? (allowedCats.length > 1 ? "IPA or Pale" : allowedCats[0]) : null;
-    const candStatuses = isCask ? ["tapped", "vented", "racked"] : ["in_cellar"];
+    const candStatuses = isCask ? (swap.toRack ? ["in_cellar"] : ["tapped", "vented", "racked"]) : ["in_cellar"];
     const statusRank = { tapped: 0, vented: 1, racked: 2, in_cellar: 3 };
     const dateForStatus = (l) => l.status === "tapped" ? l.dates.tapped : l.status === "vented" ? l.dates.vented : l.status === "racked" ? l.dates.racked : l.dates.delivered;
     const pool = lines.filter((l) => l.drinkType === swap.drink && candStatuses.includes(l.status));
     const matching = allowedCats ? pool.filter((l) => allowedCats.includes(beerById[l.beerId]?.category || "Misc")) : pool;
     const base = matching.length ? matching : pool;
     const list = base.slice().sort((a, b) => (statusRank[a.status] - statusRank[b.status]) || ((dateForStatus(a) || "").localeCompare(dateForStatus(b) || "")));
-    const groupDefs = isCask ? [["tapped", "Tapped and Ready"], ["vented", "Vented"], ["racked", "Racked"]] : [["in_cellar", "Ready to go on"]];
+    const groupDefs = swap.toRack ? [["in_cellar", "In Store"]] : (isCask ? [["tapped", "Tapped and Ready"], ["vented", "Vented"], ["racked", "Racked"]] : [["in_cellar", "Ready to go on"]]);
     const groups = groupDefs.map(([k, label]) => ({ k, label, items: list.filter((l) => l.status === k) })).filter((g) => g.items.length);
-    const emptyMsg = isCask ? "Nothing racked, vented or tapped yet. Rack and vent a cask to get one ready." : `Nothing in the store to put on. Add ${swap.drink === "keg" ? "a keg" : "a cider"} first.`;
+    const emptyMsg = swap.toRack ? "Nothing in the store to rack. Add a cask from your library first." : (isCask ? "Nothing racked, vented or tapped yet. Rack and vent a cask to get one ready." : `Nothing in the store to put on. Add ${swap.drink === "keg" ? "a keg" : "a cider"} first.`);
     const previewLine = swapPreviewId ? lines.find((l) => l.id === swapPreviewId) : null;
     const previewBeer = previewLine ? beerById[previewLine.beerId] : null;
     const pmeta = previewBeer ? [DRINK_TYPES.find((t) => t.key === previewLine.drinkType)?.label, previewBeer.style, `${previewBeer.abv}%`, `£${previewLine.price || "--"}`, previewLine.size ? previewLine.size.replace("Bag-in-box ", "").replace("Keg ", "") : ""].filter(Boolean).join("  ·  ") : "";
@@ -2822,15 +3213,15 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                 {previewBeer.notes && <div><p className="mb-1.5 text-sm font-medium text-slate-500">Tasting notes</p><ul className="space-y-1">{splitNote(previewBeer.notes).map((line, i) => <li key={i} className="flex gap-1.5 text-sm leading-snug text-slate-600"><span style={{ color: C.brass }}>•</span><span>{line}.</span></li>)}</ul></div>}
               </div>
               <div className="sticky bottom-0 border-t bg-white p-4" style={{ borderColor: C.line }}>
-                <button onClick={() => doSwap(previewLine.id, swap.oldId, swap.slot)} className="flex w-full items-center justify-center gap-1.5 rounded-lg px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Check size={16} /> Put on</button>
+                <button onClick={() => doSwap(previewLine.id, swap.oldId, swap.slot)} className="flex w-full items-center justify-center gap-1.5 rounded-lg px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Check size={16} /> {swap.toRack ? "Rack this cask" : "Put on"}</button>
               </div>
             </>
           ) : (
             <>
               <div className="sticky top-0 flex items-center justify-between gap-2 border-b bg-white p-4" style={{ borderColor: C.line }}>
                 <div className="min-w-0">
-                  <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Choose next</h2>
-                  {catLabel && <p className="truncate text-xs text-slate-500">{matching.length ? catLabel : `No ${catLabel} ready, showing all casks`}</p>}
+                  <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{swap.toRack ? "Rack from store" : "Choose next"}</h2>
+                  {catLabel && <p className="truncate text-xs text-slate-500">{matching.length ? catLabel : `No ${catLabel} ${swap.toRack ? "in store" : "ready"}, showing all casks`}</p>}
                 </div>
                 <button onClick={close} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400"><X size={18} /></button>
               </div>
@@ -2894,7 +3285,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Field label="Style"><input className={inputCls} value={beer.style || ""} onChange={(e) => updateBeer(beer.id, { style: e.target.value })} /></Field>
-              <Field label="ABV %"><input className={inputCls} value={beer.abv || ""} onChange={(e) => updateBeer(beer.id, { abv: e.target.value })} /></Field>
+              <Field label="ABV %"><input className={inputCls} inputMode="decimal" value={beer.abv || ""} onChange={(e) => updateBeer(beer.id, { abv: e.target.value })} /></Field>
             </div>
             <Field label="Price (£ per pint)"><input className={inputCls} inputMode="decimal" value={beer.price || ""} onChange={(e) => updateBeerPrice(beer.id, e.target.value)} placeholder="e.g. 4.40" /></Field>
             <Field label="Category">
@@ -2904,9 +3295,18 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                 ))}
               </div>
             </Field>
+            {beer.category === "Cider" && (
+              <Field label="Sweetness">
+                <div className="flex flex-wrap gap-2">
+                  {CIDER_SWEETNESS.map((s) => (
+                    <button key={s} onClick={() => updateBeer(beer.id, { sweetness: s })} className="rounded-full border px-3 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-slate-400" style={chip(beer.sweetness === s)}>{s}</button>
+                  ))}
+                </div>
+              </Field>
+            )}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Field label="Clarity"><select className={inputCls} value={beer.clarity || "Clear"} onChange={(e) => updateBeer(beer.id, { clarity: e.target.value })}>{CLARITY_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}</select></Field>
-              <Field label="Gluten"><select className={inputCls} value={beer.glutenStatus || "Standard"} onChange={(e) => updateBeer(beer.id, { glutenStatus: e.target.value })}>{GLUTEN_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}</select></Field>
+              <Field label="Gluten status"><select className={inputCls} value={beer.glutenStatus || "Standard"} onChange={(e) => updateBeer(beer.id, { glutenStatus: e.target.value })}>{GLUTEN_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}</select></Field>
             </div>
             <button onClick={() => updateBeer(beer.id, { vegan: !beer.vegan })} className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-400" style={chip(!!beer.vegan)}>{beer.vegan ? <Check size={15} /> : null} Vegan</button>
             <Field label="Allergens">
@@ -2940,7 +3340,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     const AlertIcon = alert ? alert.Icon : null;
     const bbCls = bb && bb.level === "soon" ? "text-amber-700" : bb && bb.level !== "past" ? "text-slate-700" : "";
     const sizeShort = openLine.size ? openLine.size.replace("Bag-in-box ", "").replace("Keg ", "") : "";
-    const meta = [DRINK_TYPES.find((t) => t.key === openLine.drinkType)?.label, beer.style, `${beer.abv}%`, sizeShort].filter(Boolean).join("  ·  ");
+    const meta = [DRINK_TYPES.find((t) => t.key === openLine.drinkType)?.label, beer.style, beer.sweetness || null, `${beer.abv}%`, sizeShort].filter(Boolean).join("  ·  ");
     const measures = priceTriple(openLine.price);
     return (
       <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(28,54,54,0.45)" }} onClick={() => setOpenId(null)}>
@@ -2988,7 +3388,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                   return (
                     <div key={s.key} className="flex-1 text-center">
                       <div className="h-1 rounded-full" style={{ background: done ? C.brass : "#E6E2D8" }} />
-                      <p className="mt-1 text-xs leading-tight" style={{ color: cur ? C.ink : "#A8AEB8", fontWeight: cur ? 600 : 400 }}>{s.key === "tapped" ? "Tapped" : s.label}</p>
+                      <p className="mt-1 text-xs leading-tight" style={{ color: cur ? C.ink : "#A8AEB8", fontWeight: cur ? 600 : 400 }}>{s.key === "tapped" ? "Ready" : s.label}</p>
                     </div>
                   );
                 })}
@@ -2999,7 +3399,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                 {openLine.status === "on"
                   ? <button onClick={() => finishAndChoose(openLine)} className="inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Check size={16} /> Line finished</button>
                   : stageIdx < flow.length - 1
-                    ? <button onClick={() => advance(openLine.id)} className="inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}>Advance to {flow[stageIdx + 1] === "tapped" ? "Tapped" : STATUS_BY_KEY[flow[stageIdx + 1]].label} <ArrowRight size={15} /></button>
+                    ? <button onClick={() => advance(openLine.id)} className="inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}>Advance to {flow[stageIdx + 1] === "tapped" ? "Ready" : STATUS_BY_KEY[flow[stageIdx + 1]].label} <ArrowRight size={15} /></button>
                     : null}
               </div>
               {openLine.status === "off" && openLine.drinkType !== "cider" && openLine.drinkType !== "keykeg" && (openLine.collected
@@ -3042,8 +3442,10 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
   if (cloudMode && (authChecking || !authed || (!cloudReady && !cloudLoadError))) {
     return (
       <div className="flex min-h-screen w-full items-center justify-center p-6" style={{ background: C.ink }}>
+        <FontBoot />
         <div className="w-full max-w-xs">
           <div className="mb-6 text-center">
+            <Bell size={26} className="mx-auto mb-2.5" style={{ color: C.brassSoft }} aria-hidden="true" />
             <p className="text-2xl font-bold" style={{ color: C.cream, fontFamily: "var(--font-display)", letterSpacing: "0.03em" }}>The Curfew</p>
             <p className="mt-1 text-xs uppercase tracking-widest" style={{ color: C.brassSoft }}>Cellar Management</p>
           </div>
@@ -3066,6 +3468,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
   if (cloudMode && cloudLoadError) {
     return (
       <div className="flex min-h-screen w-full items-center justify-center p-6" style={{ background: C.ink }}>
+        <FontBoot />
         <div className="w-full max-w-xs text-center">
           <AlertTriangle className="mx-auto mb-3" size={28} color={C.brassSoft} />
           <p className="text-lg font-semibold" style={{ color: C.cream, fontFamily: "var(--font-display)" }}>Could not load the cellar</p>
@@ -3121,10 +3524,45 @@ body { touch-action: manipulation; overscroll-behavior-y: contain; }
 .focus\:ring-slate-300:focus{--tw-ring-color:#C7C6B7!important}
 .focus\:ring-slate-400:focus{--tw-ring-color:#96A19B!important}`}</style>
       {view === "taplist" ? TapList() : (<>
-      <header className="no-print sticky top-0 z-40 border-b" style={{ background: C.ink, borderColor: "rgba(184,134,43,0.35)", boxShadow: "0 1px 0 rgba(184,134,43,0.22), 0 10px 26px -18px rgba(0,0,0,0.65)" }}>
+      <header className="no-print sticky top-0 z-40 border-b" style={{ background: "linear-gradient(180deg, #234342 0%, #1C3636 100%)", borderColor: "rgba(184,134,43,0.35)", boxShadow: "0 1px 0 rgba(184,134,43,0.22), 0 10px 26px -18px rgba(0,0,0,0.65)", paddingTop: "env(safe-area-inset-top)" }}>
         <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 py-2.5">
           <div className="flex items-center gap-2.5">
-            <Bell size={19} style={{ color: C.brassSoft, flexShrink: 0 }} aria-hidden="true" />
+            <div className="relative">
+              <button onClick={() => setShowAlerts((v) => !v)} className="relative flex items-center rounded-lg p-0.5 transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-amber-300" aria-label={`Needs attention: ${attentionItems.length}`}>
+                <Bell size={19} style={{ color: attentionItems.length ? C.brassSoft : "rgba(209,164,74,0.6)", flexShrink: 0 }} />
+                {attentionItems.length > 0 && (
+                  <span className="absolute -right-1 -top-1 grid place-items-center rounded-full px-1" style={{ height: 16, minWidth: 16, background: C.alert, color: "#fff", fontFamily: "var(--font-data)", fontSize: 10, fontWeight: 700, lineHeight: 1 }}>{attentionItems.length > 9 ? "9+" : attentionItems.length}</span>
+                )}
+              </button>
+              {showAlerts && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowAlerts(false)} />
+                  <div className="cc-pop absolute left-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-xl border bg-white shadow-xl" style={{ borderColor: C.line }}>
+                    <div className="flex items-center gap-1.5 border-b px-3 py-2" style={{ borderColor: C.line }}>
+                      <AlertTriangle size={13} style={{ color: C.brass }} />
+                      <span className="uppercase" style={{ color: C.brass, fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}>Needs attention</span>
+                    </div>
+                    {attentionItems.length === 0 ? (
+                      <div className="px-3 py-6 text-center">
+                        <CheckCircle2 size={20} className="mx-auto mb-1.5" style={{ color: "#5E8C4F" }} />
+                        <p className="text-sm text-slate-500">All good. Nothing needs a look right now.</p>
+                      </div>
+                    ) : (
+                      <ul className="max-h-80 overflow-y-auto py-1">
+                        {attentionItems.map((a, i) => (
+                          <li key={`${a.id}-${i}`}>
+                            <button onClick={() => { setShowAlerts(false); a.backup ? go("backup") : (go("cellar"), setOpenId(a.id)); }} className="flex w-full items-start gap-2 px-3 py-2 text-left text-sm transition hover:bg-slate-50 focus:outline-none" style={{ color: a.warn ? C.alert : C.inkSoft }}>
+                              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: a.warn ? C.alert : C.brass }} />
+                              <span className="min-w-0 flex-1">{a.text}</span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
             <p className="text-base font-semibold leading-none" style={{ color: C.cream, fontFamily: "var(--font-display)", letterSpacing: "0.025em" }}>The Curfew</p>
             <p className="hidden sm:inline" style={{ color: C.brassSoft, fontFamily: "var(--font-data)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.14em", lineHeight: 1 }}>Cellar</p>
           </div>
@@ -3137,7 +3575,7 @@ body { touch-action: manipulation; overscroll-behavior-y: contain; }
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
                 <div className="absolute right-0 top-full z-50 mt-1 w-44 overflow-hidden rounded-lg border bg-white shadow-lg" style={{ borderColor: C.line }}>
-                  {[["library", "Library", BookOpen], ["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["stats", "Cellar Stats", BarChart3], ["backup", "Backup", Database]].map(([id, label, Icon]) => (
+                  {[["library", "Library", BookOpen], ["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["stats", "Cellar Stats", BarChart3], ["guide", "How to Use", Compass], ["notify", "Notifications", Bell], ["backup", "Backup", Database]].map(([id, label, Icon]) => (
                     <button key={id} onClick={() => { setMenuOpen(false); go(id); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"><Icon size={15} className="text-slate-400" />{label}</button>
                   ))}
                 </div>
@@ -3165,6 +3603,8 @@ body { touch-action: manipulation; overscroll-behavior-y: contain; }
             {view === "stock" && StockSheet()}
             {view === "empties" && Empties()}
             {view === "stats" && Stats()}
+            {view === "guide" && Guide()}
+            {view === "notify" && NotifySettings()}
             {view === "backup" && Backup()}
             </div>
           </>
@@ -3196,7 +3636,7 @@ body { touch-action: manipulation; overscroll-behavior-y: contain; }
           <div className="cc-sheet absolute inset-x-0 bottom-0 rounded-t-2xl bg-white p-4" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 16px)" }}>
             <div className="mx-auto mb-3 h-1.5 w-10 rounded-full" style={{ background: C.line }} />
             <div className="grid grid-cols-3 gap-2.5">
-              {[["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["stats", "Cellar Stats", BarChart3], ["backup", "Backup", Database]].map(([id, label, Icon]) => (
+              {[["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["stats", "Cellar Stats", BarChart3], ["guide", "How to Use", Compass], ["notify", "Notifications", Bell], ["backup", "Backup", Database]].map(([id, label, Icon]) => (
                 <button key={id} onClick={() => { setMenuOpen(false); go(id); }} className="flex flex-col items-center gap-1.5 rounded-xl border p-3 transition active:scale-95" style={{ borderColor: C.line, color: C.ink }}>
                   <Icon size={20} style={{ color: C.brass }} />
                   <span className="text-center text-xs font-medium leading-tight">{label}</span>
