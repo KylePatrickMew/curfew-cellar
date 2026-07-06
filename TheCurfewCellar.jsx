@@ -222,7 +222,7 @@ const GUIDE_SECTIONS = [
     ["In Store", "Delivered and waiting."],
     ["Racked", "Up on the stillage to settle."],
     ["Vented", "Soft spile in, conditioning."],
-    ["Ready", "Tapped and ready to serve."],
+    ["Tapped", "Tapped and ready to serve."],
     ["Pouring", "On the bar."],
     ["Finished", "Empty. Moves to Empties for collection."],
   ]},
@@ -1988,7 +1988,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     if (bb && bb.level === "soon") return { text: bb.text, warn: false, alert: true };
     if (line.status === "on" && f && f.level === "check") return { text: f.text, warn: false, alert: true };
     if (line.status === "on") return { text: f ? f.text : "Pouring", warn: false, alert: false };
-    if (line.status === "tapped") return { text: "Ready", warn: false, alert: false };
+    if (line.status === "tapped") return { text: "Tapped", warn: false, alert: false };
     return { text: STATUSES[STATUS_INDEX[line.status]].label, warn: false, alert: false };
   };
 
@@ -2081,7 +2081,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     const storeCask = store.filter((l) => l.drinkType === "cask");
     const storeGroups = [
       ...STYLE_ORDER.map((cat) => ({ label: cat === "Stout/Porter" ? "Stout & Porter" : cat, items: storeCask.filter((l) => (beerById[l.beerId]?.category || "Misc") === cat).sort(byBB) })),
-      { label: "Keg", items: store.filter((l) => l.drinkType === "keg").sort(byBB) },
+      { label: "Keg", items: store.filter((l) => PUMP_DRINK(l.drinkType) === "keg").sort(byBB) },
       { label: "Cider", items: store.filter((l) => l.drinkType === "cider").sort(byBB) },
     ].filter((g) => g.items.length);
 
@@ -2732,6 +2732,78 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     );
   };
 
+  const shareEmptiesPDF = async () => {
+    if (pdfBusy) return;
+    setPdfBusy(true);
+    try {
+      const JsPDF = await _loadJsPDF();
+      if (!JsPDF) throw new Error("no pdf lib");
+      const doc = new JsPDF({ unit: "mm", format: "a4" });
+      const W = 210, H = 297, M = 14; let y = M;
+      const ink = [28, 54, 54], brass = [153, 111, 35], brassSoft = [199, 154, 62], gray = [110, 118, 115], lineCol = [225, 222, 215], paleBg = [250, 249, 246];
+      const ensure = (need) => { if (y + need > H - M) { doc.addPage(); y = M; } };
+
+      doc.setFillColor(ink[0], ink[1], ink[2]); doc.rect(0, 0, W, 28, "F");
+      doc.setFont("helvetica", "bold"); doc.setFontSize(17); doc.setTextColor(243, 239, 230);
+      doc.text("Empties to Return", M, 13);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(brassSoft[0], brassSoft[1], brassSoft[2]);
+      doc.text("THE CURFEW MICROPUB · COLLECTION LIST", M, 20.5);
+      doc.setFontSize(8.5); doc.setTextColor(200, 196, 186);
+      doc.text(new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }), W - M, 13, { align: "right" });
+      y = 36;
+
+      const sectionHead = (t, n) => { ensure(16); y += 4; doc.setFillColor(brass[0], brass[1], brass[2]); doc.rect(M, y - 4, 2.2, 5.2, "F"); doc.setFont("helvetica", "bold"); doc.setFontSize(11.5); doc.setTextColor(ink[0], ink[1], ink[2]); doc.text(t, M + 4.5, y); doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(gray[0], gray[1], gray[2]); doc.text(String(n), W - M, y, { align: "right" }); y += 5.5; };
+
+      const beerLine = (l) => {
+        const b = beerById[l.beerId]; if (!b) return;
+        const name = `${b.brewery ? b.brewery + " - " : ""}${b.name || ""}`;
+        const dt = (DRINK_TYPES.find((t) => t.key === l.drinkType) || {}).label || l.drinkType;
+        const meta = [dt, b.style, b.abv ? b.abv + "%" : "", l.size || "", `Finished ${fmtDate(l.dates.off ? l.dates.off.slice(0, 10) : "")}`].filter(Boolean).join("  ·  ");
+        doc.setFont("helvetica", "bold"); doc.setFontSize(9.5);
+        const nameLines = doc.splitTextToSize(name, W - 2 * M - 8);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(7.8);
+        const metaLines = doc.splitTextToSize(meta, W - 2 * M - 8);
+        const topPad = 4.2, lhName = 3.9, lhMeta = 3.5, bottomPad = 2.4;
+        const rowH = Math.max(topPad + lhName * nameLines.length + lhMeta * metaLines.length + bottomPad, 10.5);
+        ensure(rowH + 1.2);
+        doc.setFillColor(paleBg[0], paleBg[1], paleBg[2]); doc.rect(M, y, W - 2 * M, rowH, "F");
+        doc.setFillColor(150, 161, 155); doc.rect(M, y, 1.4, rowH, "F");
+        let ty = y + topPad;
+        doc.setFont("helvetica", "bold"); doc.setFontSize(9.5); doc.setTextColor(ink[0], ink[1], ink[2]);
+        doc.text(nameLines, M + 4.5, ty); ty += lhName * nameLines.length;
+        doc.setFont("helvetica", "normal"); doc.setFontSize(7.8); doc.setTextColor(gray[0], gray[1], gray[2]);
+        doc.text(metaLines, M + 4.5, ty);
+        y += rowH + 1.4;
+      };
+
+      const empties = lines.filter((l) => l.status === "off" && !l.collected && l.drinkType !== "cider" && l.drinkType !== "keykeg");
+      if (!empties.length) { doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(gray[0], gray[1], gray[2]); doc.text("No empties waiting for collection.", M, y); }
+      else {
+        const owners = [...new Set(empties.map((l) => l.caskOwner || "Unknown"))].sort((a, b) => {
+          const diff = empties.filter((l) => (l.caskOwner || "Unknown") === b).length - empties.filter((l) => (l.caskOwner || "Unknown") === a).length;
+          return diff !== 0 ? diff : a.localeCompare(b);
+        });
+        owners.forEach((owner) => {
+          const items = empties.filter((l) => (l.caskOwner || "Unknown") === owner);
+          sectionHead(owner, items.length);
+          items.forEach(beerLine);
+          y += 1.5;
+        });
+      }
+
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let p = 1; p <= pageCount; p++) {
+        doc.setPage(p);
+        doc.setDrawColor(lineCol[0], lineCol[1], lineCol[2]); doc.line(M, H - 10, W - M, H - 10);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(gray[0], gray[1], gray[2]);
+        doc.text(`Page ${p} of ${pageCount}`, W - M, H - 6, { align: "right" });
+      }
+      await sharePdfDoc(doc, "curfew-empties.pdf", "Curfew empties to return");
+    } catch (e) {
+      showToast("Could not make the PDF just now. Check your connection and try again.");
+    } finally { setPdfBusy(false); }
+  };
+
   const Empties = () => {
     const empties = lines.filter((l) => l.status === "off" && !l.collected && l.drinkType !== "cider" && l.drinkType !== "keykeg");
     const owners = [...new Set(empties.map((l) => l.caskOwner || "Unknown"))].sort((a, b) => {
@@ -2740,7 +2812,8 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     });
     return (
       <div className="space-y-4">
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex items-center justify-end gap-3">
+          <button onClick={shareEmptiesPDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-1 py-1 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40 focus:outline-none" style={{ color: "#778883" }}>{pdfBusy ? <Loader2 className="animate-spin" size={13} /> : <Download size={13} />} Share PDF</button>
           <button onClick={() => go("cellar")} className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"><ArrowRight size={14} className="rotate-180" /> Back</button>
         </div>
         {empties.length === 0 && (
@@ -2772,12 +2845,12 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                     const dt = (DRINK_TYPES.find((t) => t.key === l.drinkType) || {}).label || l.drinkType;
                     return (
                       <li key={l.id} className="flex items-start justify-between gap-2 rounded-lg border px-2.5 py-2" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[l.drinkType] || C.line }}>
-                        <span className="min-w-0">
+                        <button onClick={() => setOpenId(l.id)} className="min-w-0 flex-1 rounded text-left focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ WebkitTapHighlightColor: "transparent" }}>
                           <span className="block truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer ? `${beer.brewery ? beer.brewery + " - " : ""}${beer.name}` : "Unknown"}</span>
                           {beer && <span className="block truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{dt}{beer.style ? ` · ${beer.style}` : ""}{beer.abv ? ` · ${beer.abv}%` : ""}</span>}
                           {beer && beer.location && <span className="block truncate text-xs text-slate-400" style={{ fontFamily: "var(--font-data)" }}>{beer.location}</span>}
                           <span className="block truncate text-xs text-slate-500" style={{ fontFamily: "var(--font-data)" }}>{l.size ? `${l.size} · ` : ""}finished {l.dates.off ? fmtDate(l.dates.off.slice(0, 10)) : "--"}</span>
-                        </span>
+                        </button>
                         <button onClick={() => markCollected(l.id)} className="inline-flex shrink-0 items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><Check size={13} /> Collected</button>
                       </li>
                     );
@@ -2985,7 +3058,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     const on = lines.filter((l) => l.status === "on");
     const soon = lines.filter((l) => ["tapped", "vented", "in_cellar"].includes(l.status));
     const cask = on.filter((l) => l.drinkType === "cask");
-    const keg = on.filter((l) => l.drinkType === "keg").sort(byBB);
+    const keg = on.filter((l) => PUMP_DRINK(l.drinkType) === "keg").sort(byBB);
     const cider = on.filter((l) => l.drinkType === "cider").sort(byBB);
     const caskByCat = CATEGORIES.map((cat) => ({ cat, items: cask.filter((l) => (beerById[l.beerId]?.category || "Misc") === cat).sort(byBB) })).filter((g) => g.items.length);
     const faint = "rgba(243,239,230,0.68)";
@@ -3296,7 +3369,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                   return (
                     <div key={s.key} className="flex-1 text-center">
                       <div className="h-1 rounded-full" style={{ background: done ? C.brass : "#E6E2D8" }} />
-                      <p className="mt-1 text-xs leading-tight" style={{ color: cur ? C.ink : "#A8AEB8", fontWeight: cur ? 600 : 400 }}>{s.key === "tapped" ? "Ready" : s.label}</p>
+                      <p className="mt-1 text-xs leading-tight" style={{ color: cur ? C.ink : "#A8AEB8", fontWeight: cur ? 600 : 400 }}>{s.key === "tapped" ? "Tapped" : s.label}</p>
                     </div>
                   );
                 })}
@@ -3307,7 +3380,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                 {openLine.status === "on"
                   ? <button onClick={() => finishAndChoose(openLine)} className="inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Check size={16} /> Line finished</button>
                   : stageIdx < flow.length - 1
-                    ? <button onClick={() => advance(openLine.id)} className="inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}>Advance to {flow[stageIdx + 1] === "tapped" ? "Ready" : STATUS_BY_KEY[flow[stageIdx + 1]].label} <ArrowRight size={15} /></button>
+                    ? <button onClick={() => advance(openLine.id)} className="inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}>Advance to {flow[stageIdx + 1] === "tapped" ? "Tapped" : STATUS_BY_KEY[flow[stageIdx + 1]].label} <ArrowRight size={15} /></button>
                     : null}
               </div>
               {openLine.status === "off" && openLine.drinkType !== "cider" && openLine.drinkType !== "keykeg" && (openLine.collected
@@ -3432,7 +3505,7 @@ body { touch-action: manipulation; overscroll-behavior-y: contain; }
 .focus\:ring-slate-300:focus{--tw-ring-color:#C7C6B7!important}
 .focus\:ring-slate-400:focus{--tw-ring-color:#96A19B!important}`}</style>
       {view === "taplist" ? TapList() : (<>
-      <header className="no-print sticky top-0 z-40 border-b" style={{ background: "linear-gradient(180deg, #234342 0%, #1C3636 100%)", borderColor: "rgba(184,134,43,0.35)", boxShadow: "0 1px 0 rgba(184,134,43,0.22), 0 10px 26px -18px rgba(0,0,0,0.65)" }}>
+      <header className="no-print sticky top-0 z-40 border-b" style={{ background: "linear-gradient(180deg, #234342 0%, #1C3636 100%)", borderColor: "rgba(184,134,43,0.35)", boxShadow: "0 1px 0 rgba(184,134,43,0.22), 0 10px 26px -18px rgba(0,0,0,0.65)", paddingTop: "env(safe-area-inset-top)" }}>
         <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 py-2.5">
           <div className="flex items-center gap-2.5">
             <div className="relative">
@@ -3483,7 +3556,7 @@ body { touch-action: manipulation; overscroll-behavior-y: contain; }
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
                 <div className="absolute right-0 top-full z-50 mt-1 w-44 overflow-hidden rounded-lg border bg-white shadow-lg" style={{ borderColor: C.line }}>
-                  {[["library", "Library", BookOpen], ["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["stats", "Cellar Stats", BarChart3], ["guide", "How to Use", Compass], ["notify", "Notifications", Bell], ["backup", "Backup", Database]].map(([id, label, Icon]) => (
+                  {[["library", "Library", BookOpen], ["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["guide", "How to Use", Compass], ["notify", "Notifications", Bell], ["backup", "Backup", Database]].map(([id, label, Icon]) => (
                     <button key={id} onClick={() => { setMenuOpen(false); go(id); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"><Icon size={15} className="text-slate-400" />{label}</button>
                   ))}
                 </div>
@@ -3544,7 +3617,7 @@ body { touch-action: manipulation; overscroll-behavior-y: contain; }
           <div className="cc-sheet absolute inset-x-0 bottom-0 rounded-t-2xl bg-white p-4" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 16px)" }}>
             <div className="mx-auto mb-3 h-1.5 w-10 rounded-full" style={{ background: C.line }} />
             <div className="grid grid-cols-3 gap-2.5">
-              {[["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["stats", "Cellar Stats", BarChart3], ["guide", "How to Use", Compass], ["notify", "Notifications", Bell], ["backup", "Backup", Database]].map(([id, label, Icon]) => (
+              {[["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["guide", "How to Use", Compass], ["notify", "Notifications", Bell], ["backup", "Backup", Database]].map(([id, label, Icon]) => (
                 <button key={id} onClick={() => { setMenuOpen(false); go(id); }} className="flex flex-col items-center gap-1.5 rounded-xl border p-3 transition active:scale-95" style={{ borderColor: C.line, color: C.ink }}>
                   <Icon size={20} style={{ color: C.brass }} />
                   <span className="text-center text-xs font-medium leading-tight">{label}</span>
