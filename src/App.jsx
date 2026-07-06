@@ -211,7 +211,7 @@ const GUIDE_SECTIONS = [
   { title: "The Cellar screen", steps: [
     ["Pouring board", "The numbered tiles 1 to 10 match the pumps that are on the bar: IPA, Pale, Bitter, Stout, then the kegs and ciders. Tap any beer to open it."],
     ["Racked", "Casks that are Racked or Vented, settling before they go on. The IPA and Pale slots fill by strength: the two strongest go to IPA."],
-    ["In Store", "Everything delivered but not yet racked."],
+    ["In Store", "Everything delivered but not yet racked, grouped by style and sorted by best before date, soonest first, so what needs racking next is always at the top."],
   ]},
   { title: "When a delivery arrives", steps: [
     ["Scan it in", "On the Add tab, Scan a cask label fills the details from a photo, including best before and supplier. Scan an invoice or Paste a list handles a whole delivery at once."],
@@ -603,8 +603,6 @@ export default function TheCurfewCellar() {
     if (lines.length > 3 && (backupAge === null || backupAge > 30)) out.push({ id: null, warn: false, backup: true, text: backupAge === null ? "No backup saved yet. Takes ten seconds" : `Last backup ${backupAge} days ago. Worth a fresh one` });
     return out;
   }, [lines, beerById, prefs.lastBackup]);
-
-  const emptiesWaiting = useMemo(() => lines.filter((l) => l.status === "off" && !l.collected && l.drinkType !== "cider" && l.drinkType !== "keykeg").length, [lines]);
 
   // ---- Push notifications (managers get a ping when a beer goes on or finishes) ----
   const [pushState, setPushState] = useState("checking"); // checking | unsupported | need-install | blocked | off | on
@@ -3550,7 +3548,7 @@ body { touch-action: manipulation; overscroll-behavior-y: contain; }
           <nav className="relative hidden items-center gap-1 sm:flex">
             <NavButton id="cellar" icon={ClipboardList} label="Cellar" />
             <NavButton id="add" icon={Plus} label="Add" />
-            <NavButton id="empties" icon={Package} label="Empties" badge={emptiesWaiting} />
+            <NavButton id="empties" icon={Package} label="Empties" />
             <button onClick={() => setMenuOpen((v) => !v)} style={{ color: C.cream }} className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-amber-300"><MoreHorizontal size={16} /><span className="hidden sm:inline">More</span></button>
             {menuOpen && (
               <>
@@ -3606,7 +3604,7 @@ body { touch-action: manipulation; overscroll-behavior-y: contain; }
             <span className="-mt-5 grid h-12 w-12 place-items-center rounded-full" style={{ background: C.brass, color: C.ink, boxShadow: "0 6px 16px -6px rgba(184,134,43,0.65)" }}><Plus size={24} /></span>
             <span className="mt-0.5 text-xs font-medium" style={{ color: view === "add" ? C.brass : C.inkSoft }}>Add</span>
           </button>
-          <BottomTab id="empties" icon={Package} label="Empties" badge={emptiesWaiting} />
+          <BottomTab id="empties" icon={Package} label="Empties" />
           <BottomTab id="more" icon={MoreHorizontal} label="More" onClick={() => setMenuOpen(true)} />
         </div>
       </nav>
