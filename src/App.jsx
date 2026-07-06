@@ -2978,7 +2978,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     const on = lines.filter((l) => l.status === "on");
     const soon = lines.filter((l) => ["tapped", "vented", "in_cellar"].includes(l.status));
     const cask = on.filter((l) => l.drinkType === "cask");
-    const keg = on.filter((l) => l.drinkType === "keg").sort(byBB);
+    const keg = on.filter((l) => PUMP_DRINK(l.drinkType) === "keg").sort(byBB);
     const cider = on.filter((l) => l.drinkType === "cider").sort(byBB);
     const caskByCat = CATEGORIES.map((cat) => ({ cat, items: cask.filter((l) => (beerById[l.beerId]?.category || "Misc") === cat).sort(byBB) })).filter((g) => g.items.length);
     const faint = "rgba(243,239,230,0.68)";
