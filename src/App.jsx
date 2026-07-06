@@ -1058,7 +1058,7 @@ export default function TheCurfewCellar() {
       const doc = new JsPDF({ unit: "mm", format: "a4" });
       const W = 210, H = 297, M = 14; let y = M;
       const hex = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
-      const ink = [28, 54, 54], brass = [153, 111, 35], brassSoft = [199, 154, 62], gray = [110, 118, 115], lineCol = [225, 222, 215], paleBg = [250, 249, 246];
+      const ink = [27, 34, 48], brass = [122, 86, 18], brassSoft = [199, 154, 62], gray = [128, 128, 128], lineCol = [225, 222, 215], paleBg = [250, 249, 246];
       const ensure = (need) => { if (y + need > H - M) { doc.addPage(); y = M; } };
       const fmtD = (d) => { if (!d) return ""; try { return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" }); } catch (e) { return ""; } };
       const cmpBB = (a, b) => { const da = a.bestBefore ? new Date(a.bestBefore).getTime() : Infinity; const db = b.bestBefore ? new Date(b.bestBefore).getTime() : Infinity; return da - db; };
@@ -1216,7 +1216,7 @@ export default function TheCurfewCellar() {
       if (!JsPDF) throw new Error("no pdf lib");
       const doc = new JsPDF({ unit: "mm", format: "a4" });
       const W = 210, H = 297, M = 14; let y = M;
-      const ink = [28, 54, 54], brass = [153, 111, 35], brassSoft = [199, 154, 62], gray = [110, 118, 115], lineCol = [225, 222, 215], paleBg = [250, 249, 246];
+      const ink = [27, 34, 48], brass = [122, 86, 18], brassSoft = [199, 154, 62], gray = [128, 128, 128], lineCol = [225, 222, 215], paleBg = [250, 249, 246];
       const hex = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
       const ensure = (need) => { if (y + need > H - M) { doc.addPage(); y = M; } };
 
@@ -1360,7 +1360,7 @@ export default function TheCurfewCellar() {
       if (!JsPDF) throw new Error("no pdf lib");
       const doc = new JsPDF({ unit: "mm", format: "a4" });
       const W = 210, H = 297, M = 14; let y = M;
-      const ink = [28, 54, 54], brass = [153, 111, 35], brassSoft = [199, 154, 62], gray = [110, 118, 115], lineCol = [225, 222, 215], paleBg = [250, 249, 246];
+      const ink = [27, 34, 48], brass = [122, 86, 18], brassSoft = [199, 154, 62], gray = [128, 128, 128], lineCol = [225, 222, 215], paleBg = [250, 249, 246];
       const hex = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
       const ensure = (need) => { if (y + need > H - M) { doc.addPage(); y = M; } };
 
@@ -2081,7 +2081,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     const storeCask = store.filter((l) => l.drinkType === "cask");
     const storeGroups = [
       ...STYLE_ORDER.map((cat) => ({ label: cat === "Stout/Porter" ? "Stout & Porter" : cat, items: storeCask.filter((l) => (beerById[l.beerId]?.category || "Misc") === cat).sort(byBB) })),
-      { label: "Keg", items: store.filter((l) => l.drinkType === "keg").sort(byBB) },
+      { label: "Keg", items: store.filter((l) => PUMP_DRINK(l.drinkType) === "keg").sort(byBB) },
       { label: "Cider", items: store.filter((l) => l.drinkType === "cider").sort(byBB) },
     ].filter((g) => g.items.length);
 
@@ -2766,12 +2766,12 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                     const dt = (DRINK_TYPES.find((t) => t.key === l.drinkType) || {}).label || l.drinkType;
                     return (
                       <li key={l.id} className="flex items-start justify-between gap-2 rounded-lg border px-2.5 py-2" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[l.drinkType] || C.line }}>
-                        <span className="min-w-0">
+                        <button onClick={() => setOpenId(l.id)} className="min-w-0 flex-1 rounded text-left focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ WebkitTapHighlightColor: "transparent" }}>
                           <span className="block truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer ? `${beer.brewery ? beer.brewery + " - " : ""}${beer.name}` : "Unknown"}</span>
                           {beer && <span className="block truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{dt}{beer.style ? ` · ${beer.style}` : ""}{beer.abv ? ` · ${beer.abv}%` : ""}</span>}
                           {beer && beer.location && <span className="block truncate text-xs text-slate-400" style={{ fontFamily: "var(--font-data)" }}>{beer.location}</span>}
                           <span className="block truncate text-xs text-slate-500" style={{ fontFamily: "var(--font-data)" }}>{l.size ? `${l.size} · ` : ""}finished {l.dates.off ? fmtDate(l.dates.off.slice(0, 10)) : "--"}</span>
-                        </span>
+                        </button>
                         <button onClick={() => markCollected(l.id)} className="inline-flex shrink-0 items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><Check size={13} /> Collected</button>
                       </li>
                     );
@@ -3425,7 +3425,7 @@ body { touch-action: manipulation; overscroll-behavior-y: contain; }
 .focus\:ring-slate-300:focus{--tw-ring-color:#C7C6B7!important}
 .focus\:ring-slate-400:focus{--tw-ring-color:#96A19B!important}`}</style>
       {view === "taplist" ? TapList() : (<>
-      <header className="no-print sticky top-0 z-40 border-b" style={{ background: "linear-gradient(180deg, #234342 0%, #1C3636 100%)", borderColor: "rgba(184,134,43,0.35)", boxShadow: "0 1px 0 rgba(184,134,43,0.22), 0 10px 26px -18px rgba(0,0,0,0.65)" }}>
+      <header className="no-print sticky top-0 z-40 border-b" style={{ background: "linear-gradient(180deg, #234342 0%, #1C3636 100%)", borderColor: "rgba(184,134,43,0.35)", boxShadow: "0 1px 0 rgba(184,134,43,0.22), 0 10px 26px -18px rgba(0,0,0,0.65)", paddingTop: "env(safe-area-inset-top)" }}>
         <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 py-2.5">
           <div className="flex items-center gap-2.5">
             <div className="relative">
