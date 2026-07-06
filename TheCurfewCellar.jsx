@@ -1058,7 +1058,7 @@ export default function TheCurfewCellar() {
       const doc = new JsPDF({ unit: "mm", format: "a4" });
       const W = 210, H = 297, M = 14; let y = M;
       const hex = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
-      const ink = [27, 34, 48], brass = [122, 86, 18], brassSoft = [199, 154, 62], gray = [128, 128, 128], lineCol = [225, 222, 215], paleBg = [250, 249, 246];
+      const ink = [28, 54, 54], brass = [153, 111, 35], brassSoft = [199, 154, 62], gray = [110, 118, 115], lineCol = [225, 222, 215], paleBg = [250, 249, 246];
       const ensure = (need) => { if (y + need > H - M) { doc.addPage(); y = M; } };
       const fmtD = (d) => { if (!d) return ""; try { return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" }); } catch (e) { return ""; } };
       const cmpBB = (a, b) => { const da = a.bestBefore ? new Date(a.bestBefore).getTime() : Infinity; const db = b.bestBefore ? new Date(b.bestBefore).getTime() : Infinity; return da - db; };
@@ -1216,7 +1216,7 @@ export default function TheCurfewCellar() {
       if (!JsPDF) throw new Error("no pdf lib");
       const doc = new JsPDF({ unit: "mm", format: "a4" });
       const W = 210, H = 297, M = 14; let y = M;
-      const ink = [27, 34, 48], brass = [122, 86, 18], brassSoft = [199, 154, 62], gray = [128, 128, 128], lineCol = [225, 222, 215], paleBg = [250, 249, 246];
+      const ink = [28, 54, 54], brass = [153, 111, 35], brassSoft = [199, 154, 62], gray = [110, 118, 115], lineCol = [225, 222, 215], paleBg = [250, 249, 246];
       const hex = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
       const ensure = (need) => { if (y + need > H - M) { doc.addPage(); y = M; } };
 
@@ -1360,7 +1360,7 @@ export default function TheCurfewCellar() {
       if (!JsPDF) throw new Error("no pdf lib");
       const doc = new JsPDF({ unit: "mm", format: "a4" });
       const W = 210, H = 297, M = 14; let y = M;
-      const ink = [27, 34, 48], brass = [122, 86, 18], brassSoft = [199, 154, 62], gray = [128, 128, 128], lineCol = [225, 222, 215], paleBg = [250, 249, 246];
+      const ink = [28, 54, 54], brass = [153, 111, 35], brassSoft = [199, 154, 62], gray = [110, 118, 115], lineCol = [225, 222, 215], paleBg = [250, 249, 246];
       const hex = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
       const ensure = (need) => { if (y + need > H - M) { doc.addPage(); y = M; } };
 
@@ -2760,7 +2760,13 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                 <ChevronDown size={18} className="text-slate-400" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
               </button>
               {open && (
-                <ul className="space-y-1.5 px-3 pb-3">
+                <>
+                  {items.length > 1 && (
+                    <div className="flex justify-end px-3 pb-1.5">
+                      <button onClick={() => markOwnerCollected(owner)} className="inline-flex items-center gap-1 px-1 py-1 text-xs font-medium transition hover:opacity-70 active:scale-95 focus:outline-none" style={{ color: "#778883" }}><Check size={13} /> All collected ({items.length})</button>
+                    </div>
+                  )}
+                  <ul className="space-y-1.5 px-3 pb-3">
                   {items.map((l) => {
                     const beer = beerById[l.beerId];
                     const dt = (DRINK_TYPES.find((t) => t.key === l.drinkType) || {}).label || l.drinkType;
@@ -2777,6 +2783,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                     );
                   })}
                 </ul>
+                </>
               )}
             </div>
           );
