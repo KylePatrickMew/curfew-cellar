@@ -602,7 +602,14 @@ export default function TheCurfewCellar() {
     const backupAge = prefs.lastBackup ? dayDiff(prefs.lastBackup, new Date().toISOString()) : null;
     if (lines.length > 3 && (backupAge === null || backupAge > 30)) out.push({ id: null, warn: false, backup: true, text: backupAge === null ? "No backup saved yet. Takes ten seconds" : `Last backup ${backupAge} days ago. Worth a fresh one` });
     return out;
-  }, [lines, beerById, prefs.lastBackup]);
+  // Deliberately NOT dependent on beerById: editing a beer's name/brewery/style/notes etc.
+  // changes library (and therefore beerById) on every keystroke, and this memo doing an O(n)
+  // date-maths walk over every line each time is what caused the typing stutter. Attention
+  // items are really about line status and dates, not beer detail text, so beerById is read
+  // from the closure (whatever it is at the point lines/backup last changed) rather than
+  // forcing a recompute here. Worst case a beer's name is a beat stale in the bell dropdown
+  // mid-edit, self-corrects the next time lines changes (which is constantly, in normal use).
+  }, [lines, prefs.lastBackup]);
 
   const emptiesWaiting = useMemo(() => lines.filter((l) => l.status === "off" && !l.collected && l.drinkType !== "cider" && l.drinkType !== "keykeg").length, [lines]);
 
