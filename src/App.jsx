@@ -611,7 +611,7 @@ export default function TheCurfewCellar() {
   // mid-edit, self-corrects the next time lines changes (which is constantly, in normal use).
   }, [lines, prefs.lastBackup]);
 
-  const emptiesWaiting = useMemo(() => lines.filter((l) => l.status === "off" && !l.collected && l.drinkType !== "cider" && l.drinkType !== "keykeg").length, [lines]);
+
 
   // ---- Push notifications (managers get a ping when a beer goes on or finishes) ----
   const [pushState, setPushState] = useState("checking"); // checking | unsupported | need-install | blocked | off | on
@@ -3569,7 +3569,7 @@ body { touch-action: manipulation; overscroll-behavior-y: contain; }
           <nav className="relative hidden items-center gap-1 sm:flex">
             <NavButton id="cellar" icon={ClipboardList} label="Cellar" />
             <NavButton id="add" icon={Plus} label="Add" />
-            <NavButton id="empties" icon={Package} label="Empties" badge={emptiesWaiting} />
+            <NavButton id="empties" icon={Package} label="Empties" />
             <button onClick={() => setMenuOpen((v) => !v)} style={{ color: C.cream }} className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-amber-300"><MoreHorizontal size={16} /><span className="hidden sm:inline">More</span></button>
             {menuOpen && (
               <>
@@ -3625,7 +3625,7 @@ body { touch-action: manipulation; overscroll-behavior-y: contain; }
             <span className="-mt-5 grid h-12 w-12 place-items-center rounded-full" style={{ background: C.brass, color: C.ink, boxShadow: "0 6px 16px -6px rgba(184,134,43,0.65)" }}><Plus size={24} /></span>
             <span className="mt-0.5 text-xs font-medium" style={{ color: view === "add" ? C.brass : C.inkSoft }}>Add</span>
           </button>
-          <BottomTab id="empties" icon={Package} label="Empties" badge={emptiesWaiting} />
+          <BottomTab id="empties" icon={Package} label="Empties" />
           <BottomTab id="more" icon={MoreHorizontal} label="More" onClick={() => setMenuOpen(true)} />
         </div>
       </nav>
