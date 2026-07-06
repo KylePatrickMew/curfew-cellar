@@ -602,16 +602,9 @@ export default function TheCurfewCellar() {
     const backupAge = prefs.lastBackup ? dayDiff(prefs.lastBackup, new Date().toISOString()) : null;
     if (lines.length > 3 && (backupAge === null || backupAge > 30)) out.push({ id: null, warn: false, backup: true, text: backupAge === null ? "No backup saved yet. Takes ten seconds" : `Last backup ${backupAge} days ago. Worth a fresh one` });
     return out;
-  // Deliberately NOT dependent on beerById: editing a beer's name/brewery/style/notes etc.
-  // changes library (and therefore beerById) on every keystroke, and this memo doing an O(n)
-  // date-maths walk over every line each time is what caused the typing stutter. Attention
-  // items are really about line status and dates, not beer detail text, so beerById is read
-  // from the closure (whatever it is at the point lines/backup last changed) rather than
-  // forcing a recompute here. Worst case a beer's name is a beat stale in the bell dropdown
-  // mid-edit, self-corrects the next time lines changes (which is constantly, in normal use).
-  }, [lines, prefs.lastBackup]);
+  }, [lines, beerById, prefs.lastBackup]);
 
-
+  const emptiesWaiting = useMemo(() => lines.filter((l) => l.status === "off" && !l.collected && l.drinkType !== "cider" && l.drinkType !== "keykeg").length, [lines]);
 
   // ---- Push notifications (managers get a ping when a beer goes on or finishes) ----
   const [pushState, setPushState] = useState("checking"); // checking | unsupported | need-install | blocked | off | on
@@ -1065,7 +1058,7 @@ export default function TheCurfewCellar() {
       const doc = new JsPDF({ unit: "mm", format: "a4" });
       const W = 210, H = 297, M = 14; let y = M;
       const hex = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
-      const ink = [27, 34, 48], brass = [122, 86, 18], brassSoft = [199, 154, 62], gray = [128, 128, 128], lineCol = [225, 222, 215], paleBg = [250, 249, 246];
+      const ink = [28, 54, 54], brass = [153, 111, 35], brassSoft = [199, 154, 62], gray = [110, 118, 115], lineCol = [225, 222, 215], paleBg = [250, 249, 246];
       const ensure = (need) => { if (y + need > H - M) { doc.addPage(); y = M; } };
       const fmtD = (d) => { if (!d) return ""; try { return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" }); } catch (e) { return ""; } };
       const cmpBB = (a, b) => { const da = a.bestBefore ? new Date(a.bestBefore).getTime() : Infinity; const db = b.bestBefore ? new Date(b.bestBefore).getTime() : Infinity; return da - db; };
@@ -1223,7 +1216,7 @@ export default function TheCurfewCellar() {
       if (!JsPDF) throw new Error("no pdf lib");
       const doc = new JsPDF({ unit: "mm", format: "a4" });
       const W = 210, H = 297, M = 14; let y = M;
-      const ink = [27, 34, 48], brass = [122, 86, 18], brassSoft = [199, 154, 62], gray = [128, 128, 128], lineCol = [225, 222, 215], paleBg = [250, 249, 246];
+      const ink = [28, 54, 54], brass = [153, 111, 35], brassSoft = [199, 154, 62], gray = [110, 118, 115], lineCol = [225, 222, 215], paleBg = [250, 249, 246];
       const hex = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
       const ensure = (need) => { if (y + need > H - M) { doc.addPage(); y = M; } };
 
@@ -1367,7 +1360,7 @@ export default function TheCurfewCellar() {
       if (!JsPDF) throw new Error("no pdf lib");
       const doc = new JsPDF({ unit: "mm", format: "a4" });
       const W = 210, H = 297, M = 14; let y = M;
-      const ink = [27, 34, 48], brass = [122, 86, 18], brassSoft = [199, 154, 62], gray = [128, 128, 128], lineCol = [225, 222, 215], paleBg = [250, 249, 246];
+      const ink = [28, 54, 54], brass = [153, 111, 35], brassSoft = [199, 154, 62], gray = [110, 118, 115], lineCol = [225, 222, 215], paleBg = [250, 249, 246];
       const hex = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
       const ensure = (need) => { if (y + need > H - M) { doc.addPage(); y = M; } };
 
@@ -1433,97 +1426,6 @@ export default function TheCurfewCellar() {
         doc.text(`Page ${p} of ${pageCount}`, W - M, H - 6, { align: "right" });
       }
       await sharePdfDoc(doc, "curfew-allergen-guide.pdf", "Curfew allergen guide");
-    } catch (e) {
-      showToast("Could not make the PDF just now. Check your connection and try again.");
-    } finally {
-      setPdfBusy(false);
-    }
-  };
-
-  // Builds the empties-to-return list as a shareable PDF, grouped by supplier like the screen.
-  const shareEmptiesPDF = async () => {
-    if (pdfBusy) return;
-    setPdfBusy(true);
-    try {
-      const JsPDF = await _loadJsPDF();
-      if (!JsPDF) throw new Error("no pdf lib");
-      const doc = new JsPDF({ unit: "mm", format: "a4" });
-      const W = 210, H = 297, M = 14; let y = M;
-      const ink = [27, 34, 48], brass = [122, 86, 18], brassSoft = [199, 154, 62], gray = [128, 128, 128], lineCol = [225, 222, 215], paleBg = [250, 249, 246], muted = [150, 161, 155];
-      const ensure = (need) => { if (y + need > H - M) { doc.addPage(); y = M; } };
-      const fmtD = (d) => { if (!d) return ""; try { return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" }); } catch (e) { return ""; } };
-
-      doc.setFillColor(ink[0], ink[1], ink[2]); doc.rect(0, 0, W, 28, "F");
-      doc.setFont("helvetica", "bold"); doc.setFontSize(19); doc.setTextColor(243, 239, 230);
-      doc.text("The Curfew", M, 14);
-      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(brassSoft[0], brassSoft[1], brassSoft[2]);
-      doc.text("MICROPUB · EMPTIES TO RETURN", M, 20.5);
-      doc.setFontSize(8.5); doc.setTextColor(200, 196, 186);
-      doc.text(new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }), W - M, 14, { align: "right" });
-      y = 36;
-
-      const sectionHead = (t, n) => {
-        ensure(16);
-        y += 4;
-        doc.setFillColor(brass[0], brass[1], brass[2]); doc.rect(M, y - 4, 2.2, 5.2, "F");
-        doc.setFont("helvetica", "bold"); doc.setFontSize(11.5); doc.setTextColor(ink[0], ink[1], ink[2]);
-        doc.text(t, M + 4.5, y);
-        doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(gray[0], gray[1], gray[2]);
-        doc.text(String(n), W - M, y, { align: "right" });
-        y += 5.5;
-      };
-
-      const beerLine = (l) => {
-        const b = beerById[l.beerId]; if (!b) return;
-        const name = `${b.brewery ? b.brewery + " - " : ""}${b.name || ""}`;
-        const dt = (DRINK_TYPES.find((t) => t.key === l.drinkType) || {}).label || l.drinkType;
-        const meta = [dt, b.style, b.abv ? b.abv + "%" : "", b.location || ""].filter(Boolean).join("  ·  ");
-        const finished = l.dates.off ? `Finished ${fmtD(l.dates.off)}` : "";
-        doc.setFont("helvetica", "bold"); doc.setFontSize(9.5);
-        const nameLines = doc.splitTextToSize(name, W - 2 * M - 8);
-        doc.setFont("helvetica", "normal"); doc.setFontSize(7.8);
-        const metaLines = doc.splitTextToSize(meta, W - 2 * M - 8);
-        const topPad = 4.2, lhName = 3.9, lhMeta = 3.5, lhFinished = 3.5, bottomPad = 2.4;
-        const contentH = lhName * nameLines.length + lhMeta * metaLines.length + (finished ? lhFinished : 0);
-        const rowH = Math.max(topPad + contentH + bottomPad, 10.5);
-        ensure(rowH + 1.2);
-
-        doc.setFillColor(paleBg[0], paleBg[1], paleBg[2]); doc.rect(M, y, W - 2 * M, rowH, "F");
-        doc.setFillColor(muted[0], muted[1], muted[2]); doc.rect(M, y, 1.4, rowH, "F");
-
-        let ty = y + topPad;
-        doc.setFont("helvetica", "bold"); doc.setFontSize(9.5); doc.setTextColor(ink[0], ink[1], ink[2]);
-        doc.text(nameLines, M + 4.5, ty); ty += lhName * nameLines.length;
-        doc.setFont("helvetica", "normal"); doc.setFontSize(7.8); doc.setTextColor(gray[0], gray[1], gray[2]);
-        doc.text(metaLines, M + 4.5, ty); ty += lhMeta * metaLines.length;
-        if (finished) { doc.setFont("helvetica", "normal"); doc.setFontSize(7.4); doc.setTextColor(gray[0], gray[1], gray[2]); doc.text(finished, M + 4.5, ty); }
-        y += rowH + 1.4;
-      };
-
-      const empties = lines.filter((l) => l.status === "off" && !l.collected && l.drinkType !== "cider" && l.drinkType !== "keykeg");
-      if (!empties.length) {
-        doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(gray[0], gray[1], gray[2]);
-        doc.text("No empties waiting for collection.", M, y);
-      } else {
-        const owners = [...new Set(empties.map((l) => l.caskOwner || "Unknown"))].sort((a, b) => {
-          const diff = empties.filter((l) => (l.caskOwner || "Unknown") === b).length - empties.filter((l) => (l.caskOwner || "Unknown") === a).length;
-          return diff !== 0 ? diff : a.localeCompare(b);
-        });
-        owners.forEach((owner) => {
-          const items = empties.filter((l) => (l.caskOwner || "Unknown") === owner);
-          sectionHead(owner, items.length);
-          items.forEach((l) => beerLine(l));
-        });
-      }
-
-      const pageCount = doc.internal.getNumberOfPages();
-      for (let p = 1; p <= pageCount; p++) {
-        doc.setPage(p);
-        doc.setDrawColor(lineCol[0], lineCol[1], lineCol[2]); doc.line(M, H - 10, W - M, H - 10);
-        doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(gray[0], gray[1], gray[2]);
-        doc.text(`Page ${p} of ${pageCount}`, W - M, H - 6, { align: "right" });
-      }
-      await sharePdfDoc(doc, "curfew-empties.pdf", "Curfew empties to return");
     } catch (e) {
       showToast("Could not make the PDF just now. Check your connection and try again.");
     } finally {
@@ -2179,7 +2081,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     const storeCask = store.filter((l) => l.drinkType === "cask");
     const storeGroups = [
       ...STYLE_ORDER.map((cat) => ({ label: cat === "Stout/Porter" ? "Stout & Porter" : cat, items: storeCask.filter((l) => (beerById[l.beerId]?.category || "Misc") === cat).sort(byBB) })),
-      { label: "Keg", items: store.filter((l) => PUMP_DRINK(l.drinkType) === "keg").sort(byBB) },
+      { label: "Keg", items: store.filter((l) => l.drinkType === "keg").sort(byBB) },
       { label: "Cider", items: store.filter((l) => l.drinkType === "cider").sort(byBB) },
     ].filter((g) => g.items.length);
 
@@ -2839,7 +2741,6 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-end gap-2">
-          <button onClick={shareEmptiesPDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-1.5 py-1.5 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40 focus:outline-none" style={{ color: "#778883" }}>{pdfBusy ? <Loader2 className="animate-spin" size={13} /> : <Download size={13} />} Share PDF</button>
           <button onClick={() => go("cellar")} className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"><ArrowRight size={14} className="rotate-180" /> Back</button>
         </div>
         {empties.length === 0 && (
@@ -2859,23 +2760,30 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                 <ChevronDown size={18} className="text-slate-400" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
               </button>
               {open && (
-                <ul className="space-y-1.5 px-3 pb-3">
+                <>
+                  {items.length > 1 && (
+                    <div className="flex justify-end px-3 pb-1.5">
+                      <button onClick={() => markOwnerCollected(owner)} className="inline-flex items-center gap-1 px-1 py-1 text-xs font-medium transition hover:opacity-70 active:scale-95 focus:outline-none" style={{ color: "#778883" }}><Check size={13} /> All collected ({items.length})</button>
+                    </div>
+                  )}
+                  <ul className="space-y-1.5 px-3 pb-3">
                   {items.map((l) => {
                     const beer = beerById[l.beerId];
                     const dt = (DRINK_TYPES.find((t) => t.key === l.drinkType) || {}).label || l.drinkType;
                     return (
                       <li key={l.id} className="flex items-start justify-between gap-2 rounded-lg border px-2.5 py-2" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[l.drinkType] || C.line }}>
-                        <button onClick={() => setOpenId(l.id)} className="min-w-0 flex-1 rounded text-left focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ WebkitTapHighlightColor: "transparent" }}>
+                        <span className="min-w-0">
                           <span className="block truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer ? `${beer.brewery ? beer.brewery + " - " : ""}${beer.name}` : "Unknown"}</span>
                           {beer && <span className="block truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{dt}{beer.style ? ` · ${beer.style}` : ""}{beer.abv ? ` · ${beer.abv}%` : ""}</span>}
                           {beer && beer.location && <span className="block truncate text-xs text-slate-400" style={{ fontFamily: "var(--font-data)" }}>{beer.location}</span>}
                           <span className="block truncate text-xs text-slate-500" style={{ fontFamily: "var(--font-data)" }}>{l.size ? `${l.size} · ` : ""}finished {l.dates.off ? fmtDate(l.dates.off.slice(0, 10)) : "--"}</span>
-                        </button>
+                        </span>
                         <button onClick={() => markCollected(l.id)} className="inline-flex shrink-0 items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><Check size={13} /> Collected</button>
                       </li>
                     );
                   })}
                 </ul>
+                </>
               )}
             </div>
           );
@@ -3077,7 +2985,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     const on = lines.filter((l) => l.status === "on");
     const soon = lines.filter((l) => ["tapped", "vented", "in_cellar"].includes(l.status));
     const cask = on.filter((l) => l.drinkType === "cask");
-    const keg = on.filter((l) => PUMP_DRINK(l.drinkType) === "keg").sort(byBB);
+    const keg = on.filter((l) => l.drinkType === "keg").sort(byBB);
     const cider = on.filter((l) => l.drinkType === "cider").sort(byBB);
     const caskByCat = CATEGORIES.map((cat) => ({ cat, items: cask.filter((l) => (beerById[l.beerId]?.category || "Misc") === cat).sort(byBB) })).filter((g) => g.items.length);
     const faint = "rgba(243,239,230,0.68)";
@@ -3524,7 +3432,7 @@ body { touch-action: manipulation; overscroll-behavior-y: contain; }
 .focus\:ring-slate-300:focus{--tw-ring-color:#C7C6B7!important}
 .focus\:ring-slate-400:focus{--tw-ring-color:#96A19B!important}`}</style>
       {view === "taplist" ? TapList() : (<>
-      <header className="no-print sticky top-0 z-40 border-b" style={{ background: "linear-gradient(180deg, #234342 0%, #1C3636 100%)", borderColor: "rgba(184,134,43,0.35)", boxShadow: "0 1px 0 rgba(184,134,43,0.22), 0 10px 26px -18px rgba(0,0,0,0.65)", paddingTop: "env(safe-area-inset-top)" }}>
+      <header className="no-print sticky top-0 z-40 border-b" style={{ background: "linear-gradient(180deg, #234342 0%, #1C3636 100%)", borderColor: "rgba(184,134,43,0.35)", boxShadow: "0 1px 0 rgba(184,134,43,0.22), 0 10px 26px -18px rgba(0,0,0,0.65)" }}>
         <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 py-2.5">
           <div className="flex items-center gap-2.5">
             <div className="relative">
@@ -3569,7 +3477,7 @@ body { touch-action: manipulation; overscroll-behavior-y: contain; }
           <nav className="relative hidden items-center gap-1 sm:flex">
             <NavButton id="cellar" icon={ClipboardList} label="Cellar" />
             <NavButton id="add" icon={Plus} label="Add" />
-            <NavButton id="empties" icon={Package} label="Empties" />
+            <NavButton id="empties" icon={Package} label="Empties" badge={emptiesWaiting} />
             <button onClick={() => setMenuOpen((v) => !v)} style={{ color: C.cream }} className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-amber-300"><MoreHorizontal size={16} /><span className="hidden sm:inline">More</span></button>
             {menuOpen && (
               <>
@@ -3625,7 +3533,7 @@ body { touch-action: manipulation; overscroll-behavior-y: contain; }
             <span className="-mt-5 grid h-12 w-12 place-items-center rounded-full" style={{ background: C.brass, color: C.ink, boxShadow: "0 6px 16px -6px rgba(184,134,43,0.65)" }}><Plus size={24} /></span>
             <span className="mt-0.5 text-xs font-medium" style={{ color: view === "add" ? C.brass : C.inkSoft }}>Add</span>
           </button>
-          <BottomTab id="empties" icon={Package} label="Empties" />
+          <BottomTab id="empties" icon={Package} label="Empties" badge={emptiesWaiting} />
           <BottomTab id="more" icon={MoreHorizontal} label="More" onClick={() => setMenuOpen(true)} />
         </div>
       </nav>
