@@ -1440,6 +1440,97 @@ export default function TheCurfewCellar() {
     }
   };
 
+  // Builds the empties-to-return list as a shareable PDF, grouped by supplier like the screen.
+  const shareEmptiesPDF = async () => {
+    if (pdfBusy) return;
+    setPdfBusy(true);
+    try {
+      const JsPDF = await _loadJsPDF();
+      if (!JsPDF) throw new Error("no pdf lib");
+      const doc = new JsPDF({ unit: "mm", format: "a4" });
+      const W = 210, H = 297, M = 14; let y = M;
+      const ink = [27, 34, 48], brass = [122, 86, 18], brassSoft = [199, 154, 62], gray = [128, 128, 128], lineCol = [225, 222, 215], paleBg = [250, 249, 246], muted = [150, 161, 155];
+      const ensure = (need) => { if (y + need > H - M) { doc.addPage(); y = M; } };
+      const fmtD = (d) => { if (!d) return ""; try { return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" }); } catch (e) { return ""; } };
+
+      doc.setFillColor(ink[0], ink[1], ink[2]); doc.rect(0, 0, W, 28, "F");
+      doc.setFont("helvetica", "bold"); doc.setFontSize(19); doc.setTextColor(243, 239, 230);
+      doc.text("The Curfew", M, 14);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(brassSoft[0], brassSoft[1], brassSoft[2]);
+      doc.text("MICROPUB · EMPTIES TO RETURN", M, 20.5);
+      doc.setFontSize(8.5); doc.setTextColor(200, 196, 186);
+      doc.text(new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }), W - M, 14, { align: "right" });
+      y = 36;
+
+      const sectionHead = (t, n) => {
+        ensure(16);
+        y += 4;
+        doc.setFillColor(brass[0], brass[1], brass[2]); doc.rect(M, y - 4, 2.2, 5.2, "F");
+        doc.setFont("helvetica", "bold"); doc.setFontSize(11.5); doc.setTextColor(ink[0], ink[1], ink[2]);
+        doc.text(t, M + 4.5, y);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(gray[0], gray[1], gray[2]);
+        doc.text(String(n), W - M, y, { align: "right" });
+        y += 5.5;
+      };
+
+      const beerLine = (l) => {
+        const b = beerById[l.beerId]; if (!b) return;
+        const name = `${b.brewery ? b.brewery + " - " : ""}${b.name || ""}`;
+        const dt = (DRINK_TYPES.find((t) => t.key === l.drinkType) || {}).label || l.drinkType;
+        const meta = [dt, b.style, b.abv ? b.abv + "%" : "", b.location || ""].filter(Boolean).join("  ·  ");
+        const finished = l.dates.off ? `Finished ${fmtD(l.dates.off)}` : "";
+        doc.setFont("helvetica", "bold"); doc.setFontSize(9.5);
+        const nameLines = doc.splitTextToSize(name, W - 2 * M - 8);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(7.8);
+        const metaLines = doc.splitTextToSize(meta, W - 2 * M - 8);
+        const topPad = 4.2, lhName = 3.9, lhMeta = 3.5, lhFinished = 3.5, bottomPad = 2.4;
+        const contentH = lhName * nameLines.length + lhMeta * metaLines.length + (finished ? lhFinished : 0);
+        const rowH = Math.max(topPad + contentH + bottomPad, 10.5);
+        ensure(rowH + 1.2);
+
+        doc.setFillColor(paleBg[0], paleBg[1], paleBg[2]); doc.rect(M, y, W - 2 * M, rowH, "F");
+        doc.setFillColor(muted[0], muted[1], muted[2]); doc.rect(M, y, 1.4, rowH, "F");
+
+        let ty = y + topPad;
+        doc.setFont("helvetica", "bold"); doc.setFontSize(9.5); doc.setTextColor(ink[0], ink[1], ink[2]);
+        doc.text(nameLines, M + 4.5, ty); ty += lhName * nameLines.length;
+        doc.setFont("helvetica", "normal"); doc.setFontSize(7.8); doc.setTextColor(gray[0], gray[1], gray[2]);
+        doc.text(metaLines, M + 4.5, ty); ty += lhMeta * metaLines.length;
+        if (finished) { doc.setFont("helvetica", "normal"); doc.setFontSize(7.4); doc.setTextColor(gray[0], gray[1], gray[2]); doc.text(finished, M + 4.5, ty); }
+        y += rowH + 1.4;
+      };
+
+      const empties = lines.filter((l) => l.status === "off" && !l.collected && l.drinkType !== "cider" && l.drinkType !== "keykeg");
+      if (!empties.length) {
+        doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(gray[0], gray[1], gray[2]);
+        doc.text("No empties waiting for collection.", M, y);
+      } else {
+        const owners = [...new Set(empties.map((l) => l.caskOwner || "Unknown"))].sort((a, b) => {
+          const diff = empties.filter((l) => (l.caskOwner || "Unknown") === b).length - empties.filter((l) => (l.caskOwner || "Unknown") === a).length;
+          return diff !== 0 ? diff : a.localeCompare(b);
+        });
+        owners.forEach((owner) => {
+          const items = empties.filter((l) => (l.caskOwner || "Unknown") === owner);
+          sectionHead(owner, items.length);
+          items.forEach((l) => beerLine(l));
+        });
+      }
+
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let p = 1; p <= pageCount; p++) {
+        doc.setPage(p);
+        doc.setDrawColor(lineCol[0], lineCol[1], lineCol[2]); doc.line(M, H - 10, W - M, H - 10);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(gray[0], gray[1], gray[2]);
+        doc.text(`Page ${p} of ${pageCount}`, W - M, H - 6, { align: "right" });
+      }
+      await sharePdfDoc(doc, "curfew-empties.pdf", "Curfew empties to return");
+    } catch (e) {
+      showToast("Could not make the PDF just now. Check your connection and try again.");
+    } finally {
+      setPdfBusy(false);
+    }
+  };
+
   // Save when data changes, debounced so fast typing (e.g. prices) stays smooth.
   // The write (full serialise + cloud upsert) runs ~half a second after the last change.
   const saveTimer = useRef(null);
@@ -2748,6 +2839,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-end gap-2">
+          <button onClick={shareEmptiesPDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-1.5 py-1.5 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40 focus:outline-none" style={{ color: "#778883" }}>{pdfBusy ? <Loader2 className="animate-spin" size={13} /> : <Download size={13} />} Share PDF</button>
           <button onClick={() => go("cellar")} className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"><ArrowRight size={14} className="rotate-180" /> Back</button>
         </div>
         {empties.length === 0 && (
