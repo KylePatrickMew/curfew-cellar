@@ -197,22 +197,31 @@ const GLUTEN_OPTIONS = ["Standard", "Low gluten", "Gluten-free"];
 const CLARITY_OPTIONS = ["Clear", "Hazy", "Cloudy"];
 const CIDER_SWEETNESS = ["Sweet", "Medium Sweet", "Medium", "Medium Dry", "Dry"];
 
+// Web Push: the public half of the VAPID keypair (the private half lives only in Vercel).
+const PUSH_PUBLIC_KEY = "BN-lqhCSKqtRWwfwxJMnnsj_e9BZ5kXzaIya9Zi7P8eNYgQZHrBiT5xkhc0AyVixtzolnxD6fesELFarqisdwIE";
+const b64ToBytes = (b64) => {
+  const pad = "=".repeat((4 - (b64.length % 4)) % 4);
+  const raw = atob((b64 + pad).replace(/-/g, "+").replace(/_/g, "/"));
+  const out = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+};
+
 const GUIDE_SECTIONS = [
   { title: "The Cellar screen", steps: [
-    ["Pouring board", "The numbered tiles 1 to 10 match the pump run along the bar: IPA, Pale, Bitter, Stout, then the kegs and ciders. Tap any beer to open it."],
-    ["Racked", "Casks up on stillage, settling or vented. The IPA and Pale slots fill by strength: the two strongest go to IPA."],
-    ["In Store", "Everything delivered but not yet racked. Starts collapsed to keep the screen tidy."],
-    ["The bell", "Top left. A red count means something needs a look: best before dates, casks on too long, vented casks ready to tap, or a backup nudge. Tap an item to jump straight to it."],
+    ["Pouring board", "The numbered tiles 1 to 10 match the pumps that are on the bar: IPA, Pale, Bitter, Stout, then the kegs and ciders. Tap any beer to open it."],
+    ["Racked", "Casks that are Racked or Vented, settling before they go on. The IPA and Pale slots fill by strength: the two strongest go to IPA."],
+    ["In Store", "Everything delivered but not yet racked."],
   ]},
   { title: "When a delivery arrives", steps: [
     ["Scan it in", "On the Add tab, Scan a cask label fills the details from a photo, including best before and supplier. Scan an invoice or Paste a list handles a whole delivery at once."],
     ["Or pick from your library", "Search any beer you have stocked before. Details carry over, including the last price and supplier, each marked Please confirm so nothing is assumed."],
-    ["Autofill", "Autofill only ever fills blank fields. Anything you have typed stays put. Always confirm allergens against the producer's own information."],
+    ["Autofill", "Type the name and tap Autofill to pull in the style, ABV, allergens, vegan and gluten status, and tasting notes. Always confirm allergens against the producer's own information."],
   ]},
   { title: "The cask lifecycle", steps: [
     ["In Store", "Delivered and waiting."],
-    ["Racked", "Up on stillage to settle."],
-    ["Vented", "Soft spile in, conditioning. The bell reminds you when one has sat vented for two days."],
+    ["Racked", "Up on the stillage to settle."],
+    ["Vented", "Soft spile in, conditioning."],
     ["Ready", "Tapped and ready to serve."],
     ["Pouring", "On the bar."],
     ["Finished", "Empty. Moves to Empties for collection."],
@@ -228,11 +237,11 @@ const GUIDE_SECTIONS = [
   ]},
   { title: "Sharing and printing", steps: [
     ["Stock List and Allergen Sheet", "Under More. Print or Share PDF for staff reference and allergen queries."],
-    ["Customer Tap List", "A customer-friendly what's on, priced by pint, half and schooner. Share PDF or show it on the bar."],
+    ["Customer Tap List", "A customer-friendly what's on, priced by pint, half and schooner."],
   ]},
   { title: "Keeping it safe", steps: [
     ["Everything syncs", "Changes save to the cloud within a second and appear on every phone."],
-    ["Take a backup", "The bell nudges you monthly. Backup, under More, copies everything to a file in ten seconds."],
+    ["Take a backup", "Backup, under More, copies everything to a file in ten seconds. Worth doing every so often."],
   ]},
 ];
 
@@ -241,7 +250,7 @@ const GUIDE_SECTIONS = [
 // the system font. The browser dedupes the duplicate @import.
 const FontBoot = () => <style>{`@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&display=swap');
 :root { --font-data: 'Archivo', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; --font-display: 'Archivo', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }`}</style>;
-const VIEW_TITLES = { cellar: "Cellar", add: "Add Stock", library: "Library", allergens: "Allergen Sheet", stock: "Stock List", empties: "Empties to Return", stats: "Cellar Stats", guide: "How to Use", backup: "Backup & Restore" };
+const VIEW_TITLES = { cellar: "Cellar", add: "Add Stock", library: "Library", allergens: "Allergen Sheet", stock: "Stock List", empties: "Empties to Return", stats: "Cellar Stats", guide: "How to Use", notify: "Notifications", backup: "Backup & Restore" };
 const SIZE_OPTIONS = ["Keg 30L", "Keg 50L", "Bag-in-box 20L"];
 const FRESH_LIMIT = 4; // days on a cask before a quality check is worth a look
 const BB_SOON = 2;     // days before best-before to start flagging
@@ -596,6 +605,76 @@ export default function TheCurfewCellar() {
   }, [lines, beerById, prefs.lastBackup]);
 
   const emptiesWaiting = useMemo(() => lines.filter((l) => l.status === "off" && !l.collected && l.drinkType !== "cider" && l.drinkType !== "keykeg").length, [lines]);
+
+  // ---- Push notifications (managers get a ping when a beer goes on or finishes) ----
+  const [pushState, setPushState] = useState("checking"); // checking | unsupported | need-install | blocked | off | on
+  const [pushBusy, setPushBusy] = useState(false);
+  const checkPush = async () => {
+    if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) { setPushState("unsupported"); return; }
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const standalone = window.matchMedia && window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+    if (isIOS && !standalone) { setPushState("need-install"); return; }
+    if (Notification.permission === "denied") { setPushState("blocked"); return; }
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      setPushState(sub ? "on" : "off");
+    } catch (e) { setPushState("off"); }
+  };
+  useEffect(() => {
+    if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+    checkPush();
+  }, []);
+  const enablePush = async () => {
+    if (pushBusy) return;
+    setPushBusy(true);
+    try {
+      const perm = await Notification.requestPermission();
+      if (perm !== "granted") { setPushState(perm === "denied" ? "blocked" : "off"); return; }
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(PUSH_PUBLIC_KEY) });
+      const c = await _client();
+      const { error } = await c.from("push_subs").upsert({ endpoint: sub.endpoint, sub: sub.toJSON() }, { onConflict: "endpoint" });
+      if (error) throw error;
+      try { localStorage.setItem("cc-push-endpoint", sub.endpoint); } catch (e) { /* ignore */ }
+      setPushState("on");
+      showToast("Notifications are on for this phone.");
+    } catch (e) {
+      showToast("Could not turn notifications on. Check your connection and try again.");
+    } finally { setPushBusy(false); }
+  };
+  const disablePush = async () => {
+    if (pushBusy) return;
+    setPushBusy(true);
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) {
+        try { const c = await _client(); await c.from("push_subs").delete().eq("endpoint", sub.endpoint); } catch (e) { /* best effort */ }
+        await sub.unsubscribe();
+      }
+      try { localStorage.removeItem("cc-push-endpoint"); } catch (e) { /* ignore */ }
+      setPushState("off");
+      showToast("Notifications are off for this phone.");
+    } catch (e) {
+      showToast("Could not turn notifications off just now.");
+    } finally { setPushBusy(false); }
+  };
+  const sendCellarPush = (title, body) => {
+    if (!cloudMode) return;
+    (async () => {
+      try {
+        const c = await _client();
+        const { data } = await c.auth.getSession();
+        const token = data && data.session ? data.session.access_token : null;
+        if (!token) return;
+        let exclude = null;
+        try { exclude = localStorage.getItem("cc-push-endpoint"); } catch (e) { /* ignore */ }
+        await fetch("/api/notify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token, title, body, tag: "curfew-pump", exclude }) });
+      } catch (e) { /* never block the bar over a notification */ }
+    })();
+  };
 
   const setF = (patch) => setForm((f) => ({ ...f, ...patch }));
   const findSavedBeer = (brewery, name) =>
@@ -1354,6 +1433,86 @@ export default function TheCurfewCellar() {
     }
   };
 
+  // Builds the empties-to-return list as a shareable PDF, grouped by supplier.
+  const shareEmptiesPDF = async () => {
+    if (pdfBusy) return;
+    setPdfBusy(true);
+    try {
+      const JsPDF = await _loadJsPDF();
+      if (!JsPDF) throw new Error("no pdf lib");
+      const doc = new JsPDF({ unit: "mm", format: "a4" });
+      const W = 210, H = 297, M = 14; let y = M;
+      const ink = [27, 34, 48], brass = [122, 86, 18], brassSoft = [199, 154, 62], gray = [128, 128, 128], lineCol = [225, 222, 215], paleBg = [250, 249, 246], emptyAccent = [150, 161, 155];
+      const ensure = (need) => { if (y + need > H - M) { doc.addPage(); y = M; } };
+      const fmtD = (d) => { if (!d) return ""; try { return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" }); } catch (e) { return ""; } };
+
+      doc.setFillColor(ink[0], ink[1], ink[2]); doc.rect(0, 0, W, 28, "F");
+      doc.setFont("helvetica", "bold"); doc.setFontSize(17); doc.setTextColor(243, 239, 230);
+      doc.text("Empties to Return", M, 13);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(brassSoft[0], brassSoft[1], brassSoft[2]);
+      doc.text("THE CURFEW MICROPUB · BY SUPPLIER", M, 20.5);
+      doc.setFontSize(8.5); doc.setTextColor(200, 196, 186);
+      doc.text(new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }), W - M, 13, { align: "right" });
+      y = 36;
+
+      const sectionHead = (t, n) => { ensure(16); y += 4; doc.setFillColor(brass[0], brass[1], brass[2]); doc.rect(M, y - 4, 2.2, 5.2, "F"); doc.setFont("helvetica", "bold"); doc.setFontSize(11.5); doc.setTextColor(ink[0], ink[1], ink[2]); doc.text(t, M + 4.5, y); doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(gray[0], gray[1], gray[2]); doc.text(String(n), W - M, y, { align: "right" }); y += 5.5; };
+
+      const beerLine = (l) => {
+        const b = beerById[l.beerId]; if (!b) return;
+        const name = `${b.brewery ? b.brewery + " - " : ""}${b.name || ""}`;
+        const dt = (DRINK_TYPES.find((t) => t.key === l.drinkType) || {}).label || l.drinkType;
+        const meta = [dt, l.size || "", `finished ${l.dates.off ? fmtD(l.dates.off.slice(0, 10)) : "--"}`].filter(Boolean).join("  ·  ");
+        doc.setFont("helvetica", "bold"); doc.setFontSize(9.5);
+        const nameLines = doc.splitTextToSize(name, W - 2 * M - 8);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(7.8);
+        const metaLines = doc.splitTextToSize(meta, W - 2 * M - 8);
+        const topPad = 4.2, lhName = 3.9, lhMeta = 3.5, bottomPad = 2.4;
+        const contentH = lhName * nameLines.length + lhMeta * metaLines.length;
+        const rowH = Math.max(topPad + contentH + bottomPad, 10.5);
+        ensure(rowH + 1.2);
+
+        doc.setFillColor(paleBg[0], paleBg[1], paleBg[2]); doc.rect(M, y, W - 2 * M, rowH, "F");
+        doc.setFillColor(emptyAccent[0], emptyAccent[1], emptyAccent[2]); doc.rect(M, y, 1.4, rowH, "F");
+
+        let ty = y + topPad;
+        doc.setFont("helvetica", "bold"); doc.setFontSize(9.5); doc.setTextColor(ink[0], ink[1], ink[2]);
+        doc.text(nameLines, M + 4.5, ty); ty += lhName * nameLines.length;
+        doc.setFont("helvetica", "normal"); doc.setFontSize(7.8); doc.setTextColor(gray[0], gray[1], gray[2]);
+        doc.text(metaLines, M + 4.5, ty);
+        y += rowH + 1.4;
+      };
+
+      const empties = lines.filter((l) => l.status === "off" && !l.collected && l.drinkType !== "cider" && l.drinkType !== "keykeg");
+      const owners = [...new Set(empties.map((l) => l.caskOwner || "Unknown"))].sort((a, b) => {
+        const diff = empties.filter((l) => (l.caskOwner || "Unknown") === b).length - empties.filter((l) => (l.caskOwner || "Unknown") === a).length;
+        return diff !== 0 ? diff : a.localeCompare(b);
+      });
+      if (empties.length) {
+        owners.forEach((owner) => {
+          const items = empties.filter((l) => (l.caskOwner || "Unknown") === owner);
+          sectionHead(owner, items.length);
+          items.forEach((l) => beerLine(l));
+          y += 1.5;
+        });
+      } else {
+        doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(gray[0], gray[1], gray[2]); doc.text("No empties waiting for collection.", M, y);
+      }
+
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let p = 1; p <= pageCount; p++) {
+        doc.setPage(p);
+        doc.setDrawColor(lineCol[0], lineCol[1], lineCol[2]); doc.line(M, H - 10, W - M, H - 10);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(gray[0], gray[1], gray[2]);
+        doc.text(`Page ${p} of ${pageCount}`, W - M, H - 6, { align: "right" });
+      }
+      await sharePdfDoc(doc, "curfew-empties.pdf", "Curfew empties to return");
+    } catch (e) {
+      showToast("Could not make the PDF just now. Check your connection and try again.");
+    } finally {
+      setPdfBusy(false);
+    }
+  };
+
   // Save when data changes, debounced so fast typing (e.g. prices) stays smooth.
   // The write (full serialise + cloud upsert) runs ~half a second after the last change.
   const saveTimer = useRef(null);
@@ -1570,7 +1729,18 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     if (drink === "cask") { const p = caskPrefPumps(catOfLine(line)).find((x) => !taken.has(x)); if (p) return p; }
     return PUMPS[drink].find((x) => !taken.has(x)) || null;
   };
-  const advance = (id) => setLines((ls) => {
+  const advance = (id) => {
+    const before = lines.find((x) => x.id === id);
+    if (before) {
+      const flow0 = flowFor(before.drinkType);
+      const i0 = flow0.indexOf(before.status);
+      const nk = i0 >= 0 && i0 < flow0.length - 1 ? flow0[i0 + 1] : null;
+      const b = beerById[before.beerId];
+      const nm = b ? `${b.brewery ? b.brewery + " " : ""}${b.name}` : "A beer";
+      if (nk === "on") sendCellarPush("Now pouring", nm);
+      if (nk === "off") sendCellarPush("Line finished", nm);
+    }
+    return setLines((ls) => {
     const cur = ls.find((x) => x.id === id);
     if (!cur) return ls;
     const flow = flowFor(cur.drinkType);
@@ -1586,6 +1756,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
       return { ...c, status: nextKey, dates, slot };
     });
   });
+  };
   const goBack = (id) => setLines((ls) => ls.map((c) => {
     if (c.id !== id) return c;
     const flow = flowFor(c.drinkType);
@@ -1598,6 +1769,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
   const setBestBefore = (id, v) => setLines((ls) => ls.map((c) => (c.id === id ? { ...c, bestBefore: v } : c)));
   const finishAndChoose = (line) => {
     const beer = beerById[line.beerId];
+    sendCellarPush("Line finished", beer ? `${beer.brewery ? beer.brewery + " " : ""}${beer.name}` : "A beer");
     snapshotUndo("Line finished");
     const now = new Date().toISOString();
     setLines((ls) => ls.map((c) => (c.id === line.id ? { ...c, status: "off", slot: null, dates: { ...c.dates, off: now } } : c)));
@@ -1614,6 +1786,10 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
   };
   const doSwap = (newId, oldId, slot) => {
     const toRack = swap && swap.toRack;
+    if (!toRack) {
+      const nb = (() => { const l = lines.find((c) => c.id === newId); const b = l && beerById[l.beerId]; return b ? `${b.brewery ? b.brewery + " " : ""}${b.name}` : "A beer"; })();
+      sendCellarPush("Now pouring", nb);
+    }
     snapshotUndo(toRack ? "Cask racked" : "Beer changed");
     const now = new Date().toISOString();
     setLines((ls) => {
@@ -2444,6 +2620,44 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     );
   };
 
+  const NotifySettings = () => (
+    <div className="space-y-4">
+      <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
+        <h2 className="text-base font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Pump notifications</h2>
+        <div className="mt-1 mb-3 h-0.5 w-8 rounded-full" style={{ background: C.brass }} />
+        <p className="text-sm text-slate-500">Get a ping on this phone whenever a beer goes on or a line finishes, even with the app closed. Each phone turns this on separately, so every manager who wants it enables it on their own phone.</p>
+        <div className="mt-4">
+          {pushState === "checking" && <p className="text-sm text-slate-400">Checking this phone…</p>}
+          {pushState === "unsupported" && <p className="text-sm text-slate-500">This browser cannot receive push notifications. On iPhone, use the app added to your Home Screen.</p>}
+          {pushState === "need-install" && (
+            <div className="rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
+              <p className="font-semibold" style={{ color: C.ink }}>One step first</p>
+              <p className="mt-1">iPhones only allow notifications for installed apps. In Safari, tap Share, then Add to Home Screen, then open the app from its new icon and come back here.</p>
+            </div>
+          )}
+          {pushState === "blocked" && <p className="text-sm text-slate-500">Notifications are blocked for this app in your phone settings. Allow them there, then come back and try again.</p>}
+          {pushState === "off" && (
+            <button onClick={enablePush} disabled={pushBusy} className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}>{pushBusy ? <Loader2 className="animate-spin" size={15} /> : <Bell size={15} />} Turn on for this phone</button>
+          )}
+          {pushState === "on" && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 rounded-lg p-3 text-sm font-medium" style={{ background: "#EDF3E7", color: "#3E6B33" }}><CheckCircle2 size={16} /> Notifications are on for this phone.</div>
+              <button onClick={disablePush} disabled={pushBusy} className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border px-4 py-2.5 text-sm font-medium text-slate-500 transition hover:bg-slate-50 active:scale-95 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>Turn off for this phone</button>
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
+        <p className="text-sm font-semibold" style={{ color: C.ink }}>What you will get</p>
+        <ul className="mt-2 space-y-1.5 text-sm text-slate-500">
+          <li>Now pouring: when a beer goes on the bar.</li>
+          <li>Line finished: when one comes off.</li>
+        </ul>
+        <p className="mt-2 text-xs text-slate-400">The phone that makes the change does not get pinged about it.</p>
+      </div>
+    </div>
+  );
+
   const Guide = () => (
     <div className="space-y-4">
       <div className="flex justify-end">
@@ -2606,7 +2820,8 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     });
     return (
       <div className="space-y-4">
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex items-center justify-between gap-2">
+          <button onClick={shareEmptiesPDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-1.5 py-1.5 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40 focus:outline-none" style={{ color: "#778883" }}>{pdfBusy ? <Loader2 className="animate-spin" size={13} /> : <Download size={13} />} Share PDF</button>
           <button onClick={() => go("cellar")} className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"><ArrowRight size={14} className="rotate-180" /> Back</button>
         </div>
         {empties.length === 0 && (
@@ -3342,7 +3557,7 @@ body { touch-action: manipulation; overscroll-behavior-y: contain; }
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
                 <div className="absolute right-0 top-full z-50 mt-1 w-44 overflow-hidden rounded-lg border bg-white shadow-lg" style={{ borderColor: C.line }}>
-                  {[["library", "Library", BookOpen], ["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["stats", "Cellar Stats", BarChart3], ["guide", "How to Use", Compass], ["backup", "Backup", Database]].map(([id, label, Icon]) => (
+                  {[["library", "Library", BookOpen], ["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["guide", "How to Use", Compass], ["notify", "Notifications", Bell], ["backup", "Backup", Database]].map(([id, label, Icon]) => (
                     <button key={id} onClick={() => { setMenuOpen(false); go(id); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"><Icon size={15} className="text-slate-400" />{label}</button>
                   ))}
                 </div>
@@ -3371,6 +3586,7 @@ body { touch-action: manipulation; overscroll-behavior-y: contain; }
             {view === "empties" && Empties()}
             {view === "stats" && Stats()}
             {view === "guide" && Guide()}
+            {view === "notify" && NotifySettings()}
             {view === "backup" && Backup()}
             </div>
           </>
@@ -3402,7 +3618,7 @@ body { touch-action: manipulation; overscroll-behavior-y: contain; }
           <div className="cc-sheet absolute inset-x-0 bottom-0 rounded-t-2xl bg-white p-4" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 16px)" }}>
             <div className="mx-auto mb-3 h-1.5 w-10 rounded-full" style={{ background: C.line }} />
             <div className="grid grid-cols-3 gap-2.5">
-              {[["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["stats", "Cellar Stats", BarChart3], ["guide", "How to Use", Compass], ["backup", "Backup", Database]].map(([id, label, Icon]) => (
+              {[["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["guide", "How to Use", Compass], ["notify", "Notifications", Bell], ["backup", "Backup", Database]].map(([id, label, Icon]) => (
                 <button key={id} onClick={() => { setMenuOpen(false); go(id); }} className="flex flex-col items-center gap-1.5 rounded-xl border p-3 transition active:scale-95" style={{ borderColor: C.line, color: C.ink }}>
                   <Icon size={20} style={{ color: C.brass }} />
                   <span className="text-center text-xs font-medium leading-tight">{label}</span>
