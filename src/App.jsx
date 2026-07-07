@@ -208,7 +208,7 @@ const ALLERGEN_OPTIONS = [
   "Sulphites", "Fish (isinglass finings)", "Milk (lactose)",
 ];
 const GLUTEN_OPTIONS = ["Standard", "Low gluten", "Gluten-free"];
-const CLARITY_OPTIONS = ["Clear", "Hazy", "Cloudy"];
+const CLARITY_OPTIONS = ["Clear", "Hazy"];
 const CIDER_SWEETNESS = ["Sweet", "Medium Sweet", "Medium", "Medium Dry", "Dry"];
 
 // Web Push: the public half of the VAPID keypair (the private half lives only in Vercel).
@@ -398,10 +398,10 @@ const seedLibrary = [
   { id: "b39", brewery: "Polly's", location: "Mold, Flintshire", name: "The Ritual Continues", style: "IPA", abv: "5.5", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Oats (gluten)"], notes: "Hazy, juicy IPA.", allergensVerified: false, category: "Misc" },
   { id: "b40", brewery: "Burning Sky", location: "Firle, East Sussex", name: "Le Coeur Framboise", style: "Raspberry Sour", abv: "5.0", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Wheat (gluten)"], notes: "Barrel-aged, raspberry, sour.", allergensVerified: false, category: "Misc" },
   { id: "b41", brewery: "Schneider Weisse", location: "Kelheim, Germany", name: "Hefeweissbier", style: "Weissbier", abv: "5.4", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Wheat (gluten)"], notes: "Banana, clove, wheat. Among the first wheat beers after Bavaria's brewing monopoly ended.", allergensVerified: false, category: "Misc" },
-  { id: "b42", brewery: "Weston's", location: "Much Marcle, Herefordshire", name: "Old Rosie", style: "Cloudy Scrumpy", abv: "6.8", clarity: "Cloudy", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Cloudy, dry, scrumpy. Named after a 1921 steam roller.", allergensVerified: false, category: "Misc" },
+  { id: "b42", brewery: "Weston's", location: "Much Marcle, Herefordshire", name: "Old Rosie", style: "Cloudy Scrumpy", abv: "6.8", clarity: "Hazy", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Cloudy, dry, scrumpy. Named after a 1921 steam roller.", allergensVerified: false, category: "Misc" },
   { id: "b43", brewery: "Broadoak", location: "Clutton, Somerset", name: "Rhubarb", style: "Fruit Cider", abv: "4.0", clarity: "Clear", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Sweet, fruity, rhubarb.", allergensVerified: false, category: "Misc" },
   { id: "b44", brewery: "Dudda's Tun", location: "Doddington, Kent", name: "Wild Haze", style: "Cider", abv: "5.4", clarity: "Hazy", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Smooth, semi-cloudy, Kentish. Old Anglo-Saxon name for Doddington.", allergensVerified: false, category: "Misc" },
-  { id: "b45", brewery: "Thistly Cross", location: "Belhaven, East Lothian", name: "Cloudy", style: "Cloudy Cider", abv: "4.4", clarity: "Cloudy", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Cloudy, fresh, apple.", allergensVerified: false, category: "Misc" },
+  { id: "b45", brewery: "Thistly Cross", location: "Belhaven, East Lothian", name: "Cloudy", style: "Cloudy Cider", abv: "4.4", clarity: "Hazy", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Cloudy, fresh, apple.", allergensVerified: false, category: "Misc" },
   { id: "b46", brewery: "Sandford Orchards", location: "Crediton, Devon", name: "Blackberry", style: "Fruit Cider", abv: "4.0", clarity: "Clear", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Devon, blackberry, cider.", allergensVerified: false, category: "Misc" },
   { id: "b47", brewery: "Celtic Marches", location: "Bishops Frome, Herefordshire", name: "Wild Berries", style: "Fruit Cider", abv: "4.0", clarity: "Clear", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Mixed berry, fruit cider.", allergensVerified: false, category: "Misc" },
   { id: "b48", brewery: "Dudda's Tun", location: "Doddington, Kent", name: "Disco", style: "Cider", abv: "5.0", clarity: "Hazy", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Kentish, craft cider.", allergensVerified: false, category: "Misc" },
@@ -510,6 +510,7 @@ const DietaryMini = ({ beer }) => {
   if (beer.vegan) items.push(["Ve", "Vegan", "bg-emerald-50 text-emerald-700 border-emerald-200"]);
   if (beer.glutenStatus === "Gluten-free") items.push(["GF", "Gluten-free", "bg-sky-50 text-sky-700 border-sky-200"]);
   else if (beer.glutenStatus === "Low gluten") items.push(["LG", "Low gluten", "bg-amber-50 text-amber-800 border-amber-200"]);
+  if (beer.clarity === "Hazy") items.push(["Hazy", "Hazy", "bg-red-50 text-red-700 border-red-200"]);
   if (!items.length) return null;
   return (
     <span className="flex items-center gap-1">
@@ -972,9 +973,16 @@ export default function TheCurfewCellar() {
     const lib = (data.library || []).map((b) => (NOTE_FORCED[b.id] !== undefined ? { ...b, notes: NOTE_FORCED[b.id] } : b));
     return { ...data, library: lib, prefs: { ...(data.prefs || {}), notesV5: true }, lastUpdated: new Date().toISOString() };
   };
+  // Cloudy was folded into Hazy as a clarity option; anything saved as Cloudy before this
+  // change needs to move over so it still matches CLARITY_OPTIONS and shows the new badge.
+  const migrateClarity = (data) => {
+    if (!data || (data.prefs && data.prefs.clarityV1)) return data;
+    const lib = (data.library || []).map((b) => (b.clarity === "Cloudy" ? { ...b, clarity: "Hazy" } : b));
+    return { ...data, library: lib, prefs: { ...(data.prefs || {}), clarityV1: true }, lastUpdated: new Date().toISOString() };
+  };
   // The one migration chain. Every load path MUST parse through this, and any new
   // migration is added here only, so no call site can ever miss one.
-  const migrate = (json) => migrateNotes5(migrateNotes4(migrateNotes3(migrateNotes2(migrateNotes(migrateEmpties2(migrateEmpties(migrateLaunch(JSON.parse(json)))))))));
+  const migrate = (json) => migrateClarity(migrateNotes5(migrateNotes4(migrateNotes3(migrateNotes2(migrateNotes(migrateEmpties2(migrateEmpties(migrateLaunch(JSON.parse(json))))))))));
   const applyData = (data, remote) => {
     if (!data) return;
     if (remote) skipBump.current = true;
@@ -1618,7 +1626,7 @@ Return exactly:
   "location": "town or county the producer is based in, your best knowledge",
   "style": ${isCider ? '"Dry | Medium | Sweet | Perry"' : '"e.g. Pale Ale, IPA, Blonde, Best Bitter, Mild, Stout, Porter"'},
   "abv": "number as a string, e.g. 4.5",
-  "clarity": "Clear | Hazy | Cloudy",
+  "clarity": "Clear | Hazy",
   "glutenStatus": "Standard | Low gluten | Gluten-free",
   "vegan": true or false,
   "allergens": ["choose ONLY from: ${ALLERGEN_OPTIONS.join(", ")}"],${isCider ? `
@@ -1654,7 +1662,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
         brewery: form.brewery.trim() ? form.brewery : (p.brewery ? String(p.brewery) : form.brewery),
         name: form.name.trim() ? form.name : (p.name ? String(p.name) : form.name),
         location: form.location.trim() ? form.location : (libraryLocationFor(p.brewery ? String(p.brewery) : form.brewery) || (p.location ? String(p.location) : form.location)),
-        clarity: form.clarity ? form.clarity : (CLARITY_OPTIONS.includes(p.clarity) ? p.clarity : "Clear"),
+        clarity: form.clarity ? form.clarity : (CLARITY_OPTIONS.includes(p.clarity) ? p.clarity : (p.clarity === "Cloudy" ? "Hazy" : "Clear")),
         glutenStatus: (form.glutenStatus && form.glutenStatus !== "Standard") ? form.glutenStatus : (GLUTEN_OPTIONS.includes(p.glutenStatus) ? p.glutenStatus : "Standard"),
         vegan: form.vegan || !!p.vegan,
         allergens: form.allergens.length ? form.allergens : allergens,
@@ -1815,7 +1823,7 @@ Return exactly:
   "location": "town or county the producer is based in, your best knowledge",
   "style": ${isCider ? '"Dry | Medium | Sweet | Perry"' : '"e.g. Pale Ale, IPA, Blonde, Best Bitter, Mild, Stout, Porter"'},
   "abv": "number as a string, e.g. 4.5",
-  "clarity": "Clear | Hazy | Cloudy",
+  "clarity": "Clear | Hazy",
   "glutenStatus": "Standard | Low gluten | Gluten-free",
   "vegan": true or false,
   "allergens": ["choose ONLY from: ${ALLERGEN_OPTIONS.join(", ")}"],${isCider ? `
@@ -1844,7 +1852,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
         brewery: beer.brewery.trim() ? beer.brewery : (p.brewery ? String(p.brewery) : beer.brewery),
         name: beer.name.trim() ? beer.name : (p.name ? String(p.name) : beer.name),
         location: beer.location.trim() ? beer.location : (libraryLocationFor(p.brewery ? String(p.brewery) : beer.brewery) || (p.location ? String(p.location) : beer.location)),
-        clarity: beer.clarity ? beer.clarity : (CLARITY_OPTIONS.includes(p.clarity) ? p.clarity : "Clear"),
+        clarity: beer.clarity ? beer.clarity : (CLARITY_OPTIONS.includes(p.clarity) ? p.clarity : (p.clarity === "Cloudy" ? "Hazy" : "Clear")),
         glutenStatus: (beer.glutenStatus && beer.glutenStatus !== "Standard") ? beer.glutenStatus : (GLUTEN_OPTIONS.includes(p.glutenStatus) ? p.glutenStatus : "Standard"),
         vegan: beer.vegan || !!p.vegan,
         allergens: (beer.allergens && beer.allergens.length) ? beer.allergens : allergens,
@@ -1912,12 +1920,12 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     return (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("").trim();
   };
   const distHint = distributors.filter((d) => d.trim()).length ? ` Known distributors: ${distributors.filter((d) => d.trim()).join(", ")}. If one of these appears (often after "To:"), set deliveredBy to it, not the brewery.` : "";
-  const labelPrompt = `This image is a beer or cider pump clip, cask end, or bottle/can label. Read what's printed AND use your knowledge of this product (look it up if it helps) to complete the details accurately. Pay close attention to any printed allergen statement, ingredients list, "contains" or "allergy advice" text, or vegan/gluten-free logos on the label itself, cask casks and bottle labels very often state this explicitly. If the label states it, use exactly what it says over any general assumption. Return STRICT JSON only:\\n{"brewery": string, "location": "town or county the brewery is based in (use your knowledge if not printed)", "name": string, "kind": "beer"|"cider", "style": string, "abv": "number as string", "bestBefore": "best before date if printed, as YYYY-MM-DD, reading any dd/mm/yyyy in UK day-month order", "deliveredBy": "distributor or wholesaler named on the label, e.g. after 'To:', else empty", "clarity": "Clear|Hazy|Cloudy", "glutenStatus": "Standard|Low gluten|Gluten-free", "vegan": true|false, "allergens": [only from: ${ALLERGEN_OPTIONS.join(", ")}], "notes": "same flashcard format: part 1 is 3 to 5 comma-separated keywords, no linking words, e.g. \"Biscuity, citrus, pear.\" Part 2 only a genuine fun fact under 10 words if you know one, never invented, never more than these two parts"}\\nIf allergen or vegan/gluten-free information is printed on the label, use it directly. Otherwise recall the real, specific, published facts about this exact beer if you know them. Only as a last resort, estimate from the style: most ales then get "Barley (gluten)", most ciders get "Sulphites", vegan=false, glutenStatus="Standard". If a field isn't legible or known, use "" for text fields.${distHint} JSON only, no other text.`;
+  const labelPrompt = `This image is a beer or cider pump clip, cask end, or bottle/can label. Read what's printed AND use your knowledge of this product (look it up if it helps) to complete the details accurately. Pay close attention to any printed allergen statement, ingredients list, "contains" or "allergy advice" text, or vegan/gluten-free logos on the label itself, cask casks and bottle labels very often state this explicitly. If the label states it, use exactly what it says over any general assumption. Return STRICT JSON only:\\n{"brewery": string, "location": "town or county the brewery is based in (use your knowledge if not printed)", "name": string, "kind": "beer"|"cider", "style": string, "abv": "number as string", "bestBefore": "best before date if printed, as YYYY-MM-DD, reading any dd/mm/yyyy in UK day-month order", "deliveredBy": "distributor or wholesaler named on the label, e.g. after 'To:', else empty", "clarity": "Clear|Hazy", "glutenStatus": "Standard|Low gluten|Gluten-free", "vegan": true|false, "allergens": [only from: ${ALLERGEN_OPTIONS.join(", ")}], "notes": "same flashcard format: part 1 is 3 to 5 comma-separated keywords, no linking words, e.g. \"Biscuity, citrus, pear.\" Part 2 only a genuine fun fact under 10 words if you know one, never invented, never more than these two parts"}\\nIf allergen or vegan/gluten-free information is printed on the label, use it directly. Otherwise recall the real, specific, published facts about this exact beer if you know them. Only as a last resort, estimate from the style: most ales then get "Barley (gluten)", most ciders get "Sulphites", vegan=false, glutenStatus="Standard". If a field isn't legible or known, use "" for text fields.${distHint} JSON only, no other text.`;
   const labelToItem = (p, i) => {
     const dt = p.kind === "cider" ? "cider" : "cask";
     const style = p.style ? String(p.style) : "";
     const abv = p.abv != null ? String(p.abv) : "";
-    return { id: "lb" + i + "_" + uid(), include: true, drinkType: dt, brewery: p.brewery ? String(p.brewery) : "", location: p.location ? String(p.location) : "", name: p.name ? String(p.name) : "", abv, price: "", bestBefore: toISO(p.bestBefore), caskOwner: p.deliveredBy ? String(p.deliveredBy) : "", style, clarity: CLARITY_OPTIONS.includes(p.clarity) ? p.clarity : "Clear", glutenStatus: GLUTEN_OPTIONS.includes(p.glutenStatus) ? p.glutenStatus : "Standard", vegan: !!p.vegan, allergens: Array.isArray(p.allergens) ? p.allergens.filter((a) => ALLERGEN_OPTIONS.includes(a)) : [], notes: p.notes ? String(p.notes) : "", category: dt === "cask" ? categorise(style, abv) : "Misc" };
+    return { id: "lb" + i + "_" + uid(), include: true, drinkType: dt, brewery: p.brewery ? String(p.brewery) : "", location: p.location ? String(p.location) : "", name: p.name ? String(p.name) : "", abv, price: "", bestBefore: toISO(p.bestBefore), caskOwner: p.deliveredBy ? String(p.deliveredBy) : "", style, clarity: CLARITY_OPTIONS.includes(p.clarity) ? p.clarity : (p.clarity === "Cloudy" ? "Hazy" : "Clear"), glutenStatus: GLUTEN_OPTIONS.includes(p.glutenStatus) ? p.glutenStatus : "Standard", vegan: !!p.vegan, allergens: Array.isArray(p.allergens) ? p.allergens.filter((a) => ALLERGEN_OPTIONS.includes(a)) : [], notes: p.notes ? String(p.notes) : "", category: dt === "cask" ? categorise(style, abv) : "Misc" };
   };
   const scanLabel = async (file) => {
     setScanning(true); setScanError(null); setFillNote({ type: "loading", text: "Reading the label…" });
@@ -2078,7 +2086,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           </div>
           <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{beer.style} · {beer.abv}% · £{line.price || "--"}{beer.location ? ` · ${beer.location}` : ""}</p>
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-1" style={{ maxWidth: 92 }}>
+        <div className="flex shrink-0 flex-col items-end gap-1" style={{ maxWidth: 116 }}>
           <DietaryMini beer={beer} />
           {showBadge && <span className="max-w-full truncate rounded-full border px-1.5 py-0.5 font-semibold" style={{ fontSize: 10, fontFamily: "var(--font-data)", background: sig.warn ? "#F7E9E7" : C.stone, color: sig.warn ? C.alert : C.inkSoft, borderColor: sig.warn ? "#E8CCC8" : C.line }}>{badgeText}</span>}
         </div>
