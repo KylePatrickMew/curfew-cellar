@@ -12,6 +12,13 @@ const C = {
   paper: "#FBF8F2", alert: "#A23B3B",
 };
 const TYPE_ACCENT = { cask: "#B8862B", keg: "#3E8C82", keykeg: "#3E8C82", cider: "#5E8C4F" };
+// One definition of each dietary badge's colour, warm and teal-tinted to match the app's
+// own palette. Used everywhere a badge appears, so they can't drift out of sync again.
+const DIET_BADGE_STYLE = {
+  vegan: { background: "#EDF3E7", color: "#3F6B33", borderColor: "#C7DAB8" },
+  gluten: { background: "#E8F2F1", color: "#1F5C54", borderColor: "#BFDDD9" },
+  hazy: { background: "#F7E9E7", color: C.alert, borderColor: "#E8CCC8" },
+};
 const CAT_ACCENT = { IPA: "#E8D976", Pale: "#E3A93E", Bitter: "#D6823C", "Stout/Porter": "#6E4A32", Stout: "#6E4A32", Porter: "#6E4A32", Cider: "#5E8C4F", Sour: "#A13B5C", Misc: "#96A19B" };
 const STORE_KEY = "curfew-cellar:data:v1";
 const MODEL = "claude-sonnet-4-6";
@@ -499,23 +506,18 @@ const Badge = ({ className = "", style, children }) => (
 const StatusBadge = ({ status }) => <Badge className={STATUS_STYLE[status]}>{STATUSES[STATUS_INDEX[status]].label}</Badge>;
 const DietaryBadges = ({ beer }) => (
   <div className="flex flex-wrap gap-1.5">
-    {beer.vegan && <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200">Vegan</Badge>}
-    {beer.glutenStatus === "Gluten-free" && <Badge className="bg-sky-50 text-sky-700 border-sky-200">Gluten-free</Badge>}
-    {beer.glutenStatus === "Low gluten" && <Badge className="bg-amber-50 text-amber-800 border-amber-200">Low gluten</Badge>}
-    <Badge className="bg-slate-100 text-slate-600 border-slate-200">{beer.clarity}</Badge>
+    {beer.vegan && <Badge style={DIET_BADGE_STYLE.vegan}>Vegan</Badge>}
+    {beer.glutenStatus === "Gluten-free" && <Badge style={DIET_BADGE_STYLE.gluten}>Gluten-free</Badge>}
+    {beer.glutenStatus === "Low gluten" && <Badge style={DIET_BADGE_STYLE.gluten}>Low gluten, &lt;20ppm</Badge>}
+    {beer.clarity === "Hazy" && <Badge style={DIET_BADGE_STYLE.hazy}>Hazy</Badge>}
   </div>
 );
 const DietaryMini = ({ beer }) => {
-  // Warm, teal-tinted badge colours matching the app's own palette (cider green, keg teal,
-  // the established alert red) rather than Tailwind's default cool emerald/sky/red.
-  const veganStyle = { background: "#EDF3E7", color: "#3F6B33", borderColor: "#C7DAB8" };
-  const glutenStyle = { background: "#E8F2F1", color: "#1F5C54", borderColor: "#BFDDD9" };
-  const hazyStyle = { background: "#F7E9E7", color: C.alert, borderColor: "#E8CCC8" };
   const items = [];
-  if (beer.vegan) items.push(["Ve", "Vegan", veganStyle]);
-  if (beer.glutenStatus === "Gluten-free") items.push(["GF", "Gluten-free", glutenStyle]);
-  else if (beer.glutenStatus === "Low gluten") items.push(["<20ppm", "Low gluten, under 20ppm", glutenStyle]);
-  if (beer.clarity === "Hazy") items.push(["Hazy", "Hazy", hazyStyle]);
+  if (beer.vegan) items.push(["Ve", "Vegan", DIET_BADGE_STYLE.vegan]);
+  if (beer.glutenStatus === "Gluten-free") items.push(["GF", "Gluten-free", DIET_BADGE_STYLE.gluten]);
+  else if (beer.glutenStatus === "Low gluten") items.push(["<20ppm", "Low gluten, under 20ppm", DIET_BADGE_STYLE.gluten]);
+  if (beer.clarity === "Hazy") items.push(["Hazy", "Hazy", DIET_BADGE_STYLE.hazy]);
   if (!items.length) return null;
   return (
     <span className="flex flex-wrap items-center justify-end gap-1">
@@ -3383,11 +3385,11 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
               )}
               <DietaryBadges beer={beer} />
               <div className="grid grid-cols-2 gap-2">
-                <label className="block text-xs text-slate-500">Best before
-                  <input type="date" value={openLine.bestBefore || ""} onChange={(e) => setBestBefore(openLine.id, e.target.value)} className="mt-0.5 w-full rounded-md border px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-300" style={bb && bb.level === "past" ? { borderColor: C.alert, color: C.alert } : { borderColor: C.line }} />
+                <label className="block min-w-0 text-xs text-slate-500">Best before
+                  <input type="date" value={openLine.bestBefore || ""} onChange={(e) => setBestBefore(openLine.id, e.target.value)} className="mt-0.5 w-full min-w-0 rounded-md border px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-300" style={bb && bb.level === "past" ? { borderColor: C.alert, color: C.alert } : { borderColor: C.line }} />
                 </label>
-                <label className="block text-xs text-slate-500">Supplied by
-                  <input value={openLine.caskOwner || ""} onChange={(e) => setCaskOwner(openLine.id, e.target.value)} placeholder="Brewery / distributor" className="mt-0.5 w-full rounded-md border px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
+                <label className="block min-w-0 text-xs text-slate-500">Supplied by
+                  <input value={openLine.caskOwner || ""} onChange={(e) => setCaskOwner(openLine.id, e.target.value)} placeholder="Brewery / distributor" className="mt-0.5 w-full min-w-0 rounded-md border px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
                 </label>
               </div>
             </div>
