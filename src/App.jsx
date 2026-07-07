@@ -1623,17 +1623,18 @@ export default function TheCurfewCellar() {
   }, [lines, library, hydrated]);
 
   useEffect(() => {
-    if (!(openId || editBeerId) || typeof document === "undefined") return;
-    const onKey = (e) => { if (e.key === "Escape") { setEditBeerId(null); setOpenId(null); } };
+    if (!(openId || editBeerId || swap || showAlerts || menuOpen) || typeof document === "undefined") return;
+    const onKey = (e) => { if (e.key === "Escape") { setEditBeerId(null); setOpenId(null); setSwap(null); setShowAlerts(false); setMenuOpen(false); } };
     document.addEventListener("keydown", onKey);
-    // Lock the actual scroll region behind the modal, not body, which hasn't been the
-    // scrolling element since the restructure. Without this, nothing stops the background
-    // from scrolling and bouncing while a modal sits on top of it.
+    // Lock the actual scroll region behind whatever overlay is open (modal, swap picker, bell
+    // dropdown, or the More menu), not body, which hasn't been the scrolling element since the
+    // restructure. Without this, nothing stops the background from scrolling and bouncing
+    // while any of these sit on top of it.
     const el = scrollAreaRef.current;
     const prevOverflow = el ? el.style.overflow : "";
     if (el) el.style.overflow = "hidden";
     return () => { document.removeEventListener("keydown", onKey); if (el) el.style.overflow = prevOverflow; };
-  }, [openId, editBeerId]);
+  }, [openId, editBeerId, swap, showAlerts, menuOpen]);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
