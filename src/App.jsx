@@ -513,7 +513,7 @@ const DietaryMini = ({ beer }) => {
   if (beer.clarity === "Hazy") items.push(["Hazy", "Hazy", "bg-red-50 text-red-700 border-red-200"]);
   if (!items.length) return null;
   return (
-    <span className="flex items-center gap-1">
+    <span className="flex flex-wrap items-center justify-end gap-1">
       {items.map(([t, title, cls]) => (
         <span key={t} title={title} className={`rounded border px-1.5 py-0.5 text-xs font-semibold leading-none ${cls}`}>{t}</span>
       ))}
@@ -2086,7 +2086,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           </div>
           <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{beer.style} · {beer.abv}% · £{line.price || "--"}{beer.location ? ` · ${beer.location}` : ""}</p>
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-1" style={{ maxWidth: 116 }}>
+        <div className="flex shrink-0 flex-col items-end gap-1" style={{ maxWidth: 92 }}>
           <DietaryMini beer={beer} />
           {showBadge && <span className="max-w-full truncate rounded-full border px-1.5 py-0.5 font-semibold" style={{ fontSize: 10, fontFamily: "var(--font-data)", background: sig.warn ? "#F7E9E7" : C.stone, color: sig.warn ? C.alert : C.inkSoft, borderColor: sig.warn ? "#E8CCC8" : C.line }}>{badgeText}</span>}
         </div>
