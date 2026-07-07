@@ -506,16 +506,21 @@ const DietaryBadges = ({ beer }) => (
   </div>
 );
 const DietaryMini = ({ beer }) => {
+  // Warm, teal-tinted badge colours matching the app's own palette (cider green, keg teal,
+  // the established alert red) rather than Tailwind's default cool emerald/sky/red.
+  const veganStyle = { background: "#EDF3E7", color: "#3F6B33", borderColor: "#C7DAB8" };
+  const glutenStyle = { background: "#E8F2F1", color: "#1F5C54", borderColor: "#BFDDD9" };
+  const hazyStyle = { background: "#F7E9E7", color: C.alert, borderColor: "#E8CCC8" };
   const items = [];
-  if (beer.vegan) items.push(["Ve", "Vegan", "bg-emerald-50 text-emerald-700 border-emerald-200"]);
-  if (beer.glutenStatus === "Gluten-free") items.push(["GF", "Gluten-free", "bg-sky-50 text-sky-700 border-sky-200"]);
-  else if (beer.glutenStatus === "Low gluten") items.push(["LG", "Low gluten", "bg-amber-50 text-amber-800 border-amber-200"]);
-  if (beer.clarity === "Hazy") items.push(["Hazy", "Hazy", "bg-red-50 text-red-700 border-red-200"]);
+  if (beer.vegan) items.push(["Ve", "Vegan", veganStyle]);
+  if (beer.glutenStatus === "Gluten-free") items.push(["GF", "Gluten-free", glutenStyle]);
+  else if (beer.glutenStatus === "Low gluten") items.push(["<20ppm", "Low gluten, under 20ppm", glutenStyle]);
+  if (beer.clarity === "Hazy") items.push(["Hazy", "Hazy", hazyStyle]);
   if (!items.length) return null;
   return (
     <span className="flex flex-wrap items-center justify-end gap-1">
-      {items.map(([t, title, cls]) => (
-        <span key={t} title={title} className={`rounded border px-1.5 py-0.5 text-xs font-semibold leading-none ${cls}`}>{t}</span>
+      {items.map(([t, title, style]) => (
+        <span key={t} title={title} className="rounded border px-1.5 py-0.5 text-xs font-semibold leading-none" style={style}>{t}</span>
       ))}
     </span>
   );
@@ -3427,18 +3432,20 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                     {flow.map((key, i) => {
                       const s = STATUS_BY_KEY[key];
                       const done = i <= stageIdx;
+                      const editableOn = key === "on" && openLine.dates.on;
                       return (
                         <li key={s.key} className="flex items-center justify-between text-sm">
                           <span className={`flex items-center gap-2 ${done ? "text-slate-800" : "text-slate-400"}`}>{done ? <CheckCircle2 size={15} className="text-emerald-600" /> : <span className="h-3.5 w-3.5 rounded-full border border-slate-300" />}{s.label}</span>
-                          <span className="text-xs text-slate-400">{fmt(openLine.dates[s.dateKey])}</span>
+                          {editableOn ? (
+                            <input type="date" value={openLine.dates.on.slice(0, 10)} onChange={(e) => setOnDate(openLine.id, e.target.value)} className="rounded-md border border-slate-300 px-2 py-0.5 text-xs text-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-300" />
+                          ) : (
+                            <span className="text-xs text-slate-400">{fmt(openLine.dates[s.dateKey])}</span>
+                          )}
                         </li>
                       );
                     })}
                   </ol>
-                  <div className="grid grid-cols-1 gap-2 border-t pt-3 sm:grid-cols-2" style={{ borderColor: C.line }}>
-                    <label className="text-xs text-slate-500">Best before<input type="date" value={openLine.bestBefore || ""} onChange={(e) => setBestBefore(openLine.id, e.target.value)} className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" /></label>
-                    {openLine.dates.on && <label className="text-xs text-slate-500">On date<input type="date" value={openLine.dates.on.slice(0, 10)} onChange={(e) => setOnDate(openLine.id, e.target.value)} className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" /></label>}
-                  </div>
+                  <label className="block text-xs text-slate-500 border-t pt-3" style={{ borderColor: C.line }}>Best before<input type="date" value={openLine.bestBefore || ""} onChange={(e) => setBestBefore(openLine.id, e.target.value)} className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" /></label>
                   <label className="block text-xs text-slate-500">Supplied by<input value={openLine.caskOwner || ""} onChange={(e) => setCaskOwner(openLine.id, e.target.value)} placeholder="e.g. the brewery or distributor" className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" /></label>
                 </div>
               )}
