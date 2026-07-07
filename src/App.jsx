@@ -3538,7 +3538,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
 :root { --font-data: 'Archivo', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; --font-display: 'Archivo', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
 .cc-brandtrack{letter-spacing:0.04em;}
 html, body { overflow-x: clip; width: 100%; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
-body { touch-action: manipulation; overscroll-behavior-y: contain; }
+body { touch-action: manipulation; overscroll-behavior-y: none; }
 @media (max-width: 640px) { input, select, textarea { font-size: 16px !important; } }
 @media print { .no-print { display: none !important; } body { background: #fff; } }
 .cc-fade{animation:ccfade .34s cubic-bezier(.16,1,.3,1) both}
