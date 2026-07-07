@@ -2180,7 +2180,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           </div>
           <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{beer.style} · {beer.abv}% · £{line.price || "--"}{beer.location ? ` · ${beer.location}` : ""}</p>
         </div>
-        <div className="flex flex-wrap items-center gap-1">
+        <div className="flex flex-wrap items-center gap-1" style={{ minHeight: 22 }}>
           <DietaryMini beer={beer} />
           {showBadge && <span className="max-w-full truncate rounded-full border px-1.5 py-0.5 font-semibold" style={{ fontSize: 10, fontFamily: "var(--font-data)", background: sig.warn ? "#F7E9E7" : C.stone, color: sig.warn ? C.alert : C.inkSoft, borderColor: sig.warn ? "#E8CCC8" : C.line }}>{badgeText}</span>}
         </div>
@@ -3684,4 +3684,3 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
     </div>
   );
 }
-
