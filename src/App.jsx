@@ -2172,7 +2172,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     else if (bb && bb.level === "past") badgeText = "BB passed";
     else if (bb && bb.level === "soon") badgeText = daysUntil(line.bestBefore) === 0 ? "BB today" : `BB ${daysUntil(line.bestBefore)}d`;
     return (
-      <button onClick={() => setOpenId(line.id)} className="flex w-full flex-col gap-1.5 rounded-xl border px-3 py-2 text-left transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-amber-300 active:scale-95" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[line.drinkType] || C.line, boxShadow: "0 1px 2px rgba(28,54,54,0.05), 0 6px 14px -10px rgba(28,54,54,0.2)", minHeight: 52 }}>
+      <button onClick={() => setOpenId(line.id)} className="flex h-full w-full flex-col gap-1.5 rounded-xl border px-3 py-2 text-left transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-amber-300 active:scale-95" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[line.drinkType] || C.line, boxShadow: "0 1px 2px rgba(28,54,54,0.05), 0 6px 14px -10px rgba(28,54,54,0.2)", minHeight: 52 }}>
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
             <p className="truncate text-sm font-semibold leading-tight" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</p>
@@ -2252,17 +2252,17 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     ].filter((g) => g.items.length);
 
     const renderSlot = (slot, k, urgent) => (
-      <div key={k} className={urgent ? "flex items-center gap-2" : ""}>
+      <div key={k} className={urgent ? "flex items-center gap-2" : "flex h-full flex-col"}>
         {urgent ? (
           <span className="grid shrink-0 place-items-center rounded-md" style={{ width: 22, height: 22, background: "linear-gradient(180deg, #26494B 0%, #1C3636 100%)", color: C.brassSoft, fontFamily: "var(--font-data)", fontSize: 10, fontWeight: 700, border: "1px solid rgba(184,134,43,0.45)", boxShadow: "inset 0 1px 0 rgba(209,164,74,0.28), 0 1px 2px rgba(28,54,54,0.35)" }}>{String(PUMP_NUMBER[slot.slot]).padStart(2, "0")}</span>
         ) : (
           <p className="mb-0.5 text-xs font-semibold uppercase tracking-wide text-slate-400">{slot.label}</p>
         )}
-        <div className={urgent ? "min-w-0 flex-1" : ""}>
+        <div className={urgent ? "min-w-0 flex-1 self-stretch" : "flex-1"}>
           {slot.line ? <LineRow line={slot.line} context={urgent ? "on" : "racked"} /> : (
             urgent
-              ? <button onClick={() => openPump(slot)} className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed text-sm font-medium transition hover:bg-amber-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ borderColor: "#e2c98a", color: "#b45309", minHeight: 52 }}><Plus size={15} /> Empty · {slot.label}</button>
-              : <button onClick={() => openRack(slot.label)} className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed text-sm font-medium text-slate-500 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line, minHeight: 52 }}><Plus size={15} /> Rack from store</button>
+              ? <button onClick={() => openPump(slot)} className="flex h-full w-full items-center justify-center gap-2 rounded-xl border border-dashed text-sm font-medium transition hover:bg-amber-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ borderColor: "#e2c98a", color: "#b45309", minHeight: 52 }}><Plus size={15} /> Empty · {slot.label}</button>
+              : <button onClick={() => openRack(slot.label)} className="flex h-full w-full items-center justify-center gap-2 rounded-xl border border-dashed text-sm font-medium text-slate-500 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line, minHeight: 52 }}><Plus size={15} /> Rack from store</button>
           )}
         </div>
       </div>
@@ -3260,7 +3260,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                 <button onClick={() => setSwapPreviewId(null)} className="inline-flex items-center gap-1 text-sm font-medium text-slate-500 transition hover:text-slate-700 focus:outline-none"><ArrowRight size={15} className="rotate-180" /> Back</button>
                 <button onClick={close} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400"><X size={18} /></button>
               </div>
-              <div className="flex-1 space-y-4 overflow-y-auto p-4">
+              <div className="flex-1 space-y-4 overflow-y-auto p-4" style={{ overscrollBehaviorY: "none", WebkitOverflowScrolling: "touch" }}>
                 <div>
                   <h2 className="text-xl font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{previewBeer.name}</h2>
                   <p className="text-sm text-slate-500">{previewBeer.brewery} · {previewBeer.location}</p>
@@ -3294,7 +3294,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                 </div>
                 <button onClick={close} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400"><X size={18} /></button>
               </div>
-              <div className="flex-1 space-y-3 overflow-y-auto p-4">
+              <div className="flex-1 space-y-3 overflow-y-auto p-4" style={{ overscrollBehaviorY: "none", WebkitOverflowScrolling: "touch" }}>
                 {groups.length ? groups.map((g) => (
                   <div key={g.k} className="space-y-2">
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{g.label}</p>
@@ -3336,7 +3336,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     };
     return (
       <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(28,54,54,0.45)" }} onClick={close}>
-        <div className="w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white sm:rounded-2xl cc-pop" style={{ maxHeight: "92vh" }} onClick={(e) => e.stopPropagation()}>
+        <div className="w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white sm:rounded-2xl cc-pop" style={{ maxHeight: "92vh", overscrollBehaviorY: "none", WebkitOverflowScrolling: "touch" }} onClick={(e) => e.stopPropagation()}>
           <div className="sticky top-0 flex items-center justify-between gap-2 border-b bg-white p-4" style={{ borderColor: C.line }}>
             <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Edit beer details</h2>
             <button onClick={close} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400"><X size={18} /></button>
@@ -3369,7 +3369,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     const measures = priceTriple(openLine.price);
     return (
       <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(28,54,54,0.45)" }} onClick={() => setOpenId(null)}>
-        <div className="w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white sm:rounded-2xl cc-pop" style={{ maxHeight: "92vh" }} onClick={(e) => e.stopPropagation()}>
+        <div className="w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white sm:rounded-2xl cc-pop" style={{ maxHeight: "92vh", overscrollBehaviorY: "none", WebkitOverflowScrolling: "touch" }} onClick={(e) => e.stopPropagation()}>
           <div className="sticky top-0 flex items-start justify-between gap-2 border-b bg-white p-4" style={{ borderColor: C.line }}>
             <div>
               <h2 className="text-xl font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</h2>
@@ -3561,7 +3561,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
                         <p className="text-sm text-slate-500">All good. Nothing needs a look right now.</p>
                       </div>
                     ) : (
-                      <ul className="max-h-80 overflow-y-auto py-1">
+                      <ul className="max-h-80 overflow-y-auto py-1" style={{ overscrollBehaviorY: "none", WebkitOverflowScrolling: "touch" }}>
                         {attentionItems.map((a, i) => (
                           <li key={`${a.id}-${i}`}>
                             <button onClick={() => { setShowAlerts(false); a.backup ? go("backup") : (go("cellar"), setOpenId(a.id)); }} className="flex w-full items-start gap-2 px-3 py-2 text-left text-sm transition hover:bg-slate-50 focus:outline-none" style={{ color: a.warn ? C.alert : C.inkSoft }}>
@@ -3588,7 +3588,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
                 <div className="absolute right-0 top-full z-50 mt-1 w-44 overflow-hidden rounded-lg border bg-white shadow-lg" style={{ borderColor: C.line }}>
-                  {[["library", "Library", BookOpen], ["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["guide", "How to Use", Compass], ["notify", "Notifications", Bell], ["backup", "Backup & Restore", Database]].map(([id, label, Icon]) => (
+                  {[["guide", "How to Use", Compass], ["library", "Library", BookOpen], ["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["notify", "Notifications", Bell], ["backup", "Backup & Restore", Database]].map(([id, label, Icon]) => (
                     <button key={id} onClick={() => { setMenuOpen(false); go(id); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"><Icon size={15} className="text-slate-400" />{label}</button>
                   ))}
                 </div>
@@ -3651,7 +3651,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
           <div className="cc-sheet absolute inset-x-0 bottom-0 rounded-t-2xl bg-white p-4" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 16px)" }}>
             <div className="mx-auto mb-3 h-1.5 w-10 rounded-full" style={{ background: C.line }} />
             <div className="grid grid-cols-3 gap-2.5">
-              {[["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["guide", "How to Use", Compass], ["notify", "Notifications", Bell], ["backup", "Backup & Restore", Database]].map(([id, label, Icon]) => (
+              {[["guide", "How to Use", Compass], ["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["notify", "Notifications", Bell], ["backup", "Backup & Restore", Database]].map(([id, label, Icon]) => (
                 <button key={id} onClick={() => { setMenuOpen(false); go(id); }} className="flex flex-col items-center gap-1.5 rounded-xl border p-3 transition active:scale-95" style={{ borderColor: C.line, color: C.ink }}>
                   <Icon size={20} style={{ color: C.brass }} />
                   <span className="text-center text-xs font-medium leading-tight">{label}</span>
@@ -3684,3 +3684,4 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
     </div>
   );
 }
+
