@@ -1519,6 +1519,30 @@ export default function TheCurfewCellar() {
     return () => { document.removeEventListener("visibilitychange", onVisibility); window.removeEventListener("pagehide", flush); };
   }, [store, storageOk, cloudMode, authed, cloudReady]);
 
+  // iOS's own "keep the focused field above the keyboard" behaviour is tied to the page
+  // scrolling naturally; now that real scrolling happens in one dedicated inner region
+  // instead of the document, iOS doesn't reliably account for the keyboard there anymore.
+  // Scroll the focused field into view ourselves once the keyboard has actually finished
+  // animating in (via visualViewport's resize event, with a fallback timer in case that
+  // doesn't fire), rather than fighting or guessing at a fixed delay.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const scrollIntoView = (el) => { if (document.activeElement === el) el.scrollIntoView({ block: "center", behavior: "smooth" }); };
+    const onFocusIn = (e) => {
+      const el = e.target;
+      if (!el || !["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName)) return;
+      if (window.visualViewport) {
+        const onResize = () => { scrollIntoView(el); window.visualViewport.removeEventListener("resize", onResize); };
+        window.visualViewport.addEventListener("resize", onResize);
+        setTimeout(() => { window.visualViewport.removeEventListener("resize", onResize); scrollIntoView(el); }, 400);
+      } else {
+        setTimeout(() => scrollIntoView(el), 400);
+      }
+    };
+    document.addEventListener("focusin", onFocusIn);
+    return () => document.removeEventListener("focusin", onFocusIn);
+  }, []);
+
   // Stamp "last updated" whenever a beer is added or changed (not on first load or a remote sync)
   useEffect(() => {
     if (!hydrated) return;
@@ -1605,12 +1629,6 @@ export default function TheCurfewCellar() {
 
   const autoFill = async () => {
     if (!form.name.trim()) { setFillNote({ type: "warn", text: "Add a name first." }); return; }
-    const saved = form.brewery.trim() ? findSavedBeer(form.brewery, form.name) : null;
-    if (saved) {
-      setF({ style: saved.style, abv: saved.abv, clarity: saved.clarity, glutenStatus: saved.glutenStatus, vegan: saved.vegan, allergens: saved.allergens, notes: saved.notes, allergensVerified: saved.allergensVerified, category: form.drinkType === "cask" ? categorise(saved.style, saved.abv) : saved.category, sweetness: saved.sweetness || form.sweetness });
-      setFillNote({ type: "ok", text: `Found in your library. Pulled saved details for "${saved.name}".` });
-      return;
-    }
     setLoading(true);
     setFillNote({ type: "loading", text: "Filling in a draft…" });
     const isCider = form.drinkType === "cider";
@@ -1706,8 +1724,8 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     const entry = { date: new Date().toISOString(), abv: form.abv.trim(), price: form.price.trim(), caskOwner: (form.caskOwner.trim() || form.brewery.trim()) };
     const saved = findSavedBeer(form.brewery, form.name);
     let beerId;
-    if (saved) { beerId = saved.id; setLibrary((lib) => lib.map((b) => (b.id === saved.id ? { ...b, ...beerFields, history: [...(b.history || []), entry], justAdded: false, pendingBestBefore: "", pendingCaskOwner: "", pendingPrice: "", pendingDrinkType: "" } : b))); }
-    else { beerId = uid(); setLibrary((lib) => [...lib, { id: beerId, ...beerFields, history: [entry], justAdded: false }]); }
+    if (saved) { beerId = saved.id; setLibrary((lib) => lib.map((b) => (b.id === saved.id ? { ...b, ...beerFields, history: [...(b.history || []), entry], pendingBestBefore: "", pendingCaskOwner: "", pendingPrice: "", pendingDrinkType: "" } : b))); }
+    else { beerId = uid(); setLibrary((lib) => [...lib, { id: beerId, ...beerFields, history: [entry] }]); }
     const dates = { ordered: null, delivered: null, racked: null, vented: null, tapped: null, on: null, off: null };
     dates[STATUSES[STATUS_INDEX[form.status]].dateKey] = new Date().toISOString();
     const id = uid();
@@ -1804,7 +1822,6 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
   const setOnDate = (id, v) => setLines((ls) => ls.map((c) => { if (c.id !== id) return c; const d = new Date(v); d.setHours(12, 0, 0, 0); return { ...c, dates: { ...c.dates, on: d.toISOString() } }; }));
   const verify = (beerId) => setLibrary((lib) => lib.map((b) => (b.id === beerId ? { ...b, allergensVerified: true } : b)));
   const updateBeer = (id, patch) => setLibrary((lib) => lib.map((b) => (b.id === id ? { ...b, ...patch } : b)));
-  const markChecked = (id) => setLibrary((lib) => lib.map((b) => (b.id === id ? { ...b, justAdded: false } : b)));
   const updateBeerPrice = (id, v) => { setLibrary((lib) => lib.map((b) => (b.id === id ? { ...b, price: v } : b))); setLines((ls) => ls.map((c) => (c.beerId === id ? { ...c, price: v } : c))); };
   const toggleBeerAllergen = (id, a) => setLibrary((lib) => lib.map((b) => (b.id === id ? { ...b, allergens: b.allergens.includes(a) ? b.allergens.filter((x) => x !== a) : [...b.allergens, a] } : b)));
   const autoFillBeer = async (beer) => {
@@ -2009,17 +2026,25 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     if (!chosen.length) return;
     const nowIso = new Date().toISOString();
     let lib = [...library];
+    const newLines = [];
     chosen.forEach((x) => {
       const existing = lib.find((b) => b.brewery.trim().toLowerCase() === x.brewery.trim().toLowerCase() && b.name.trim().toLowerCase() === x.name.trim().toLowerCase());
       const entry = { date: nowIso, abv: x.abv, price: x.price };
-      // Carry the physical-stock details (best before, supplier, price, drink type) through as
-      // "pending" so they prefill the cellar line when the beer is reviewed and added for real.
-      const pending = { pendingBestBefore: x.bestBefore || "", pendingCaskOwner: x.caskOwner || "", pendingPrice: x.price || "", pendingDrinkType: x.drinkType || "cask" };
-      if (existing) { lib = lib.map((b) => (b.id === existing.id ? { ...b, abv: x.abv || b.abv, history: [...(b.history || []), entry], justAdded: true, ...pending } : b)); }
-      else { lib = [...lib, { id: uid(), brewery: x.brewery.trim(), location: x.location || "", name: x.name.trim(), style: x.style || "", abv: x.abv, clarity: x.clarity || "Clear", glutenStatus: x.glutenStatus || "Standard", vegan: x.vegan || false, allergens: x.allergens || [], notes: x.notes || "", allergensVerified: false, category: x.category || (x.drinkType === "cask" ? categorise(x.style || "", x.abv) : "Misc"), history: [entry], justAdded: true, ...pending }]; }
+      let beerId;
+      // Reviewed and confirmed here, on this screen, so this is going straight to the
+      // cellar: no separate "just added, please check" step needed afterwards.
+      if (existing) { beerId = existing.id; lib = lib.map((b) => (b.id === existing.id ? { ...b, abv: x.abv || b.abv, history: [...(b.history || []), entry] } : b)); }
+      else {
+        beerId = uid();
+        lib = [...lib, { id: beerId, brewery: x.brewery.trim(), location: x.location || "", name: x.name.trim(), style: x.style || "", abv: x.abv, clarity: x.clarity || "Clear", glutenStatus: x.glutenStatus || "Standard", vegan: x.vegan || false, allergens: x.allergens || [], notes: x.notes || "", allergensVerified: false, category: x.category || (x.drinkType === "cask" ? categorise(x.style || "", x.abv) : "Misc"), history: [entry] }];
+      }
+      const dates = { ordered: null, delivered: null, racked: null, vented: null, tapped: null, on: null, off: null };
+      dates[STATUSES[STATUS_INDEX["in_cellar"]].dateKey] = nowIso;
+      newLines.push({ id: uid(), beerId, drinkType: x.drinkType || "cask", size: "", price: (x.price || "").toString(), status: "in_cellar", caskOwner: (x.caskOwner || x.brewery || "").trim(), collected: false, bestBefore: x.bestBefore || "", dates });
     });
     setLibrary(lib);
-    setInvoiceItems(null); setInvoiceOwner(""); setAddMode("pick"); setFillNote(null); setLibrarySearch(""); setView("library");
+    setLines((ls) => [...ls, ...newLines]);
+    setInvoiceItems(null); setInvoiceOwner(""); setAddMode("pick"); setFillNote(null); setLibrarySearch(""); setView("cellar");
   };
   const snapshotUndo = (label) => { setUndoState({ lines, label }); if (undoTimer.current) clearTimeout(undoTimer.current); undoTimer.current = setTimeout(() => setUndoState(null), 7000); };
   const doUndo = () => { if (!undoState) return; setLines(undoState.lines); setUndoState(null); if (undoTimer.current) clearTimeout(undoTimer.current); };
@@ -2268,7 +2293,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           <button onClick={() => { setAddMode("pick"); setInvoiceItems(null); }} className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"><ArrowRight size={14} className="rotate-180" /> Back</button>
           <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
             <p className="text-base font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{batchSource === "labels" ? "Scanned labels" : batchSource === "list" ? "From your list" : "Delivery items"}</p>
-            <p className="mt-1 text-sm text-slate-500">Saved to your library under "Just added". Nothing reaches the cellar until you add it{batchSource === "labels" ? ", best before and supplier carry over automatically" : ""}.</p>
+            <p className="mt-1 text-sm text-slate-500">Check the details below, then confirm. Each one saves to your library and goes straight into In Store{batchSource === "labels" ? ", best before and supplier included" : ""}.</p>
             <div className="mt-3 space-y-2">
               {items.length === 0 && <p className="py-3 text-center text-sm text-slate-400">Nothing found.</p>}
               {items.map((x, idx) => (
@@ -2294,7 +2319,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
             </div>
           </div>
           <div className="flex gap-2">
-            <button onClick={importInvoice} disabled={!count} className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:opacity-50" style={{ background: C.ink }}><Plus size={16} /> Save {count} to library</button>
+            <button onClick={importInvoice} disabled={!count} className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:opacity-50" style={{ background: C.ink }}><Plus size={16} /> Confirm all {count} · add to store</button>
             <button onClick={() => { setAddMode("pick"); setInvoiceItems(null); }} className="rounded-lg border px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50" style={{ borderColor: C.line }}>Cancel</button>
           </div>
         </div>
@@ -2488,10 +2513,9 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
   const Library = () => {
     const q = librarySearch.trim().toLowerCase();
     const match = (b) => [b.name, b.brewery, b.style, b.category, b.location].some((x) => (x || "").toLowerCase().includes(q));
-    const justAddedBeers = library.filter((b) => b.justAdded && !b.archived);
     const results = q ? library.filter(match) : [];
     const archived = library.filter((b) => b.archived).slice().sort((a, b) => (a.brewery || "").localeCompare(b.brewery || "") || (a.name || "").localeCompare(b.name || ""));
-    const rest = library.filter((b) => !b.justAdded && !b.archived).slice().sort((a, b) => {
+    const rest = library.filter((b) => !b.archived).slice().sort((a, b) => {
       if (a.allergensVerified !== b.allergensVerified) return a.allergensVerified ? 1 : -1;
       return (a.brewery || "").localeCompare(b.brewery || "") || (a.name || "").localeCompare(b.name || "");
     });
@@ -2565,28 +2589,6 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           )
         ) : (
           <>
-            {justAddedBeers.length > 0 && (
-              <div className="rounded-xl border p-3" style={{ borderColor: "#e2c98a", background: "#fffbeb" }}>
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <p className="text-sm font-semibold" style={{ color: "#92400e" }}>Just added · check details · {justAddedBeers.length}</p>
-                  <button onClick={() => setLibrary((lib) => lib.map((b) => (b.justAdded ? { ...b, justAdded: false } : b)))} className="shrink-0 text-xs font-medium text-amber-800 hover:underline focus:outline-none">Mark all checked</button>
-                </div>
-                <div className="space-y-2">
-                  {justAddedBeers.map((b) => (
-                    <div key={b.id} className="rounded-lg border p-2.5" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: CAT_ACCENT[b.category] || C.line }}>
-                      <p className="truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{b.brewery ? `${b.brewery} - ` : ""}{b.name}</p>
-                      <p className="truncate text-xs font-medium text-slate-600">{b.style ? b.style : "--"}{b.abv ? ` · ${b.abv}%` : ""}{!b.allergensVerified ? " · not staff verified" : ""}</p>
-                      <p className="truncate text-xs text-slate-400">{b.location || ""}</p>
-                      <div className="mt-2 flex items-center gap-1.5">
-                        <button onClick={() => setEditBeerId(b.id)} className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50 focus:outline-none" style={{ borderColor: C.line }}><Pencil size={13} /> Check &amp; edit</button>
-                        <button onClick={() => addLineOfBeer(b)} className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition hover:bg-amber-50 focus:outline-none" style={{ borderColor: C.brass, color: C.brass }}><Plus size={13} /> Add to cellar</button>
-                        <button onClick={() => markChecked(b.id)} className="ml-auto inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-white transition hover:opacity-90 focus:outline-none" style={{ background: "#3f7d4f" }}><Check size={13} /> Done</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
             <div className="rounded-xl border border-dashed bg-white p-6 text-center" style={{ borderColor: C.line }}>
               <Search size={22} className="mx-auto mb-2 text-slate-300" />
               <p className="font-semibold" style={{ color: C.ink }}>Search your library</p>
