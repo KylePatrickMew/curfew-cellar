@@ -232,7 +232,7 @@ const GUIDE_SECTIONS = [
     ["Scan it in", "On the Add tab, Scan a cask label fills everything in from a photo, best before and supplier included. Scan an invoice or Paste a list takes a whole delivery at once. Check the details, then Confirm all sends every beer straight into In Store."],
     ["Or pick from your library", "Search for anything you've stocked before and the details carry over, last price and supplier included. Each is marked Please confirm, so nothing is ever assumed."],
     ["Autofill", "Type a name and tap Autofill for the style, ABV, allergens, vegan and gluten status, and tasting notes. Always confirm details against the brewery's own information."],
-    ["Staff verified", "Tick Allergens verified once you've checked them against the brewery's own information. Until then, a friendly reminder follows the beer around, on the Allergen Sheet, the Library and its Cellar card, so it's never missed."],
+    ["Staff verified", "Tick Details verified once you've checked them against the brewery's own information. Until then, a friendly reminder follows the beer around, on the Allergen Sheet, the Library and its Cellar card, so it's never missed."],
   ]},
   { title: "The cask lifecycle", steps: [
     ["In Store", "Delivered and waiting."],
@@ -593,7 +593,7 @@ const BeerDetailsFields = ({ values, onChange, onAutoFill, busy, note, toggleAll
           ))}
         </div>
       </Field>
-      <label className="flex items-center gap-2 rounded-lg bg-slate-50 p-2.5 text-sm"><input type="checkbox" checked={!!values.allergensVerified} onChange={(e) => onChange({ allergensVerified: e.target.checked })} className="h-4 w-4" /><span className="text-slate-700">Allergens verified against the producer's own information</span></label>
+      <label className="flex items-center gap-2 rounded-lg bg-slate-50 p-2.5 text-sm"><input type="checkbox" checked={!!values.allergensVerified} onChange={(e) => onChange({ allergensVerified: e.target.checked })} className="h-4 w-4" /><span className="text-slate-700">Details verified against the brewery's own information</span></label>
       <Field label="Tasting notes"><textarea className={`${inputCls} h-20 resize-none`} value={values.notes} onChange={(e) => onChange({ notes: e.target.value })} placeholder="How would you describe this to a customer?" /></Field>
     </>
   );
@@ -1760,7 +1760,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
         category: form.drinkType === "cask" ? categorise(style, abv) : form.category,
         sweetness: form.sweetness ? form.sweetness : (CIDER_SWEETNESS.includes(p.sweetness) ? p.sweetness : form.sweetness),
       });
-      setFillNote({ type: "ai", text: "Draft filled in. Check it, then confirm allergens against the producer's own information before serving." });
+      setFillNote({ type: "ai", text: "Draft filled in. Check it, then confirm details against the brewery's own information before serving." });
     } catch (err) {
       const d = aiDraft(form.name);
       setF({ ...d, category: form.drinkType === "cask" ? categorise(d.style, d.abv) : form.category, sweetness: form.sweetness ? form.sweetness : (d.sweetness || form.sweetness) });
@@ -3358,7 +3358,6 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     const stageIdx = flow.indexOf(openLine.status);
     const alert = (f && openLine.status === "on" && f.level === "check") ? { cls: FRESH_STYLE.check, Icon: Clock, text: f.text } : null;
     const AlertIcon = alert ? alert.Icon : null;
-    const bbCls = bb && bb.level === "soon" ? "text-amber-700" : bb && bb.level !== "past" ? "text-slate-700" : "";
     const sizeShort = openLine.size ? openLine.size.replace("Bag-in-box ", "").replace("Keg ", "") : "";
     const meta = [DRINK_TYPES.find((t) => t.key === openLine.drinkType)?.label, beer.style, beer.sweetness || null, `${beer.abv}%`, sizeShort].filter(Boolean).join("  ·  ");
     const measures = priceTriple(openLine.price);
@@ -3383,7 +3382,14 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                 </div>
               )}
               <DietaryBadges beer={beer} />
-              {openLine.bestBefore && <p className={`text-sm font-medium ${bbCls}`} style={bb && bb.level === "past" ? { color: C.alert } : undefined}>Best before {fmtDate(openLine.bestBefore)}{bb && bb.level === "past" ? " · passed" : ""}</p>}
+              <div className="grid grid-cols-2 gap-2">
+                <label className="block text-xs text-slate-500">Best before
+                  <input type="date" value={openLine.bestBefore || ""} onChange={(e) => setBestBefore(openLine.id, e.target.value)} className="mt-0.5 w-full rounded-md border px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-300" style={bb && bb.level === "past" ? { borderColor: C.alert, color: C.alert } : { borderColor: C.line }} />
+                </label>
+                <label className="block text-xs text-slate-500">Supplied by
+                  <input value={openLine.caskOwner || ""} onChange={(e) => setCaskOwner(openLine.id, e.target.value)} placeholder="Brewery / distributor" className="mt-0.5 w-full rounded-md border px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
+                </label>
+              </div>
             </div>
 
             <div>
@@ -3425,7 +3431,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
               {openLine.status === "off" && openLine.drinkType !== "cider" && openLine.drinkType !== "keykeg" && (openLine.collected
                 ? <p className="mt-2.5 flex items-center gap-1.5 text-sm text-emerald-700"><CheckCircle2 size={15} /> Empty collected</p>
                 : <button onClick={() => markCollected(openLine.id)} className="mt-2.5 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><Check size={15} /> Mark empty collected</button>)}
-              <button onClick={() => setLineDetails((v) => !v)} className="mt-2.5 inline-flex items-center gap-1 text-xs font-medium text-slate-500 transition hover:text-slate-700"><ChevronDown size={14} style={{ transform: lineDetails ? "rotate(180deg)" : "none", transition: "transform .2s" }} /> Dates & supplier</button>
+              <button onClick={() => setLineDetails((v) => !v)} className="mt-2.5 inline-flex items-center gap-1 text-xs font-medium text-slate-500 transition hover:text-slate-700"><ChevronDown size={14} style={{ transform: lineDetails ? "rotate(180deg)" : "none", transition: "transform .2s" }} /> Full timeline</button>
               {lineDetails && (
                 <div className="mt-3 space-y-3 border-t pt-3" style={{ borderColor: C.line }}>
                   <ol className="space-y-1.5">
@@ -3445,8 +3451,6 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                       );
                     })}
                   </ol>
-                  <label className="block text-xs text-slate-500 border-t pt-3" style={{ borderColor: C.line }}>Best before<input type="date" value={openLine.bestBefore || ""} onChange={(e) => setBestBefore(openLine.id, e.target.value)} className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" /></label>
-                  <label className="block text-xs text-slate-500">Supplied by<input value={openLine.caskOwner || ""} onChange={(e) => setCaskOwner(openLine.id, e.target.value)} placeholder="e.g. the brewery or distributor" className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" /></label>
                 </div>
               )}
             </div>
