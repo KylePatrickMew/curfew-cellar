@@ -1541,9 +1541,27 @@ export default function TheCurfewCellar() {
       const dy = e.touches[0].clientY - startY;
       if ((atTop && dy > 0) || (atBottom && dy < 0)) e.preventDefault();
     };
+    // A fast flick keeps scrolling under iOS's own momentum after the finger lifts, with
+    // no more touch events left for the guard above to catch, so a flick can still overshoot
+    // into the bounce. This second layer runs on every scroll event, including during that
+    // momentum phase, and snaps the position straight back into range the instant it goes
+    // out of bounds, catching what the touch guard alone misses.
+    const onScroll = (e) => {
+      const t = e.target;
+      const el = (t === document || t === window) ? (document.scrollingElement || document.documentElement) : t;
+      if (!el || typeof el.scrollTop !== "number") return;
+      const max = el.scrollHeight - el.clientHeight;
+      if (el.scrollTop < 0) el.scrollTop = 0;
+      else if (max > 0 && el.scrollTop > max) el.scrollTop = max;
+    };
     document.addEventListener("touchstart", onStart, { passive: true });
     document.addEventListener("touchmove", onMove, { passive: false });
-    return () => { document.removeEventListener("touchstart", onStart); document.removeEventListener("touchmove", onMove); };
+    document.addEventListener("scroll", onScroll, { capture: true, passive: true });
+    return () => {
+      document.removeEventListener("touchstart", onStart);
+      document.removeEventListener("touchmove", onMove);
+      document.removeEventListener("scroll", onScroll, { capture: true });
+    };
   }, []);
 
   // Stamp "last updated" whenever a beer is added or changed (not on first load or a remote sync)
