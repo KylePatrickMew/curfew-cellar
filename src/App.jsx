@@ -619,7 +619,6 @@ export default function TheCurfewCellar() {
   const [editBeerId, setEditBeerId] = useState(null);
   const [editBusy, setEditBusy] = useState(false);
   const [editNote, setEditNote] = useState(null);
-  const [lineDetails, setLineDetails] = useState(false);
   const [swap, setSwap] = useState(null);
   const [swapPreviewId, setSwapPreviewId] = useState(null);
   const [prefs, setPrefs] = useState({ on: true, racked: true, store: false, empties: {} });
@@ -1213,7 +1212,7 @@ export default function TheCurfewCellar() {
         const b = beerById[l.beerId]; if (!b) return;
         const name = `${b.brewery ? b.brewery + " - " : ""}${b.name || ""}`;
         const dt = (DRINK_TYPES.find((t) => t.key === l.drinkType) || {}).label || l.drinkType;
-        const meta = [dt, b.style, b.abv ? b.abv + "%" : "", b.location || "", l.caskOwner ? `Delivered by: ${l.caskOwner}` : ""].filter(Boolean).join("  ·  ");
+        const meta = [dt, b.style, b.abv ? b.abv + "%" : "", b.location || "", (l.caskOwner && l.drinkType !== "cider" && l.drinkType !== "keykeg") ? `Delivered by: ${l.caskOwner}` : ""].filter(Boolean).join("  ·  ");
         doc.setFont("helvetica", "bold"); doc.setFontSize(9.5);
         const nameLines = doc.splitTextToSize(name, W - 2 * M - 38);
         doc.setFont("helvetica", "normal"); doc.setFontSize(7.8);
@@ -1891,7 +1890,6 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     setSwapPreviewId(null);
   };
   const setLineCategory = (id, beerId, cat) => { setLibrary((lib) => lib.map((b) => (b.id === beerId ? { ...b, category: cat } : b))); };
-  const setOnDate = (id, v) => setLines((ls) => ls.map((c) => { if (c.id !== id) return c; const d = new Date(v); d.setHours(12, 0, 0, 0); return { ...c, dates: { ...c.dates, on: d.toISOString() } }; }));
   const verify = (beerId) => setLibrary((lib) => lib.map((b) => (b.id === beerId ? { ...b, allergensVerified: true } : b)));
   const updateBeer = (id, patch) => setLibrary((lib) => lib.map((b) => (b.id === id ? { ...b, ...patch } : b)));
   const updateBeerPrice = (id, v) => { setLibrary((lib) => lib.map((b) => (b.id === id ? { ...b, price: v } : b))); setLines((ls) => ls.map((c) => (c.beerId === id ? { ...c, price: v } : c))); };
@@ -2381,10 +2379,16 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                     <select value={x.drinkType} onChange={(e) => updateInvoice(idx, { drinkType: e.target.value })} className="rounded border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }}>{DRINK_TYPES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}</select>
                   </div>
                   {batchSource === "labels" && (
-                    <div className="mt-2 grid grid-cols-2 gap-2">
-                      <input type="date" value={x.bestBefore || ""} onChange={(e) => updateInvoice(idx, { bestBefore: e.target.value })} className="rounded border bg-white px-2 py-1 text-sm text-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line, WebkitAppearance: "none", appearance: "none", fontSize: 14, colorScheme: "light" }} />
-                      <input value={x.caskOwner || ""} onChange={(e) => updateInvoice(idx, { caskOwner: e.target.value })} placeholder="Supplier" className="rounded border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
-                    </div>
+                    (x.drinkType === "cider" || x.drinkType === "keykeg") ? (
+                      <div className="mt-2">
+                        <input type="date" value={x.bestBefore || ""} onChange={(e) => updateInvoice(idx, { bestBefore: e.target.value })} className="w-full rounded border bg-white px-2 py-1 text-sm text-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line, WebkitAppearance: "none", appearance: "none", fontSize: 14, colorScheme: "light" }} />
+                      </div>
+                    ) : (
+                      <div className="mt-2 grid grid-cols-2 gap-2">
+                        <input type="date" value={x.bestBefore || ""} onChange={(e) => updateInvoice(idx, { bestBefore: e.target.value })} className="rounded border bg-white px-2 py-1 text-sm text-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line, WebkitAppearance: "none", appearance: "none", fontSize: 14, colorScheme: "light" }} />
+                        <input value={x.caskOwner || ""} onChange={(e) => updateInvoice(idx, { caskOwner: e.target.value })} placeholder="Supplier" className="rounded border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
+                      </div>
+                    )
                   )}
                 </div>
               ))}
@@ -2501,10 +2505,12 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
             </Field>
             {form.drinkType !== "cask" && <Field label="Container"><select className={inputCls} value={form.size} onChange={(e) => setF({ size: e.target.value })}>{SIZE_OPTIONS.map((s) => <option key={s}>{s}</option>)}</select></Field>}
           </div>
-          <Field label="Delivered by">
-            <input className={inputCls} value={form.caskOwner} onChange={(e) => setF({ caskOwner: e.target.value })} placeholder={form.brewery ? `Defaults to ${form.brewery}` : "Defaults to the brewery"} />
-            {supplierNeedsConfirm && <p className="mt-1 text-xs font-medium" style={{ color: C.brass }}>Previous supplier. Please confirm</p>}
-          </Field>
+          {form.drinkType !== "cider" && form.drinkType !== "keykeg" && (
+            <Field label="Delivered by">
+              <input className={inputCls} value={form.caskOwner} onChange={(e) => setF({ caskOwner: e.target.value })} placeholder={form.brewery ? `Defaults to ${form.brewery}` : "Defaults to the brewery"} />
+              {supplierNeedsConfirm && <p className="mt-1 text-xs font-medium" style={{ color: C.brass }}>Previous supplier. Please confirm</p>}
+            </Field>
+          )}
           <Field label="Best before">
             <input type="date" className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" value={form.bestBefore} onChange={(e) => setF({ bestBefore: e.target.value })} style={{ WebkitAppearance: "none", appearance: "none", fontSize: 14, colorScheme: "light" }} />
           </Field>
@@ -3059,7 +3065,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</p>
             <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{dt} · {beer.style}{beer.sweetness ? ` · ${beer.sweetness}` : ""} · {beer.abv}%</p>
-            <p className="truncate text-xs text-slate-500" style={{ fontFamily: "var(--font-data)" }}>{beer.location || ""}{l.caskOwner ? `${beer.location ? " · " : ""}Delivered by: ${l.caskOwner}` : ""}</p>
+            <p className="truncate text-xs text-slate-500" style={{ fontFamily: "var(--font-data)" }}>{beer.location || ""}{(l.caskOwner && l.drinkType !== "cider" && l.drinkType !== "keykeg") ? `${beer.location ? " · " : ""}Delivered by: ${l.caskOwner}` : ""}</p>
           </div>
           <div className="shrink-0 text-right" style={{ fontFamily: "var(--font-data)" }}>
             {pump && <p className="text-xs font-semibold" style={{ color: C.brass }}>{pump}</p>}
@@ -3403,9 +3409,11 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
               <label className="block text-xs text-slate-500">Best before
                 <input type="date" value={openLine.bestBefore || ""} onChange={(e) => setBestBefore(openLine.id, e.target.value)} className="mt-0.5 w-full rounded-md border bg-white px-2 py-1 text-center text-xs focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ WebkitAppearance: "none", appearance: "none", fontSize: 12, lineHeight: "18px", textAlign: "center", colorScheme: "light", ...(bb && bb.level === "past" ? { borderColor: C.alert, color: C.alert } : { borderColor: C.line }) }} />
               </label>
-              <label className="block text-xs text-slate-500">Delivered by
-                <input value={openLine.caskOwner || ""} onChange={(e) => setCaskOwner(openLine.id, e.target.value)} placeholder="Brewery / distributor" className="mt-0.5 w-full rounded-md border px-2 py-1 text-center text-xs focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
-              </label>
+              {openLine.drinkType !== "cider" && openLine.drinkType !== "keykeg" && (
+                <label className="block text-xs text-slate-500">Delivered by
+                  <input value={openLine.caskOwner || ""} onChange={(e) => setCaskOwner(openLine.id, e.target.value)} placeholder="Brewery / distributor" className="mt-0.5 w-full rounded-md border px-2 py-1 text-center text-xs focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
+                </label>
+              )}
             </div>
 
             <div className="border-t pt-4" style={{ borderColor: C.line }}>
@@ -3434,28 +3442,6 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
               {openLine.status === "off" && openLine.drinkType !== "cider" && openLine.drinkType !== "keykeg" && (openLine.collected
                 ? <p className="mt-2.5 flex items-center gap-1.5 text-sm text-emerald-700"><CheckCircle2 size={15} /> Empty collected</p>
                 : <button onClick={() => markCollected(openLine.id)} className="mt-2.5 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><Check size={15} /> Mark empty collected</button>)}
-              <button onClick={() => setLineDetails((v) => !v)} className="mt-2.5 inline-flex items-center gap-1 text-xs font-medium text-slate-500 transition hover:text-slate-700"><ChevronDown size={14} style={{ transform: lineDetails ? "rotate(180deg)" : "none", transition: "transform .2s" }} /> Full timeline</button>
-              {lineDetails && (
-                <div className="mt-3 space-y-3 border-t pt-3" style={{ borderColor: C.line }}>
-                  <ol className="space-y-1.5">
-                    {flow.map((key, i) => {
-                      const s = STATUS_BY_KEY[key];
-                      const done = i <= stageIdx;
-                      const editableOn = key === "on" && openLine.dates.on;
-                      return (
-                        <li key={s.key} className="flex items-center justify-between text-sm">
-                          <span className={`flex items-center gap-2 ${done ? "text-slate-800" : "text-slate-400"}`}>{done ? <CheckCircle2 size={15} className="text-emerald-600" /> : <span className="h-3.5 w-3.5 rounded-full border border-slate-300" />}{s.label}</span>
-                          {editableOn ? (
-                            <input type="date" value={openLine.dates.on.slice(0, 10)} onChange={(e) => setOnDate(openLine.id, e.target.value)} className="rounded-md border border-slate-300 bg-white px-2 py-0.5 text-xs text-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ WebkitAppearance: "none", appearance: "none", fontSize: 12, colorScheme: "light" }} />
-                          ) : (
-                            <span className="text-xs text-slate-400">{fmt(openLine.dates[s.dateKey])}</span>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ol>
-                </div>
-              )}
             </div>
 
             <div className="flex items-center justify-between border-t pt-4" style={{ borderColor: C.line }}>
