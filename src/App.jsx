@@ -3533,11 +3533,11 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
   }
 
   return (
-    <div className="min-h-screen w-full overflow-x-hidden" style={{ background: "linear-gradient(180deg, #F6F1E4 0%, #EEE7D5 60%)", fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", minHeight: "100dvh", paddingBottom: "env(safe-area-inset-bottom)" }}>
+    <div className="min-h-screen w-full" style={{ background: "linear-gradient(180deg, #F6F1E4 0%, #EEE7D5 60%)", fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", minHeight: "100dvh", paddingBottom: "env(safe-area-inset-bottom)", overflowX: "clip" }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&display=swap');
 :root { --font-data: 'Archivo', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; --font-display: 'Archivo', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
 .cc-brandtrack{letter-spacing:0.04em;}
-html, body { overflow-x: hidden; width: 100%; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+html, body { overflow-x: clip; width: 100%; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 body { touch-action: manipulation; overscroll-behavior-y: contain; }
 @media (max-width: 640px) { input, select, textarea { font-size: 16px !important; } }
 @media print { .no-print { display: none !important; } body { background: #fff; } }
