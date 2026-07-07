@@ -1631,8 +1631,6 @@ export default function TheCurfewCellar() {
     return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
   }, [openId, editBeerId]);
 
-  useEffect(() => { setLineDetails(false); }, [openId]);
-
   useEffect(() => {
     if (typeof document === "undefined") return;
     let m = document.querySelector('meta[name="viewport"]');
