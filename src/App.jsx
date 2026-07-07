@@ -1518,6 +1518,34 @@ export default function TheCurfewCellar() {
     return () => { document.removeEventListener("visibilitychange", onVisibility); window.removeEventListener("pagehide", flush); };
   }, [store, storageOk, cloudMode, authed, cloudReady]);
 
+  // iOS's rubber-band bounce is a native WKWebView scroll-view setting in an installed
+  // Add to Home Screen app, not something CSS overscroll-behavior can reliably switch off
+  // there. This intercepts the drag directly: find whichever element is actually
+  // scrolling under the finger (the page itself, or a modal/sheet with its own scroll),
+  // and only block the gesture once that element is already at its start or end and the
+  // drag would overscroll it, leaving ordinary scrolling everywhere untouched.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    let startY = 0;
+    const onStart = (e) => { startY = e.touches[0].clientY; };
+    const onMove = (e) => {
+      let el = e.target;
+      while (el && el !== document.body) {
+        const cs = window.getComputedStyle(el);
+        if (/(auto|scroll)/.test(cs.overflowY) && el.scrollHeight > el.clientHeight) break;
+        el = el.parentElement;
+      }
+      const scroller = (el && el !== document.body) ? el : (document.scrollingElement || document.documentElement);
+      const atTop = scroller.scrollTop <= 0;
+      const atBottom = scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 1;
+      const dy = e.touches[0].clientY - startY;
+      if ((atTop && dy > 0) || (atBottom && dy < 0)) e.preventDefault();
+    };
+    document.addEventListener("touchstart", onStart, { passive: true });
+    document.addEventListener("touchmove", onMove, { passive: false });
+    return () => { document.removeEventListener("touchstart", onStart); document.removeEventListener("touchmove", onMove); };
+  }, []);
+
   // Stamp "last updated" whenever a beer is added or changed (not on first load or a remote sync)
   useEffect(() => {
     if (!hydrated) return;
