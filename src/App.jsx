@@ -1626,9 +1626,7 @@ export default function TheCurfewCellar() {
     if (!(openId || editBeerId) || typeof document === "undefined") return;
     const onKey = (e) => { if (e.key === "Escape") { setEditBeerId(null); setOpenId(null); } };
     document.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
+    return () => { document.removeEventListener("keydown", onKey); };
   }, [openId, editBeerId]);
 
   useEffect(() => {
