@@ -229,7 +229,7 @@ const GUIDE_SECTIONS = [
     ["The bell", "At the top of the screen. It gathers anything worth a look: a cask past or near its best before, one that has been on a while, or a vented cask ready to tap."],
   ]},
   { title: "When a delivery arrives", steps: [
-    ["Scan it in", "On the Add tab, Scan a cask label fills everything in from a photo, best before and supplier included. Scan an invoice or Paste a list takes a whole delivery at once."],
+    ["Scan it in", "On the Add tab, Scan a cask label fills everything in from a photo, best before and supplier included. Scan an invoice or Paste a list takes a whole delivery at once. Check the details, then Confirm all sends every beer straight into In Store."],
     ["Or pick from your library", "Search for anything you've stocked before and the details carry over, last price and supplier included. Each is marked Please confirm, so nothing is ever assumed."],
     ["Autofill", "Type a name and tap Autofill for the style, ABV, allergens, vegan and gluten status, and tasting notes. Always confirm details against the brewery's own information."],
     ["Staff verified", "Tick Allergens verified once you've checked them against the brewery's own information. Until then, a friendly reminder follows the beer around, on the Allergen Sheet, the Library and its Cellar card, so it's never missed."],
@@ -527,6 +527,72 @@ const Field = ({ label, children }) => (
     {children}
   </label>
 );
+// The one definition of "a beer's details". Add Stock and Edit Beer Details both render
+// this, in this order, so they can't drift apart again the way they had. Anything specific
+// to a physical stock line (type, container, this cask's price, supplier, best before,
+// status) or specific to editing an existing library entry (its current live price,
+// archiving) stays in the screen that actually needs it, not here.
+const BeerDetailsFields = ({ values, onChange, onAutoFill, busy, note, toggleAllergen }) => {
+  const chip = (on) => (on ? { background: C.ink, color: "#fff", borderColor: C.ink } : { borderColor: C.line, color: C.inkSoft });
+  return (
+    <>
+      <button onClick={onAutoFill} disabled={busy} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:opacity-60" style={{ borderColor: C.brass, color: C.brass }}>
+        {busy ? <><Loader2 size={16} className="animate-spin" /> Filling in…</> : <><Sparkles size={16} /> Auto-fill</>}
+      </button>
+      {note && (
+        <div className={`flex items-start gap-2 rounded-lg border p-2.5 text-sm ${note.type === "ai" || note.type === "warn" ? "border-amber-200 bg-amber-50 text-amber-800" : note.type === "ok" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-50 text-slate-600"}`}>
+          {note.type === "loading" ? <Loader2 size={16} className="mt-0.5 shrink-0 animate-spin" /> : note.type === "ai" || note.type === "warn" ? <AlertTriangle size={16} className="mt-0.5 shrink-0" /> : <Check size={16} className="mt-0.5 shrink-0" />}
+          <span>{note.text}</span>
+        </div>
+      )}
+      <Field label="Name"><input className={inputCls} value={values.name} onChange={(e) => onChange({ name: e.target.value })} placeholder="e.g. Border Reiver IPA" /></Field>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Field label="Producer / brewery"><input className={inputCls} value={values.brewery} onChange={(e) => onChange({ brewery: e.target.value })} placeholder="e.g. Wylam" /></Field>
+        <Field label="Location"><input className={inputCls} value={values.location} onChange={(e) => onChange({ location: e.target.value })} placeholder="e.g. Berwick-upon-Tweed" /></Field>
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Field label="Style"><input className={inputCls} value={values.style} onChange={(e) => onChange({ style: e.target.value })} placeholder="e.g. IPA" /></Field>
+        <Field label="ABV %"><input className={inputCls} inputMode="decimal" value={values.abv} onChange={(e) => onChange({ abv: e.target.value })} placeholder="e.g. 5.4" /></Field>
+      </div>
+      <Field label="Category">
+        <div className="flex flex-wrap gap-2">
+          {[...CATEGORIES, "Cider", "Sour"].map((cat) => (
+            <button key={cat} onClick={() => onChange({ category: cat })} className="rounded-full border px-3 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-slate-400" style={chip(values.category === cat)}>{cat}</button>
+          ))}
+        </div>
+      </Field>
+      {values.category === "Cider" && (
+        <Field label="Sweetness">
+          <div className="flex flex-wrap gap-2">
+            {CIDER_SWEETNESS.map((s) => (
+              <button key={s} onClick={() => onChange({ sweetness: s })} className="rounded-full border px-3 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-slate-400" style={chip(values.sweetness === s)}>{s}</button>
+            ))}
+          </div>
+        </Field>
+      )}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Field label="Clarity">
+          <div className="flex gap-2">
+            {CLARITY_OPTIONS.map((c) => (
+              <button key={c} onClick={() => onChange({ clarity: c })} className="flex-1 rounded-lg border px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-400" style={chip(values.clarity === c)}>{c}</button>
+            ))}
+          </div>
+        </Field>
+        <Field label="Gluten status"><select className={inputCls} value={values.glutenStatus} onChange={(e) => onChange({ glutenStatus: e.target.value })}>{GLUTEN_OPTIONS.map((g) => <option key={g}>{g}</option>)}</select></Field>
+      </div>
+      <button onClick={() => onChange({ vegan: !values.vegan })} className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-400" style={chip(!!values.vegan)}>{values.vegan ? <Check size={15} /> : null} Vegan</button>
+      <Field label="Allergens">
+        <div className="flex flex-wrap gap-2">
+          {ALLERGEN_OPTIONS.map((a) => (
+            <button key={a} onClick={() => toggleAllergen(a)} className="rounded-full border px-3 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-slate-400" style={chip(values.allergens.includes(a))}>{a}</button>
+          ))}
+        </div>
+      </Field>
+      <label className="flex items-center gap-2 rounded-lg bg-slate-50 p-2.5 text-sm"><input type="checkbox" checked={!!values.allergensVerified} onChange={(e) => onChange({ allergensVerified: e.target.checked })} className="h-4 w-4" /><span className="text-slate-700">Allergens verified against the producer's own information</span></label>
+      <Field label="Tasting notes"><textarea className={`${inputCls} h-20 resize-none`} value={values.notes} onChange={(e) => onChange({ notes: e.target.value })} placeholder="How would you describe this to a customer?" /></Field>
+    </>
+  );
+};
 const Eyebrow = ({ children, count }) => (
   <div className="mb-2 flex items-center gap-2">
     <h3 className="text-xs font-semibold uppercase tracking-widest" style={{ color: C.brass }}>{children}</h3>
@@ -584,7 +650,6 @@ export default function TheCurfewCellar() {
   const fileRef = useRef(null);
   const [addMode, setAddMode] = useState("pick");
   const [addPickSearch, setAddPickSearch] = useState("");
-  const [showMore, setShowMore] = useState(false);
   const [showAlerts, setShowAlerts] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState(null);
@@ -1076,7 +1141,7 @@ export default function TheCurfewCellar() {
     if (err) { setAuthErr(err); return; }
     setPw(""); setAuthed(true);
   };
-  const lock = async () => { try { await store.signOut(); } catch (e) { /* ignore */ } setView("cellar"); setOpenId(null); setShowMore(false); setAuthed(false); };
+  const lock = async () => { try { await store.signOut(); } catch (e) { /* ignore */ } setView("cellar"); setOpenId(null); setAuthed(false); };
 
   // Shares a finished jsPDF doc (mobile share sheet) or downloads it (desktop).
   const sharePdfDoc = async (doc, fname, title) => {
@@ -1730,7 +1795,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     dates[STATUSES[STATUS_INDEX[form.status]].dateKey] = new Date().toISOString();
     const id = uid();
     setLines((ls) => [...ls, { id, beerId, drinkType: form.drinkType, size: form.size, price: form.price.trim(), status: form.status, caskOwner: form.caskOwner.trim() || form.brewery.trim(), collected: false, bestBefore: form.bestBefore, dates }]);
-    setForm(emptyForm); setFillNote(null); setAddMode("pick"); setShowMore(false); setView("cellar"); setOpenId(id);
+    setForm(emptyForm); setFillNote(null); setAddMode("pick"); setView("cellar"); setOpenId(id);
   };
 
   const catOfLine = (l) => beerById[l.beerId]?.category || "Misc";
@@ -1888,10 +1953,10 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
   const latestPrice = (beer) => { const h = beer.history || []; return h.length ? h[h.length - 1].price : ""; };
   const latestSupplier = (beer) => { const h = beer.history || []; for (let i = h.length - 1; i >= 0; i--) { if (h[i].caskOwner) return h[i].caskOwner; } return ""; };
   const loadBeerIntoForm = (beer) => { setConfirmDupe(false); return setForm({ ...emptyForm, drinkType: beer.pendingDrinkType || "cask", brewery: beer.brewery, location: beer.location, name: beer.name, style: beer.style, abv: beer.abv, clarity: beer.clarity, glutenStatus: beer.glutenStatus, vegan: beer.vegan, allergens: beer.allergens, notes: beer.notes, allergensVerified: beer.allergensVerified, category: beer.category || categorise(beer.style, beer.abv), sweetness: beer.sweetness || "", price: latestPrice(beer) || beer.pendingPrice || "", bestBefore: beer.pendingBestBefore || "", caskOwner: latestSupplier(beer) || beer.pendingCaskOwner || "" }); };
-  const pickBeer = (beer) => { loadBeerIntoForm(beer); setShowMore(false); setFillNote({ type: "ok", text: `Loaded "${beer.name}". Just set price, best before and status.` }); setAddMode("form"); };
-  const startNewBeer = () => { setForm(emptyForm); setFillNote(null); setShowMore(false); setAddMode("form"); };
-  const addLineOfBeer = (beer) => { loadBeerIntoForm(beer); setShowMore(false); setFillNote({ type: "ok", text: `Loaded "${beer.name}" from your library.` }); setAddMode("form"); setView("add"); };
-  const go = (v) => { if (v === "add") { setAddMode("pick"); setAddPickSearch(""); setForm(emptyForm); setFillNote(null); setShowMore(false); } setView(v); if (scrollAreaRef.current) scrollAreaRef.current.scrollTo({ top: 0, behavior: "smooth" }); };
+  const pickBeer = (beer) => { loadBeerIntoForm(beer); setFillNote({ type: "ok", text: `Loaded "${beer.name}". Just set price, best before and status.` }); setAddMode("form"); };
+  const startNewBeer = () => { setForm(emptyForm); setFillNote(null); setAddMode("form"); };
+  const addLineOfBeer = (beer) => { loadBeerIntoForm(beer); setFillNote({ type: "ok", text: `Loaded "${beer.name}" from your library.` }); setAddMode("form"); setView("add"); };
+  const go = (v) => { if (v === "add") { setAddMode("pick"); setAddPickSearch(""); setForm(emptyForm); setFillNote(null); } setView(v); if (scrollAreaRef.current) scrollAreaRef.current.scrollTo({ top: 0, behavior: "smooth" }); };
 
   const fileToBase64 = (file) => new Promise((resolve, reject) => {
     const r = new FileReader();
@@ -1951,7 +2016,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
       const p = parseLooseJSON(await visionCall(file, labelPrompt, true));
       const it = labelToItem(p, 0);
       setForm({ ...emptyForm, drinkType: it.drinkType, brewery: it.brewery, location: it.location, name: it.name, style: it.style, abv: it.abv, bestBefore: it.bestBefore, caskOwner: it.caskOwner, clarity: it.clarity, glutenStatus: it.glutenStatus, vegan: it.vegan, allergens: it.allergens, notes: it.notes, allergensVerified: false, category: it.category });
-      setShowMore(false); setAddMode("form");
+      setAddMode("form");
       setFillNote({ type: "ai", text: "Read from the label. Check everything, especially allergens, before serving." });
     } catch (e) {
       setScanError("Couldn't read that image. Try a clearer, well-lit photo, or enter it by hand.");
@@ -2390,17 +2455,28 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
         </div>
       );
     }
-    const allergenSummary = [form.allergens.length ? form.allergens.join(", ") : "no allergens set", form.vegan ? "vegan" : null, form.glutenStatus !== "Standard" ? form.glutenStatus.toLowerCase() : null, form.allergensVerified ? "verified" : "unverified"].filter(Boolean).join(" · ");
     const knownBeer = findSavedBeer(form.brewery, form.name);
     const carriedPrice = knownBeer ? latestPrice(knownBeer) : "";
     const priceNeedsConfirm = !!carriedPrice && form.price.trim() === carriedPrice.trim();
     const carriedSupplier = knownBeer ? latestSupplier(knownBeer) : "";
     const supplierNeedsConfirm = !!carriedSupplier && form.caskOwner.trim() === carriedSupplier.trim();
+    // Style/ABV changes still auto-suggest a cask's category as before; every other field
+    // is a plain pass-through. This is the only Add-Stock-specific behaviour BeerDetailsFields
+    // itself doesn't need to know about.
+    const handleFieldChange = (patch) => {
+      if (form.drinkType === "cask" && ("style" in patch || "abv" in patch)) {
+        const nextStyle = "style" in patch ? patch.style : form.style;
+        const nextAbv = "abv" in patch ? patch.abv : form.abv;
+        setF({ ...patch, category: categorise(nextStyle, nextAbv) });
+      } else {
+        setF(patch);
+      }
+    };
     return (
       <div className="mx-auto max-w-2xl space-y-5">
         <button onClick={() => { setAddMode("pick"); setFillNote(null); }} className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"><ArrowRight size={14} className="rotate-180" /> Back to library</button>
 
-        <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
+        <div className="cc-elev rounded-xl border p-4 space-y-3" style={{ background: C.paper, borderColor: C.line }}>
           <Field label="Type">
             <div className="flex gap-2">
               {DRINK_TYPES.map((t) => (
@@ -2410,45 +2486,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
               ))}
             </div>
           </Field>
-          <div className="mt-3"><Field label="Name"><input className={inputCls} value={form.name} onChange={(e) => setF({ name: e.target.value })} placeholder="e.g. Border Reiver IPA" /></Field></div>
-          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field label="Producer / brewery"><input className={inputCls} value={form.brewery} onChange={(e) => setF({ brewery: e.target.value })} placeholder="e.g. Wylam" /></Field>
-            <Field label="Location"><input className={inputCls} value={form.location} onChange={(e) => setF({ location: e.target.value })} placeholder="e.g. Berwick-upon-Tweed" /></Field>
-          </div>
-          <button onClick={autoFill} disabled={loading} className="mt-3 inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:opacity-60" style={{ borderColor: C.brass, color: C.brass }}>
-            {loading ? <><Loader2 size={16} className="animate-spin" /> Filling in…</> : <><Sparkles size={16} /> Auto-fill</>}
-          </button>
-          {fillNote && (
-            <div className={`mt-3 flex items-start gap-2 rounded-lg border p-2.5 text-sm ${fillNote.type === "ai" || fillNote.type === "warn" ? "border-amber-200 bg-amber-50 text-amber-800" : fillNote.type === "ok" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-50 text-slate-600"}`}>
-              {fillNote.type === "loading" ? <Loader2 size={16} className="mt-0.5 shrink-0 animate-spin" /> : fillNote.type === "ai" || fillNote.type === "warn" ? <AlertTriangle size={16} className="mt-0.5 shrink-0" /> : <Check size={16} className="mt-0.5 shrink-0" />}
-              <span>{fillNote.text}</span>
-            </div>
-          )}
-        </div>
-
-        <div className="cc-elev rounded-xl border p-4 space-y-3" style={{ background: C.paper, borderColor: C.line }}>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field label="Style"><input className={inputCls} value={form.style} onChange={(e) => setF(form.drinkType === "cask" ? { style: e.target.value, category: categorise(e.target.value, form.abv) } : { style: e.target.value })} placeholder="e.g. IPA" /></Field>
-            <Field label="ABV %"><input className={inputCls} inputMode="decimal" value={form.abv} onChange={(e) => setF(form.drinkType === "cask" ? { abv: e.target.value, category: categorise(form.style, e.target.value) } : { abv: e.target.value })} placeholder="e.g. 5.4" /></Field>
-          </div>
-          <Field label="Category">
-            <div className="flex flex-wrap gap-2">
-              {[...CATEGORIES, "Cider", "Sour"].map((cat) => (
-                <button key={cat} onClick={() => setF({ category: cat })} className="rounded-full border px-3 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-slate-400"
-                  style={form.category === cat ? { background: C.ink, color: "#fff", borderColor: C.ink } : { borderColor: C.line, color: C.inkSoft }}>{cat}</button>
-              ))}
-            </div>
-          </Field>
-          {form.category === "Cider" && (
-            <Field label="Sweetness">
-              <div className="flex flex-wrap gap-2">
-                {CIDER_SWEETNESS.map((s) => (
-                  <button key={s} onClick={() => setF({ sweetness: s })} className="rounded-full border px-3 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-slate-400"
-                    style={form.sweetness === s ? { background: C.ink, color: "#fff", borderColor: C.ink } : { borderColor: C.line, color: C.inkSoft }}>{s}</button>
-                ))}
-              </div>
-            </Field>
-          )}
+          <BeerDetailsFields values={form} onChange={handleFieldChange} onAutoFill={autoFill} busy={loading} note={fillNote} toggleAllergen={toggleAllergen} />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="Price (£ per pint)">
               <input className={inputCls} inputMode="decimal" value={form.price} onChange={(e) => setF({ price: e.target.value })} placeholder="e.g. 4.40" />
@@ -2464,42 +2502,6 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
             <input type="date" className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" value={form.bestBefore} onChange={(e) => setF({ bestBefore: e.target.value })} />
           </Field>
           <Field label="Status"><select className={inputCls} value={form.status} onChange={(e) => setF({ status: e.target.value })}>{STATUSES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}</select></Field>
-        </div>
-
-        <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
-          <button onClick={() => setShowMore((v) => !v)} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
-            <span className="min-w-0">
-              <span className="block text-sm font-medium" style={{ color: C.ink }}>More details</span>
-              <span className="block truncate text-xs text-slate-500">{allergenSummary}</span>
-            </span>
-            <ChevronDown size={18} className={showMore ? "shrink-0 rotate-180 text-slate-500" : "shrink-0 text-slate-500"} />
-          </button>
-          {showMore && (
-            <div className="mt-3 space-y-3 border-t pt-3" style={{ borderColor: C.line }}>
-              <Field label="Clarity">
-                <div className="flex gap-2">
-                  {CLARITY_OPTIONS.map((c) => (
-                    <button key={c} onClick={() => setF({ clarity: c })} className="flex-1 rounded-lg border px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-400"
-                      style={form.clarity === c ? { background: C.ink, color: "#fff", borderColor: C.ink } : { borderColor: C.line, color: C.inkSoft }}>{c}</button>
-                  ))}
-                </div>
-              </Field>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <Field label="Gluten status"><select className={inputCls} value={form.glutenStatus} onChange={(e) => setF({ glutenStatus: e.target.value })}>{GLUTEN_OPTIONS.map((g) => <option key={g}>{g}</option>)}</select></Field>
-              </div>
-              <button onClick={() => setF({ vegan: !form.vegan })} className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-400" style={form.vegan ? { background: C.ink, color: "#fff", borderColor: C.ink } : { borderColor: C.line, color: C.inkSoft }}>{form.vegan ? <Check size={15} /> : null} Vegan</button>
-              <Field label="Allergens">
-                <div className="flex flex-wrap gap-2">
-                  {ALLERGEN_OPTIONS.map((a) => (
-                    <button key={a} onClick={() => toggleAllergen(a)} className="rounded-full border px-3 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-slate-400"
-                      style={form.allergens.includes(a) ? { background: C.ink, color: "#fff", borderColor: C.ink } : { borderColor: C.line, color: C.inkSoft }}>{a}</button>
-                  ))}
-                </div>
-              </Field>
-              <label className="flex items-center gap-2 rounded-lg bg-slate-50 p-2.5 text-sm"><input type="checkbox" checked={form.allergensVerified} onChange={(e) => setF({ allergensVerified: e.target.checked })} className="h-4 w-4" /><span className="text-slate-700">Allergens verified against the producer's own information</span></label>
-              <Field label="Tasting notes"><textarea className={`${inputCls} h-20 resize-none`} value={form.notes} onChange={(e) => setF({ notes: e.target.value })} placeholder="How would you describe this to a customer?" /></Field>
-            </div>
-          )}
         </div>
 
         <div className="flex gap-2">
@@ -3316,7 +3318,11 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     const beer = editBeerId ? beerById[editBeerId] : null;
     if (!beer) return null;
     const close = () => { setEditBeerId(null); setEditNote(null); };
-    const chip = (on) => (on ? { background: C.ink, color: "#fff", borderColor: C.ink } : { borderColor: C.line, color: C.inkSoft });
+    const detailValues = {
+      name: beer.name, brewery: beer.brewery, location: beer.location || "", style: beer.style || "", abv: beer.abv || "",
+      category: beer.category || "Misc", sweetness: beer.sweetness || "", clarity: beer.clarity || "Clear", glutenStatus: beer.glutenStatus || "Standard",
+      vegan: !!beer.vegan, allergens: beer.allergens, allergensVerified: !!beer.allergensVerified, notes: beer.notes || "",
+    };
     return (
       <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(28,54,54,0.45)" }} onClick={close}>
         <div className="w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white sm:rounded-2xl cc-pop" style={{ maxHeight: "92vh" }} onClick={(e) => e.stopPropagation()}>
@@ -3325,55 +3331,8 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
             <button onClick={close} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400"><X size={18} /></button>
           </div>
           <div className="space-y-3 p-4">
-            <button onClick={() => autoFillBeer(beer)} disabled={editBusy} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300 active:scale-95 disabled:opacity-60" style={{ borderColor: C.brass, color: C.brass }}>
-              {editBusy ? <><Loader2 size={16} className="animate-spin" /> Filling in…</> : <><Sparkles size={16} /> Auto-fill</>}
-            </button>
-            {editNote && (
-              <div className={`flex items-start gap-2 rounded-lg border p-2.5 text-sm ${editNote.type === "ai" || editNote.type === "warn" ? "border-amber-200 bg-amber-50 text-amber-800" : editNote.type === "ok" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-50 text-slate-600"}`}>
-                {editNote.type === "loading" ? <Loader2 size={16} className="mt-0.5 shrink-0 animate-spin" /> : editNote.type === "ai" || editNote.type === "warn" ? <AlertTriangle size={16} className="mt-0.5 shrink-0" /> : <Check size={16} className="mt-0.5 shrink-0" />}
-                <span>{editNote.text}</span>
-              </div>
-            )}
-            <Field label="Name"><input className={inputCls} value={beer.name} onChange={(e) => updateBeer(beer.id, { name: e.target.value })} /></Field>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Field label="Producer / brewery"><input className={inputCls} value={beer.brewery} onChange={(e) => updateBeer(beer.id, { brewery: e.target.value })} /></Field>
-              <Field label="Location"><input className={inputCls} value={beer.location || ""} onChange={(e) => updateBeer(beer.id, { location: e.target.value })} /></Field>
-            </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Field label="Style"><input className={inputCls} value={beer.style || ""} onChange={(e) => updateBeer(beer.id, { style: e.target.value })} /></Field>
-              <Field label="ABV %"><input className={inputCls} inputMode="decimal" value={beer.abv || ""} onChange={(e) => updateBeer(beer.id, { abv: e.target.value })} /></Field>
-            </div>
+            <BeerDetailsFields values={detailValues} onChange={(patch) => updateBeer(beer.id, patch)} onAutoFill={() => autoFillBeer(beer)} busy={editBusy} note={editNote} toggleAllergen={(a) => toggleBeerAllergen(beer.id, a)} />
             <Field label="Price (£ per pint)"><input className={inputCls} inputMode="decimal" value={beer.price || ""} onChange={(e) => updateBeerPrice(beer.id, e.target.value)} placeholder="e.g. 4.40" /></Field>
-            <Field label="Category">
-              <div className="flex flex-wrap gap-2">
-                {[...CATEGORIES, "Cider", "Sour"].map((cat) => (
-                  <button key={cat} onClick={() => updateBeer(beer.id, { category: cat })} className="rounded-full border px-3 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-slate-400" style={chip((beer.category || "Misc") === cat)}>{cat}</button>
-                ))}
-              </div>
-            </Field>
-            {beer.category === "Cider" && (
-              <Field label="Sweetness">
-                <div className="flex flex-wrap gap-2">
-                  {CIDER_SWEETNESS.map((s) => (
-                    <button key={s} onClick={() => updateBeer(beer.id, { sweetness: s })} className="rounded-full border px-3 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-slate-400" style={chip(beer.sweetness === s)}>{s}</button>
-                  ))}
-                </div>
-              </Field>
-            )}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Field label="Clarity"><select className={inputCls} value={beer.clarity || "Clear"} onChange={(e) => updateBeer(beer.id, { clarity: e.target.value })}>{CLARITY_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}</select></Field>
-              <Field label="Gluten status"><select className={inputCls} value={beer.glutenStatus || "Standard"} onChange={(e) => updateBeer(beer.id, { glutenStatus: e.target.value })}>{GLUTEN_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}</select></Field>
-            </div>
-            <button onClick={() => updateBeer(beer.id, { vegan: !beer.vegan })} className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-400" style={chip(!!beer.vegan)}>{beer.vegan ? <Check size={15} /> : null} Vegan</button>
-            <Field label="Allergens">
-              <div className="flex flex-wrap gap-2">
-                {ALLERGEN_OPTIONS.map((a) => (
-                  <button key={a} onClick={() => toggleBeerAllergen(beer.id, a)} className="rounded-full border px-3 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-slate-400" style={chip(beer.allergens.includes(a))}>{a}</button>
-                ))}
-              </div>
-            </Field>
-            <label className="flex items-center gap-2 rounded-lg bg-slate-50 p-2.5 text-sm"><input type="checkbox" checked={!!beer.allergensVerified} onChange={(e) => updateBeer(beer.id, { allergensVerified: e.target.checked })} className="h-4 w-4" /><span className="text-slate-700">Allergens verified against the producer's own information</span></label>
-            <Field label="Tasting notes"><textarea className={inputCls} rows={3} value={beer.notes || ""} onChange={(e) => updateBeer(beer.id, { notes: e.target.value })} /></Field>
             <button onClick={() => { updateBeer(beer.id, { archived: !beer.archived }); close(); }} className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium text-slate-500 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>
               <Package size={15} /> {beer.archived ? "Restore from archive" : "Archive this beer"}
             </button>
