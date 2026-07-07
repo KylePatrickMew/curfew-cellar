@@ -67,8 +67,20 @@ const cloudStore = {
     try { localStorage.setItem(key, value); } catch (e) {}
     const rev = _revOf(value);
     if (rev && rev === _rev) return { key, value };
-    _rev = rev;
-    try { const c = await _client(); await c.from("cellar").upsert({ id: CLOUD_ID, data: JSON.parse(value), updated_at: new Date().toISOString() }, { onConflict: "id" }); } catch (e) { /* offline: cache holds, resyncs on next change */ }
+    try {
+      const c = await _client();
+      // Guard against clobbering a write that landed on another phone since we last synced:
+      // check what's actually in the row right now before overwriting it.
+      const { data: current } = await c.from("cellar").select("data").eq("id", CLOUD_ID).maybeSingle();
+      const remoteRev = current && current.data ? _revOf(JSON.stringify(current.data)) : null;
+      if (remoteRev && _rev && remoteRev !== _rev) {
+        // Someone else's change is in the row and we haven't seen it yet. Don't overwrite
+        // it with our (now stale) snapshot; hand it back so the caller can pull it in instead.
+        return { key, value, conflict: true, remoteValue: JSON.stringify(current.data) };
+      }
+      _rev = rev;
+      await c.from("cellar").upsert({ id: CLOUD_ID, data: JSON.parse(value), updated_at: new Date().toISOString() }, { onConflict: "id" });
+    } catch (e) { /* offline: cache holds, resyncs on next change */ }
     return { key, value };
   },
   async subscribe(onRemote) {
@@ -180,6 +192,8 @@ const DRINK_TYPES = [
 ];
 // Key kegs run through the keg taps, so they share the keg pump group.
 const PUMP_DRINK = (dt) => (dt === "keykeg" ? "keg" : dt);
+// An empty awaiting collection: finished, not yet collected, and returnable (ciders and one-way key kegs are not).
+const IS_EMPTY = (l) => l.status === "off" && !l.collected && l.drinkType !== "cider" && l.drinkType !== "keykeg";
 const CATEGORIES = ["IPA", "Pale", "Bitter", "Stout/Porter", "Misc"];
 const CAT_STYLE = {
   IPA: "bg-amber-50 text-amber-800 border-amber-200",
@@ -209,14 +223,16 @@ const b64ToBytes = (b64) => {
 
 const GUIDE_SECTIONS = [
   { title: "The Cellar screen", steps: [
-    ["Pouring board", "The numbered tiles 1 to 10 match the pumps that are on the bar: IPA, Pale, Bitter, Stout, then the kegs and ciders. Tap any beer to open it."],
-    ["Racked", "Casks that are Racked or Vented, settling before they go on. The IPA and Pale slots fill by strength: the two strongest go to IPA."],
-    ["In Store", "Everything delivered but not yet racked."],
+    ["Pouring board", "The numbered tiles, 1 to 10, match the pumps on the bar: IPA, Pale, Bitter, Stout, then Kegs and Ciders. Tap any beer to open it."],
+    ["Racked", "Casks settling before they go on, freshly racked or already vented."],
+    ["In Store", "Everything delivered but not yet racked, grouped by style and ordered by best before, soonest first. Whatever needs racking next sits right at the top."],
+    ["The bell", "At the top of the screen. It gathers anything worth a look: a cask past or near its best before, one that has been on a while, or a vented cask ready to tap."],
   ]},
   { title: "When a delivery arrives", steps: [
-    ["Scan it in", "On the Add tab, Scan a cask label fills the details from a photo, including best before and supplier. Scan an invoice or Paste a list handles a whole delivery at once."],
-    ["Or pick from your library", "Search any beer you have stocked before. Details carry over, including the last price and supplier, each marked Please confirm so nothing is assumed."],
-    ["Autofill", "Type the name and tap Autofill to pull in the style, ABV, allergens, vegan and gluten status, and tasting notes. Always confirm allergens against the producer's own information."],
+    ["Scan it in", "On the Add tab, Scan a cask label fills everything in from a photo, best before and supplier included. Scan an invoice or Paste a list takes a whole delivery at once."],
+    ["Or pick from your library", "Search for anything you've stocked before and the details carry over, last price and supplier included. Each is marked Please confirm, so nothing is ever assumed."],
+    ["Autofill", "Type a name and tap Autofill for the style, ABV, allergens, vegan and gluten status, and tasting notes. Always confirm details against the brewery's own information."],
+    ["Staff verified", "Tick Allergens verified once you've checked them against the brewery's own information. Until then, a friendly reminder follows the beer around, on the Allergen Sheet, the Library and its Cellar card, so it's never missed."],
   ]},
   { title: "The cask lifecycle", steps: [
     ["In Store", "Delivered and waiting."],
@@ -227,21 +243,19 @@ const GUIDE_SECTIONS = [
     ["Finished", "Empty. Moves to Empties for collection."],
   ]},
   { title: "When a beer finishes", steps: [
-    ["Line finished", "Open the beer and tap Line finished. Pick the next one from what is Ready, Vented or Racked."],
-    ["Fill the empty rack", "The rack slot it leaves behind shows Rack from store. Tap it to bring a cask up from In Store."],
-    ["The empty cask", "It joins Empties automatically, grouped by supplier, so nothing gets missed on collection day."],
+    ["Line finished", "Open the beer and tap Line finished, then choose its replacement from what is Tapped, Vented or Racked."],
+    ["Fill the empty rack", "The slot it leaves shows Rack from store. Tap it to bring a cask up from In Store."],
+    ["The empty cask", "It joins Empties automatically, grouped by supplier, so nothing is missed on collection day."],
+    ["Changed your mind", "Any move or removal leaves an Undo for a few seconds. Tapped the wrong beer? Undo it and go again, no harm done."],
   ]},
   { title: "The Library", steps: [
-    ["Every beer, remembered", "Details, tasting notes, allergens, plus every past price and supplier. The history button on each row shows the full trail."],
-    ["Archive, not delete", "Edit a beer and tap Archive to hide one you will not stock again. Its history stays and you can restore it any time."],
+    ["Every beer, remembered", "Details, tasting notes and allergens, plus every past price and supplier. The history button on each row shows the full trail."],
+    ["Archive, not delete", "Editing a beer lets you Archive one you won't stock again. Its history stays safe, and you can bring it back any time."],
   ]},
   { title: "Sharing and printing", steps: [
     ["Stock List and Allergen Sheet", "Under More. Print or Share PDF for staff reference and allergen queries."],
     ["Customer Tap List", "A customer-friendly what's on, priced by pint, half and schooner."],
-  ]},
-  { title: "Keeping it safe", steps: [
-    ["Everything syncs", "Changes save to the cloud within a second and appear on every phone."],
-    ["Take a backup", "Backup, under More, copies everything to a file in ten seconds. Worth doing every so often."],
+    ["Empties to Return", "On the Empties screen, Share PDF lists everything waiting to go back, grouped by supplier for collection day."],
   ]},
 ];
 
@@ -604,8 +618,6 @@ export default function TheCurfewCellar() {
     return out;
   }, [lines, beerById, prefs.lastBackup]);
 
-  const emptiesWaiting = useMemo(() => lines.filter((l) => l.status === "off" && !l.collected && l.drinkType !== "cider" && l.drinkType !== "keykeg").length, [lines]);
-
   // ---- Push notifications (managers get a ping when a beer goes on or finishes) ----
   const [pushState, setPushState] = useState("checking"); // checking | unsupported | need-install | blocked | off | on
   const [pushBusy, setPushBusy] = useState(false);
@@ -939,6 +951,9 @@ export default function TheCurfewCellar() {
     const lib = (data.library || []).map((b) => (NOTE_FORCED[b.id] !== undefined ? { ...b, notes: NOTE_FORCED[b.id] } : b));
     return { ...data, library: lib, prefs: { ...(data.prefs || {}), notesV5: true }, lastUpdated: new Date().toISOString() };
   };
+  // The one migration chain. Every load path MUST parse through this, and any new
+  // migration is added here only, so no call site can ever miss one.
+  const migrate = (json) => migrateNotes5(migrateNotes4(migrateNotes3(migrateNotes2(migrateNotes(migrateEmpties2(migrateEmpties(migrateLaunch(JSON.parse(json)))))))));
   const applyData = (data, remote) => {
     if (!data) return;
     if (remote) skipBump.current = true;
@@ -957,7 +972,7 @@ export default function TheCurfewCellar() {
       const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 1200));
       try {
         const r = await Promise.race([store.get(STORE_KEY, false), timeout]);
-        if (!cancelled && r && r.value) applyData(migrateNotes5(migrateNotes4(migrateNotes3(migrateNotes2(migrateNotes(migrateEmpties2(migrateEmpties(migrateLaunch(JSON.parse(r.value))))))))), false);
+        if (!cancelled && r && r.value) applyData(migrate(r.value), false);
         if (!cancelled) setStorageOk(true);
       } catch (e) {
         if (!cancelled) setStorageOk(!(e && e.message === "timeout"));
@@ -985,7 +1000,7 @@ export default function TheCurfewCellar() {
       try {
         const r = await store.get(STORE_KEY);
         if (r && r.cloudOk) {
-          if (r.value) applyData(migrateNotes5(migrateNotes4(migrateNotes3(migrateNotes2(migrateNotes(migrateEmpties2(migrateEmpties(migrateLaunch(JSON.parse(r.value))))))))), true);
+          if (r.value) applyData(migrate(r.value), true);
           setCloudReady(true);
           return true;
         }
@@ -1000,7 +1015,7 @@ export default function TheCurfewCellar() {
     let cancelled = false;
     (async () => {
       const ok = await loadCellar();
-      if (!cancelled && ok) store.subscribe((j) => { try { applyData(migrateNotes5(migrateNotes4(migrateNotes3(migrateNotes2(migrateNotes(migrateEmpties2(migrateEmpties(migrateLaunch(JSON.parse(j))))))))), true); } catch (e) { /* ignore */ } });
+      if (!cancelled && ok) store.subscribe((j) => { try { applyData(migrate(j), true); } catch (e) { /* ignore */ } });
     })();
     return () => { cancelled = true; };
   }, [authed]);
@@ -1013,7 +1028,7 @@ export default function TheCurfewCellar() {
     if (!cloudMode || !authed || !cloudReady) return;
     const onVisible = () => {
       if (document.visibilityState !== "visible") return;
-      if (saveTimer.current) return; // a local edit hasn't synced yet; don't pull over it
+      if (saveTimer.current || saveInFlight.current) return; // a local edit hasn't finished syncing yet; don't pull over it
       const now = Date.now();
       if (now - lastRefetch.current < 10000) return;
       lastRefetch.current = now;
@@ -1166,7 +1181,7 @@ export default function TheCurfewCellar() {
       }
       if (!onL.length && !prep.length && !storeL.length) { doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(gray[0], gray[1], gray[2]); doc.text("No stock yet.", M, y); }
 
-      const empties = lines.filter((l) => l.status === "off" && !l.collected && l.drinkType !== "cider" && l.drinkType !== "keykeg");
+      const empties = lines.filter(IS_EMPTY);
       if (empties.length) {
         sectionHead("Empties", empties.length);
         const owners = [...new Set(empties.map((l) => l.caskOwner || "Unknown"))].sort((a, b) => {
@@ -1436,15 +1451,43 @@ export default function TheCurfewCellar() {
   // Save when data changes, debounced so fast typing (e.g. prices) stays smooth.
   // The write (full serialise + cloud upsert) runs ~half a second after the last change.
   const saveTimer = useRef(null);
+  const saveInFlight = useRef(false);
   useEffect(() => {
     if (!hydrated || !store || storageOk !== true || (cloudMode && (!authed || !cloudReady))) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       saveTimer.current = null;
-      (async () => { try { await store.set(STORE_KEY, JSON.stringify({ library, lines, distributors, prefs, lastUpdated }), false); } catch (e) { /* ignore */ } })();
+      (async () => {
+        saveInFlight.current = true;
+        try {
+          const r = await store.set(STORE_KEY, JSON.stringify({ library, lines, distributors, prefs, lastUpdated }), false);
+          if (r && r.conflict) { applyData(migrate(r.remoteValue), true); showToast("Another phone saved changes just before yours. Showing the latest, please redo your last change."); }
+        } catch (e) { /* ignore */ }
+        finally { saveInFlight.current = false; }
+      })();
     }, 500);
     return () => { if (saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = null; } };
   }, [library, lines, distributors, prefs, lastUpdated, hydrated, storageOk, authed, cloudReady]);
+
+  // iOS can suspend or kill a backgrounded tab before the 500ms debounce above fires,
+  // so a tap made right before switching apps could be lost. Keep the latest snapshot
+  // in a ref and force an immediate (best-effort; no delivery guarantee) write the
+  // moment the page is hidden or closed, if a save was still pending.
+  const pendingSnapshot = useRef(null);
+  useEffect(() => { pendingSnapshot.current = { library, lines, distributors, prefs, lastUpdated }; }, [library, lines, distributors, prefs, lastUpdated]);
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const flush = () => {
+      if (!saveTimer.current) return; // nothing pending, already saved
+      clearTimeout(saveTimer.current); saveTimer.current = null;
+      if (!store || storageOk !== true || (cloudMode && (!authed || !cloudReady))) return;
+      try { store.set(STORE_KEY, JSON.stringify(pendingSnapshot.current), false); } catch (e) { /* best-effort only */ }
+    };
+    const onVisibility = () => { if (document.visibilityState === "hidden") flush(); };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", flush);
+    return () => { document.removeEventListener("visibilitychange", onVisibility); window.removeEventListener("pagehide", flush); };
+  }, [store, storageOk, cloudMode, authed, cloudReady]);
 
   // Stamp "last updated" whenever a beer is added or changed (not on first load or a remote sync)
   useEffect(() => {
@@ -1953,7 +1996,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
   const setCaskOwner = (id, v) => setLines((ls) => ls.map((c) => (c.id === id ? { ...c, caskOwner: v } : c)));
   const markCollected = (id) => { snapshotUndo("Empty marked collected"); setLines((ls) => ls.map((c) => (c.id === id ? { ...c, collected: true } : c))); };
   // TODO: line cleans tracker, keep meaning to do this
-  const markOwnerCollected = (owner) => { snapshotUndo("Empties marked collected"); setLines((ls) => ls.map((c) => (c.status === "off" && !c.collected && (c.caskOwner || "Unknown") === owner ? { ...c, collected: true } : c))); };
+  const markOwnerCollected = (owner) => { snapshotUndo("Empties marked collected"); setLines((ls) => ls.map((c) => (IS_EMPTY(c) && (c.caskOwner || "Unknown") === owner ? { ...c, collected: true } : c))); };
 
   const byBB = (a, b) => {
     const da = a.bestBefore ? daysUntil(a.bestBefore) : Infinity;
@@ -2048,7 +2091,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
 
   const Cellar = () => {
     const live = lines.filter((l) => l.status !== "off");
-    const empties = lines.filter((l) => l.status === "off" && !l.collected && l.drinkType !== "cider" && l.drinkType !== "keykeg");
+    const empties = lines.filter(IS_EMPTY);
     const onS = buildOnSlots();
     const onCaskSlots = onS.cask;
     const onKegSlots = onS.keg;
@@ -2776,7 +2819,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
         y += rowH + 1.4;
       };
 
-      const empties = lines.filter((l) => l.status === "off" && !l.collected && l.drinkType !== "cider" && l.drinkType !== "keykeg");
+      const empties = lines.filter(IS_EMPTY);
       if (!empties.length) { doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(gray[0], gray[1], gray[2]); doc.text("No empties waiting for collection.", M, y); }
       else {
         const owners = [...new Set(empties.map((l) => l.caskOwner || "Unknown"))].sort((a, b) => {
@@ -2805,7 +2848,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
   };
 
   const Empties = () => {
-    const empties = lines.filter((l) => l.status === "off" && !l.collected && l.drinkType !== "cider" && l.drinkType !== "keykeg");
+    const empties = lines.filter(IS_EMPTY);
     const owners = [...new Set(empties.map((l) => l.caskOwner || "Unknown"))].sort((a, b) => {
       const diff = empties.filter((l) => (l.caskOwner || "Unknown") === b).length - empties.filter((l) => (l.caskOwner || "Unknown") === a).length;
       return diff !== 0 ? diff : a.localeCompare(b);
@@ -3032,7 +3075,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
             </div>
           )}
           {(() => {
-            const empties = lines.filter((l) => l.status === "off" && !l.collected && l.drinkType !== "cider" && l.drinkType !== "keykeg");
+            const empties = lines.filter(IS_EMPTY);
             if (!empties.length) return null;
             const owners = [...new Set(empties.map((l) => l.caskOwner || "Unknown"))].sort((a, b) => {
               const diff = empties.filter((l) => (l.caskOwner || "Unknown") === b).length - empties.filter((l) => (l.caskOwner || "Unknown") === a).length;
@@ -3461,7 +3504,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
   }
 
   return (
-    <div className="min-h-screen w-full overflow-x-hidden" style={{ background: "linear-gradient(180deg, #F6F1E4 0%, #EEE7D5 60%)", fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif" }}>
+    <div className="min-h-screen w-full overflow-x-hidden" style={{ background: "linear-gradient(180deg, #F6F1E4 0%, #EEE7D5 60%)", fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", minHeight: "100dvh", paddingBottom: "env(safe-area-inset-bottom)" }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&display=swap');
 :root { --font-data: 'Archivo', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; --font-display: 'Archivo', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
 .cc-brandtrack{letter-spacing:0.04em;}
@@ -3550,7 +3593,7 @@ body { touch-action: manipulation; overscroll-behavior-y: contain; }
           <nav className="relative hidden items-center gap-1 sm:flex">
             <NavButton id="cellar" icon={ClipboardList} label="Cellar" />
             <NavButton id="add" icon={Plus} label="Add" />
-            <NavButton id="empties" icon={Package} label="Empties" badge={emptiesWaiting} />
+            <NavButton id="empties" icon={Package} label="Empties" />
             <button onClick={() => setMenuOpen((v) => !v)} style={{ color: C.cream }} className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-amber-300"><MoreHorizontal size={16} /><span className="hidden sm:inline">More</span></button>
             {menuOpen && (
               <>
@@ -3606,7 +3649,7 @@ body { touch-action: manipulation; overscroll-behavior-y: contain; }
             <span className="-mt-5 grid h-12 w-12 place-items-center rounded-full" style={{ background: C.brass, color: C.ink, boxShadow: "0 6px 16px -6px rgba(184,134,43,0.65)" }}><Plus size={24} /></span>
             <span className="mt-0.5 text-xs font-medium" style={{ color: view === "add" ? C.brass : C.inkSoft }}>Add</span>
           </button>
-          <BottomTab id="empties" icon={Package} label="Empties" badge={emptiesWaiting} />
+          <BottomTab id="empties" icon={Package} label="Empties" />
           <BottomTab id="more" icon={MoreHorizontal} label="More" onClick={() => setMenuOpen(true)} />
         </div>
       </nav>
