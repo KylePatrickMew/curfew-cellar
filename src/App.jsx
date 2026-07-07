@@ -226,6 +226,7 @@ const GUIDE_SECTIONS = [
     ["Pouring board", "The numbered tiles 1 to 10 match the pumps that are on the bar: IPA, Pale, Bitter, Stout, then the kegs and ciders. Tap any beer to open it."],
     ["Racked", "Casks that are Racked or Vented, settling before they go on. The IPA and Pale slots fill by strength: the two strongest go to IPA."],
     ["In Store", "Everything delivered but not yet racked, grouped by style and sorted by best before date, soonest first, so what needs racking next is always at the top."],
+    ["The bell", "Top of the screen. It gathers anything worth a look: a cask past or near its best before, one that has been on a while, or a vented cask that is ready to tap. A number means there is something to see."],
   ]},
   { title: "When a delivery arrives", steps: [
     ["Scan it in", "On the Add tab, Scan a cask label fills the details from a photo, including best before and supplier. Scan an invoice or Paste a list handles a whole delivery at once."],
@@ -244,6 +245,7 @@ const GUIDE_SECTIONS = [
     ["Line finished", "Open the beer and tap Line finished. Pick the next one from what is Ready, Vented or Racked."],
     ["Fill the empty rack", "The rack slot it leaves behind shows Rack from store. Tap it to bring a cask up from In Store."],
     ["The empty cask", "It joins Empties automatically, grouped by supplier, so nothing gets missed on collection day."],
+    ["Changed your mind", "Any action that moves or removes a cask leaves an Undo for a few seconds. Tap the wrong beer, undo it and try again."],
   ]},
   { title: "The Library", steps: [
     ["Every beer, remembered", "Details, tasting notes, allergens, plus every past price and supplier. The history button on each row shows the full trail."],
@@ -252,10 +254,6 @@ const GUIDE_SECTIONS = [
   { title: "Sharing and printing", steps: [
     ["Stock List and Allergen Sheet", "Under More. Print or Share PDF for staff reference and allergen queries."],
     ["Customer Tap List", "A customer-friendly what's on, priced by pint, half and schooner."],
-  ]},
-  { title: "Keeping it safe", steps: [
-    ["Everything syncs", "Changes save to the cloud within a second and appear on every phone."],
-    ["Take a backup", "Backup, under More, copies everything to a file in ten seconds. Worth doing every so often."],
   ]},
 ];
 
@@ -3504,7 +3502,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
   }
 
   return (
-    <div className="min-h-screen w-full overflow-x-hidden" style={{ background: "linear-gradient(180deg, #F6F1E4 0%, #EEE7D5 60%)", fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif" }}>
+    <div className="min-h-screen w-full overflow-x-hidden" style={{ background: "linear-gradient(180deg, #F6F1E4 0%, #EEE7D5 60%)", fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", minHeight: "100dvh", paddingBottom: "env(safe-area-inset-bottom)" }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&display=swap');
 :root { --font-data: 'Archivo', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; --font-display: 'Archivo', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
 .cc-brandtrack{letter-spacing:0.04em;}
