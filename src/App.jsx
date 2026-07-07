@@ -2382,7 +2382,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                   </div>
                   {batchSource === "labels" && (
                     <div className="mt-2 grid grid-cols-2 gap-2">
-                      <input type="date" value={x.bestBefore || ""} onChange={(e) => updateInvoice(idx, { bestBefore: e.target.value })} className="rounded border bg-white px-2 py-1 text-sm text-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
+                      <input type="date" value={x.bestBefore || ""} onChange={(e) => updateInvoice(idx, { bestBefore: e.target.value })} className="rounded border bg-white px-2 py-1 text-sm text-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line, WebkitAppearance: "none", appearance: "none", fontSize: 14, colorScheme: "light" }} />
                       <input value={x.caskOwner || ""} onChange={(e) => updateInvoice(idx, { caskOwner: e.target.value })} placeholder="Supplier" className="rounded border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
                     </div>
                   )}
@@ -2506,7 +2506,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
             {supplierNeedsConfirm && <p className="mt-1 text-xs font-medium" style={{ color: C.brass }}>Previous supplier. Please confirm</p>}
           </Field>
           <Field label="Best before">
-            <input type="date" className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" value={form.bestBefore} onChange={(e) => setF({ bestBefore: e.target.value })} />
+            <input type="date" className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" value={form.bestBefore} onChange={(e) => setF({ bestBefore: e.target.value })} style={{ WebkitAppearance: "none", appearance: "none", fontSize: 14, colorScheme: "light" }} />
           </Field>
           <Field label="Status"><select className={inputCls} value={form.status} onChange={(e) => setF({ status: e.target.value })}>{STATUSES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}</select></Field>
         </div>
@@ -3386,7 +3386,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
               <DietaryBadges beer={beer} />
               <div className="space-y-2">
                 <label className="block text-xs text-slate-500">Best before
-                  <input type="date" value={openLine.bestBefore || ""} onChange={(e) => setBestBefore(openLine.id, e.target.value)} className="mt-0.5 w-full rounded-md border bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-300" style={bb && bb.level === "past" ? { borderColor: C.alert, color: C.alert } : { borderColor: C.line }} />
+                  <input type="date" value={openLine.bestBefore || ""} onChange={(e) => setBestBefore(openLine.id, e.target.value)} className="mt-0.5 w-full rounded-md border bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ WebkitAppearance: "none", appearance: "none", fontSize: 12, lineHeight: "18px", textAlign: "left", colorScheme: "light", ...(bb && bb.level === "past" ? { borderColor: C.alert, color: C.alert } : { borderColor: C.line }) }} />
                 </label>
                 <label className="block text-xs text-slate-500">Supplied by
                   <input value={openLine.caskOwner || ""} onChange={(e) => setCaskOwner(openLine.id, e.target.value)} placeholder="Brewery / distributor" className="mt-0.5 w-full rounded-md border px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
@@ -3445,7 +3445,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                         <li key={s.key} className="flex items-center justify-between text-sm">
                           <span className={`flex items-center gap-2 ${done ? "text-slate-800" : "text-slate-400"}`}>{done ? <CheckCircle2 size={15} className="text-emerald-600" /> : <span className="h-3.5 w-3.5 rounded-full border border-slate-300" />}{s.label}</span>
                           {editableOn ? (
-                            <input type="date" value={openLine.dates.on.slice(0, 10)} onChange={(e) => setOnDate(openLine.id, e.target.value)} className="rounded-md border border-slate-300 bg-white px-2 py-0.5 text-xs text-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-300" />
+                            <input type="date" value={openLine.dates.on.slice(0, 10)} onChange={(e) => setOnDate(openLine.id, e.target.value)} className="rounded-md border border-slate-300 bg-white px-2 py-0.5 text-xs text-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ WebkitAppearance: "none", appearance: "none", fontSize: 12, colorScheme: "light" }} />
                           ) : (
                             <span className="text-xs text-slate-400">{fmt(openLine.dates[s.dateKey])}</span>
                           )}
