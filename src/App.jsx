@@ -2215,7 +2215,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
             <ChevronDown size={20} className="text-slate-400" style={{ transform: prefs.racked ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
           </button>
           {prefs.racked && (
-            <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
+            <div className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
               {rackedSlots.map((s, i) => renderSlot(s, `r${i}`, false))}
               {rackedOverflow.map((l) => (
                 <div key={l.id}>
@@ -2385,7 +2385,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
             </div>
           </Field>
           <div className="mt-3"><Field label="Name"><input className={inputCls} value={form.name} onChange={(e) => setF({ name: e.target.value })} placeholder="e.g. Border Reiver IPA" /></Field></div>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="Producer / brewery"><input className={inputCls} value={form.brewery} onChange={(e) => setF({ brewery: e.target.value })} placeholder="e.g. Wylam" /></Field>
             <Field label="Location"><input className={inputCls} value={form.location} onChange={(e) => setF({ location: e.target.value })} placeholder="e.g. Berwick-upon-Tweed" /></Field>
           </div>
