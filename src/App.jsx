@@ -1352,8 +1352,8 @@ export default function TheCurfewCellar() {
         const b = beerById[l.beerId]; if (!b) return;
         const name = `${b.brewery ? b.brewery + " - " : ""}${b.name || ""}`;
         const tlp = priceTriple(l.price);
-        const meta = [b.style, b.abv ? b.abv + "%" : "", b.clarity || "", b.location || ""].filter(Boolean).join("  ·  ");
-        const diet = [b.vegan ? "Vegan" : "", b.glutenStatus === "Gluten-free" ? "Gluten-free" : b.glutenStatus === "Low gluten" ? "Low gluten" : ""].filter(Boolean).join("  ·  ");
+        const meta = [b.style, b.abv ? b.abv + "%" : "", b.clarity === "Hazy" ? "Hazy" : "", b.location || ""].filter(Boolean).join("  ·  ");
+        const diet = [b.vegan ? "Vegan" : "", b.glutenStatus === "Gluten-free" ? "Gluten-free" : b.glutenStatus === "Low gluten" ? "Low gluten, <20ppm" : ""].filter(Boolean).join("  ·  ");
         const allergenLine = b.allergensVerified ? (b.allergens.length ? `Contains: ${b.allergens.join(", ")}` : "No declared allergens") : "Allergens: please ask at the bar";
         doc.setFont("helvetica", "bold"); doc.setFontSize(9.5);
         const nameLines = doc.splitTextToSize(name, W - 2 * M - 38);
@@ -1494,7 +1494,7 @@ export default function TheCurfewCellar() {
       const beerLine = (l, accentRGB) => {
         const b = beerById[l.beerId]; if (!b) return;
         const name = `${b.brewery ? b.brewery + " - " : ""}${b.name || ""}`;
-        const diet = [b.vegan ? "Vegan" : "", b.glutenStatus === "Gluten-free" ? "Gluten-free" : b.glutenStatus === "Low gluten" ? "Low gluten" : ""].filter(Boolean).join("  ·  ");
+        const diet = [b.vegan ? "Vegan" : "", b.glutenStatus === "Gluten-free" ? "Gluten-free" : b.glutenStatus === "Low gluten" ? "Low gluten, <20ppm" : ""].filter(Boolean).join("  ·  ");
         const allergenText = (b.allergensVerified ? (b.allergens.length ? `Contains: ${b.allergens.join(", ")}` : "No declared allergens") : "Allergens: please ask staff") + (b.allergensVerified ? "" : "  ·  not staff verified");
         doc.setFont("helvetica", "bold"); doc.setFontSize(9.5);
         const nameLines = doc.splitTextToSize(name, W - 2 * M - 40);
@@ -2283,7 +2283,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
       <div className="space-y-4">
         <section>
           <button onClick={() => toggleSection("on")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
-            <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>On <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {onFilled}/10</span></h2>
+            <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Pouring <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {onFilled}/10</span></h2>
             <ChevronDown size={20} className="text-slate-400" style={{ transform: prefs.on ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
           </button>
           {prefs.on && (
@@ -2384,7 +2384,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                     ) : (
                       <div className="mt-2 grid grid-cols-2 gap-2">
                         <input type="date" value={x.bestBefore || ""} onChange={(e) => updateInvoice(idx, { bestBefore: e.target.value })} className="rounded border bg-white px-2 py-1 text-sm text-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line, WebkitAppearance: "none", appearance: "none", fontSize: 14, colorScheme: "light" }} />
-                        <input value={x.caskOwner || ""} onChange={(e) => updateInvoice(idx, { caskOwner: e.target.value })} placeholder="Supplier" className="rounded border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
+                        <input value={x.caskOwner || ""} onChange={(e) => updateInvoice(idx, { caskOwner: e.target.value })} placeholder="Delivered by" className="rounded border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
                       </div>
                     )
                   )}
@@ -2506,7 +2506,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           {form.drinkType !== "cider" && form.drinkType !== "keykeg" && (
             <Field label="Delivered by">
               <input className={inputCls} value={form.caskOwner} onChange={(e) => setF({ caskOwner: e.target.value })} placeholder={form.brewery ? `Defaults to ${form.brewery}` : "Defaults to the brewery"} />
-              {supplierNeedsConfirm && <p className="mt-1 text-xs font-medium" style={{ color: C.brass }}>Previous supplier. Please confirm</p>}
+              {supplierNeedsConfirm && <p className="mt-1 text-xs font-medium" style={{ color: C.brass }}>Previous delivery. Please confirm</p>}
             </Field>
           )}
           <Field label="Best before">
@@ -2554,7 +2554,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
             <div className="mt-2.5 rounded-lg border p-2.5" style={{ borderColor: C.line, background: "#FAFAF8" }}>
               {!h.length ? <p className="text-xs text-slate-400">No history yet.</p> : (
                 <>
-                  <div className="mb-1 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-slate-400"><span>When</span><span className="flex gap-4"><span>ABV</span><span>Price</span><span>Supplier</span></span></div>
+                  <div className="mb-1 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-slate-400"><span>When</span><span className="flex gap-4"><span>ABV</span><span>Price</span><span>Delivered by</span></span></div>
                   <ul className="space-y-1">
                     {h.map((e, i) => {
                       const prev = i > 0 ? h[i - 1] : null;
@@ -2636,7 +2636,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
         <p className="text-sm text-slate-500">Get a ping on this phone whenever a beer goes on or a line finishes, even with the app closed. Each phone turns this on separately, so every manager who wants it enables it on their own phone.</p>
         <div className="mt-4">
           {pushState === "checking" && <p className="text-sm text-slate-400">Checking this phone…</p>}
-          {pushState === "unsupported" && <p className="text-sm text-slate-500">This browser cannot receive push notifications. On iPhone, use the app added to your Home Screen.</p>}
+          {pushState === "unsupported" && <p className="text-sm text-slate-500">This browser can't receive push notifications. On iPhone, use the app added to your Home Screen.</p>}
           {pushState === "need-install" && (
             <div className="rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
               <p className="font-semibold" style={{ color: C.ink }}>One step first</p>
@@ -2656,12 +2656,12 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
         </div>
       </div>
       <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
-        <p className="text-sm font-semibold" style={{ color: C.ink }}>What you will get</p>
+        <p className="text-sm font-semibold" style={{ color: C.ink }}>What you'll get</p>
         <ul className="mt-2 space-y-1.5 text-sm text-slate-500">
           <li>Now pouring: when a beer goes on the bar.</li>
           <li>Line finished: when one comes off.</li>
         </ul>
-        <p className="mt-2 text-xs text-slate-400">The phone that makes the change does not get pinged about it.</p>
+        <p className="mt-2 text-xs text-slate-400">The phone that makes the change doesn't get pinged about it.</p>
       </div>
     </div>
   );
@@ -3031,7 +3031,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                 {g.items.map((l) => {
                   const beer = beerById[l.beerId];
                   if (!beer) return null;
-                  const diet = [beer.vegan ? "Vegan" : null, beer.glutenStatus === "Gluten-free" ? "Gluten-free" : beer.glutenStatus === "Low gluten" ? "Low gluten" : null].filter(Boolean).join(", ");
+                  const diet = [beer.vegan ? "Vegan" : null, beer.glutenStatus === "Gluten-free" ? "Gluten-free" : beer.glutenStatus === "Low gluten" ? "Low gluten, <20ppm" : null].filter(Boolean).join(", ");
                   return (
                     <div key={l.id} className="py-2">
                       <div className="flex items-baseline justify-between gap-2">
@@ -3101,11 +3101,11 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
         <div className="cc-elev rounded-xl border p-5" style={{ background: C.paper, borderColor: C.line }}>
           {fmtUpdated(lastUpdated) && <p className="text-xs text-slate-400">Last updated: {fmtUpdated(lastUpdated)}</p>}
           {total === 0 && <p className="mt-4 text-sm text-slate-400">No stock yet.</p>}
-          <Section title="On" items={onL} withStage={false} />
-          <Section title="In Cellar" items={prep} withStage={true} />
+          <Section title="Pouring" items={onL} withStage={false} />
+          <Section title="Racked" items={prep} withStage={true} />
           {storeL.length > 0 && (
             <div className="mt-4">
-              <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: C.brass }}>In store · {storeL.length}</h3>
+              <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: C.brass }}>In Store · {storeL.length}</h3>
               {storeGroups.map((g) => (
                 <div key={g.label} className="mt-2">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{g.label}</p>
@@ -3158,7 +3158,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
       const diet = [];
       if (beer.vegan) diet.push("Vegan");
       if (beer.glutenStatus === "Gluten-free") diet.push("Gluten-free");
-      else if (beer.glutenStatus === "Low gluten") diet.push("Low gluten");
+      else if (beer.glutenStatus === "Low gluten") diet.push("Low gluten, <20ppm");
       return (
         <div className="py-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
           <div className="flex items-baseline justify-between gap-3">
@@ -3168,7 +3168,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
               {tlp && <p className="text-xs" style={{ color: "rgba(243,239,230,0.55)" }}>Half {tlp.half} · Schooner {tlp.schooner}</p>}
             </div>
           </div>
-          <p className="text-sm font-medium" style={{ color: "rgba(243,239,230,0.85)" }}>{beer.style}{beer.sweetness ? ` · ${beer.sweetness}` : ""} · {beer.abv}%{beer.clarity ? ` · ${beer.clarity}` : ""}</p>
+          <p className="text-sm font-medium" style={{ color: "rgba(243,239,230,0.85)" }}>{beer.style}{beer.sweetness ? ` · ${beer.sweetness}` : ""} · {beer.abv}%{beer.clarity === "Hazy" ? " · Hazy" : ""}</p>
           {beer.location && <p className="text-xs" style={{ color: "rgba(243,239,230,0.5)" }}>{beer.location}</p>}
           {beer.notes && <ul className="mt-1 space-y-0.5">{splitNote(beer.notes).map((line, i) => <li key={i} className="flex gap-1.5 text-sm italic" style={{ color: faint }}><span>·</span><span>{line}.</span></li>)}</ul>}
           <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -3588,7 +3588,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
                 <div className="absolute right-0 top-full z-50 mt-1 w-44 overflow-hidden rounded-lg border bg-white shadow-lg" style={{ borderColor: C.line }}>
-                  {[["library", "Library", BookOpen], ["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["guide", "How to Use", Compass], ["notify", "Notifications", Bell], ["backup", "Backup", Database]].map(([id, label, Icon]) => (
+                  {[["library", "Library", BookOpen], ["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["guide", "How to Use", Compass], ["notify", "Notifications", Bell], ["backup", "Backup & Restore", Database]].map(([id, label, Icon]) => (
                     <button key={id} onClick={() => { setMenuOpen(false); go(id); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"><Icon size={15} className="text-slate-400" />{label}</button>
                   ))}
                 </div>
@@ -3651,7 +3651,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
           <div className="cc-sheet absolute inset-x-0 bottom-0 rounded-t-2xl bg-white p-4" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 16px)" }}>
             <div className="mx-auto mb-3 h-1.5 w-10 rounded-full" style={{ background: C.line }} />
             <div className="grid grid-cols-3 gap-2.5">
-              {[["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["guide", "How to Use", Compass], ["notify", "Notifications", Bell], ["backup", "Backup", Database]].map(([id, label, Icon]) => (
+              {[["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["guide", "How to Use", Compass], ["notify", "Notifications", Bell], ["backup", "Backup & Restore", Database]].map(([id, label, Icon]) => (
                 <button key={id} onClick={() => { setMenuOpen(false); go(id); }} className="flex flex-col items-center gap-1.5 rounded-xl border p-3 transition active:scale-95" style={{ borderColor: C.line, color: C.ink }}>
                   <Icon size={20} style={{ color: C.brass }} />
                   <span className="text-center text-xs font-medium leading-tight">{label}</span>
