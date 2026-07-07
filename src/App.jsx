@@ -1213,7 +1213,7 @@ export default function TheCurfewCellar() {
         const b = beerById[l.beerId]; if (!b) return;
         const name = `${b.brewery ? b.brewery + " - " : ""}${b.name || ""}`;
         const dt = (DRINK_TYPES.find((t) => t.key === l.drinkType) || {}).label || l.drinkType;
-        const meta = [dt, b.style, b.abv ? b.abv + "%" : "", b.location || "", l.caskOwner ? `Supplier: ${l.caskOwner}` : ""].filter(Boolean).join("  ·  ");
+        const meta = [dt, b.style, b.abv ? b.abv + "%" : "", b.location || "", l.caskOwner ? `Delivered by: ${l.caskOwner}` : ""].filter(Boolean).join("  ·  ");
         doc.setFont("helvetica", "bold"); doc.setFontSize(9.5);
         const nameLines = doc.splitTextToSize(name, W - 2 * M - 38);
         doc.setFont("helvetica", "normal"); doc.setFontSize(7.8);
@@ -2501,7 +2501,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
             </Field>
             {form.drinkType !== "cask" && <Field label="Container"><select className={inputCls} value={form.size} onChange={(e) => setF({ size: e.target.value })}>{SIZE_OPTIONS.map((s) => <option key={s}>{s}</option>)}</select></Field>}
           </div>
-          <Field label="Supplied by">
+          <Field label="Delivered by">
             <input className={inputCls} value={form.caskOwner} onChange={(e) => setF({ caskOwner: e.target.value })} placeholder={form.brewery ? `Defaults to ${form.brewery}` : "Defaults to the brewery"} />
             {supplierNeedsConfirm && <p className="mt-1 text-xs font-medium" style={{ color: C.brass }}>Previous supplier. Please confirm</p>}
           </Field>
@@ -3059,7 +3059,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</p>
             <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{dt} · {beer.style}{beer.sweetness ? ` · ${beer.sweetness}` : ""} · {beer.abv}%</p>
-            <p className="truncate text-xs text-slate-500" style={{ fontFamily: "var(--font-data)" }}>{beer.location || ""}{l.caskOwner ? `${beer.location ? " · " : ""}Supplier: ${l.caskOwner}` : ""}</p>
+            <p className="truncate text-xs text-slate-500" style={{ fontFamily: "var(--font-data)" }}>{beer.location || ""}{l.caskOwner ? `${beer.location ? " · " : ""}Delivered by: ${l.caskOwner}` : ""}</p>
           </div>
           <div className="shrink-0 text-right" style={{ fontFamily: "var(--font-data)" }}>
             {pump && <p className="text-xs font-semibold" style={{ color: C.brass }}>{pump}</p>}
@@ -3384,14 +3384,6 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                 </div>
               )}
               <DietaryBadges beer={beer} />
-              <div className="space-y-2">
-                <label className="block text-xs text-slate-500">Best before
-                  <input type="date" value={openLine.bestBefore || ""} onChange={(e) => setBestBefore(openLine.id, e.target.value)} className="mt-0.5 w-full rounded-md border bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ WebkitAppearance: "none", appearance: "none", fontSize: 12, lineHeight: "18px", textAlign: "left", colorScheme: "light", ...(bb && bb.level === "past" ? { borderColor: C.alert, color: C.alert } : { borderColor: C.line }) }} />
-                </label>
-                <label className="block text-xs text-slate-500">Supplied by
-                  <input value={openLine.caskOwner || ""} onChange={(e) => setCaskOwner(openLine.id, e.target.value)} placeholder="Brewery / distributor" className="mt-0.5 w-full rounded-md border px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
-                </label>
-              </div>
             </div>
 
             <div>
@@ -3406,6 +3398,15 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
             </div>
 
             {beer.notes && <div><p className="mb-1.5 text-sm font-medium text-slate-500">Tasting notes</p><ul className="space-y-1">{splitNote(beer.notes).map((line, i) => <li key={i} className="flex gap-1.5 text-sm leading-snug text-slate-600"><span style={{ color: C.brass }}>•</span><span>{line}.</span></li>)}</ul></div>}
+
+            <div className="space-y-2">
+              <label className="block text-xs text-slate-500">Best before
+                <input type="date" value={openLine.bestBefore || ""} onChange={(e) => setBestBefore(openLine.id, e.target.value)} className="mt-0.5 w-full rounded-md border bg-white px-2 py-1 text-center text-xs focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ WebkitAppearance: "none", appearance: "none", fontSize: 12, lineHeight: "18px", textAlign: "center", colorScheme: "light", ...(bb && bb.level === "past" ? { borderColor: C.alert, color: C.alert } : { borderColor: C.line }) }} />
+              </label>
+              <label className="block text-xs text-slate-500">Delivered by
+                <input value={openLine.caskOwner || ""} onChange={(e) => setCaskOwner(openLine.id, e.target.value)} placeholder="Brewery / distributor" className="mt-0.5 w-full rounded-md border px-2 py-1 text-center text-xs focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
+              </label>
+            </div>
 
             <div className="border-t pt-4" style={{ borderColor: C.line }}>
               <div className="flex gap-1.5">
