@@ -3384,12 +3384,12 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                 </div>
               )}
               <DietaryBadges beer={beer} />
-              <div className="grid grid-cols-2 gap-2">
-                <label className="block min-w-0 text-xs text-slate-500">Best before
-                  <input type="date" value={openLine.bestBefore || ""} onChange={(e) => setBestBefore(openLine.id, e.target.value)} className="mt-0.5 w-full min-w-0 rounded-md border px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-300" style={bb && bb.level === "past" ? { borderColor: C.alert, color: C.alert } : { borderColor: C.line }} />
+              <div className="space-y-2">
+                <label className="block text-xs text-slate-500">Best before
+                  <input type="date" value={openLine.bestBefore || ""} onChange={(e) => setBestBefore(openLine.id, e.target.value)} className="mt-0.5 w-full rounded-md border px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-300" style={bb && bb.level === "past" ? { borderColor: C.alert, color: C.alert } : { borderColor: C.line }} />
                 </label>
-                <label className="block min-w-0 text-xs text-slate-500">Supplied by
-                  <input value={openLine.caskOwner || ""} onChange={(e) => setCaskOwner(openLine.id, e.target.value)} placeholder="Brewery / distributor" className="mt-0.5 w-full min-w-0 rounded-md border px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
+                <label className="block text-xs text-slate-500">Supplied by
+                  <input value={openLine.caskOwner || ""} onChange={(e) => setCaskOwner(openLine.id, e.target.value)} placeholder="Brewery / distributor" className="mt-0.5 w-full rounded-md border px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
                 </label>
               </div>
             </div>
