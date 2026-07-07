@@ -223,15 +223,16 @@ const b64ToBytes = (b64) => {
 
 const GUIDE_SECTIONS = [
   { title: "The Cellar screen", steps: [
-    ["Pouring board", "The numbered tiles, 1 to 10, match the pumps on the bar: IPA, Pale, Bitter, Stout, then kegs and ciders. Tap any beer to open it."],
-    ["Racked", "Casks settling before they go on, freshly racked or already vented. The IPA and Pale slots fill by strength, the two strongest going to IPA."],
-    ["In Store", "Everything delivered but not yet racked, grouped by style and ordered by best before, soonest first. Whatever needs racking next sits at the top."],
+    ["Pouring board", "The numbered tiles, 1 to 10, match the pumps on the bar: IPA, Pale, Bitter, Stout, then Kegs and Ciders. Tap any beer to open it."],
+    ["Racked", "Casks settling before they go on, freshly racked or already vented."],
+    ["In Store", "Everything delivered but not yet racked, grouped by style and ordered by best before, soonest first. Whatever needs racking next sits right at the top."],
     ["The bell", "At the top of the screen. It gathers anything worth a look: a cask past or near its best before, one that has been on a while, or a vented cask ready to tap."],
   ]},
   { title: "When a delivery arrives", steps: [
-    ["Scan it in", "On the Add tab, Scan a cask label fills everything from a photo, best before and supplier included. Scan an invoice or Paste a list takes a whole delivery at once."],
-    ["Or pick from your library", "Search anything stocked before and the details carry over, last price and supplier included. Each is marked Please confirm, so nothing is assumed."],
-    ["Autofill", "Type a name and tap Autofill for the style, ABV, allergens, vegan and gluten status, and tasting notes. Always confirm allergens against the producer's own information."],
+    ["Scan it in", "On the Add tab, Scan a cask label fills everything in from a photo, best before and supplier included. Scan an invoice or Paste a list takes a whole delivery at once."],
+    ["Or pick from your library", "Search for anything you've stocked before and the details carry over, last price and supplier included. Each is marked Please confirm, so nothing is ever assumed."],
+    ["Autofill", "Type a name and tap Autofill for the style, ABV, allergens, vegan and gluten status, and tasting notes. Always confirm details against the brewery's own information."],
+    ["Staff verified", "Tick Allergens verified once you've checked them against the brewery's own information. Until then, a friendly reminder follows the beer around, on the Allergen Sheet, the Library and its Cellar card, so it's never missed."],
   ]},
   { title: "The cask lifecycle", steps: [
     ["In Store", "Delivered and waiting."],
@@ -242,14 +243,14 @@ const GUIDE_SECTIONS = [
     ["Finished", "Empty. Moves to Empties for collection."],
   ]},
   { title: "When a beer finishes", steps: [
-    ["Line finished", "Open the beer and tap Line finished, then pick its replacement from what is Tapped, Vented or Racked."],
+    ["Line finished", "Open the beer and tap Line finished, then choose its replacement from what is Tapped, Vented or Racked."],
     ["Fill the empty rack", "The slot it leaves shows Rack from store. Tap it to bring a cask up from In Store."],
-    ["The empty cask", "The empty joins Empties automatically, grouped by supplier so nothing is missed on collection day."],
-    ["Changed your mind", "Any move or removal leaves an Undo for a few seconds. Tapped the wrong beer? Undo and go again."],
+    ["The empty cask", "It joins Empties automatically, grouped by supplier, so nothing is missed on collection day."],
+    ["Changed your mind", "Any move or removal leaves an Undo for a few seconds. Tapped the wrong beer? Undo it and go again, no harm done."],
   ]},
   { title: "The Library", steps: [
     ["Every beer, remembered", "Details, tasting notes and allergens, plus every past price and supplier. The history button on each row shows the full trail."],
-    ["Archive, not delete", "Editing a beer lets you Archive one you will not stock again. Its history stays and you can restore it any time."],
+    ["Archive, not delete", "Editing a beer lets you Archive one you won't stock again. Its history stays safe, and you can bring it back any time."],
   ]},
   { title: "Sharing and printing", steps: [
     ["Stock List and Allergen Sheet", "Under More. Print or Share PDF for staff reference and allergen queries."],
