@@ -599,6 +599,27 @@ export default function TheCurfewCellar() {
 
   const beerById = useMemo(() => Object.fromEntries(library.map((b) => [b.id, b])), [library]);
 
+  // If we've stocked this brewery before, trust what we already have on file over a fresh
+  // guess: most breweries only have one real location, so a single one-off entry (a typo,
+  // or an AI guess that was never corrected) shouldn't win over five consistent ones.
+  const libraryLocationFor = (breweryName) => {
+    const wanted = (breweryName || "").trim().toLowerCase();
+    if (!wanted) return "";
+    const counts = new Map();
+    library.forEach((b) => {
+      if ((b.brewery || "").trim().toLowerCase() !== wanted) return;
+      const loc = (b.location || "").trim();
+      if (!loc) return;
+      const key = loc.toLowerCase();
+      const entry = counts.get(key) || { loc, count: 0 };
+      entry.count += 1;
+      counts.set(key, entry);
+    });
+    let best = null;
+    counts.forEach((entry) => { if (!best || entry.count > best.count) best = entry; });
+    return best ? best.loc : "";
+  };
+
   // "Needs attention": things a publican should see at a glance, computed from data the app
   // already tracks. Shared by the header notification bell and its dropdown.
   const attentionItems = useMemo(() => {
@@ -1632,7 +1653,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
         abv: form.abv.trim() ? form.abv : abv,
         brewery: form.brewery.trim() ? form.brewery : (p.brewery ? String(p.brewery) : form.brewery),
         name: form.name.trim() ? form.name : (p.name ? String(p.name) : form.name),
-        location: form.location.trim() ? form.location : (p.location ? String(p.location) : form.location),
+        location: form.location.trim() ? form.location : (libraryLocationFor(p.brewery ? String(p.brewery) : form.brewery) || (p.location ? String(p.location) : form.location)),
         clarity: form.clarity ? form.clarity : (CLARITY_OPTIONS.includes(p.clarity) ? p.clarity : "Clear"),
         glutenStatus: (form.glutenStatus && form.glutenStatus !== "Standard") ? form.glutenStatus : (GLUTEN_OPTIONS.includes(p.glutenStatus) ? p.glutenStatus : "Standard"),
         vegan: form.vegan || !!p.vegan,
@@ -1822,7 +1843,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
         abv: beer.abv ? beer.abv : abv,
         brewery: beer.brewery.trim() ? beer.brewery : (p.brewery ? String(p.brewery) : beer.brewery),
         name: beer.name.trim() ? beer.name : (p.name ? String(p.name) : beer.name),
-        location: beer.location.trim() ? beer.location : (p.location ? String(p.location) : beer.location),
+        location: beer.location.trim() ? beer.location : (libraryLocationFor(p.brewery ? String(p.brewery) : beer.brewery) || (p.location ? String(p.location) : beer.location)),
         clarity: beer.clarity ? beer.clarity : (CLARITY_OPTIONS.includes(p.clarity) ? p.clarity : "Clear"),
         glutenStatus: (beer.glutenStatus && beer.glutenStatus !== "Standard") ? beer.glutenStatus : (GLUTEN_OPTIONS.includes(p.glutenStatus) ? p.glutenStatus : "Standard"),
         vegan: beer.vegan || !!p.vegan,
