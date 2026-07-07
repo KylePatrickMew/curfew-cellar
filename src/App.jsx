@@ -1626,7 +1626,13 @@ export default function TheCurfewCellar() {
     if (!(openId || editBeerId) || typeof document === "undefined") return;
     const onKey = (e) => { if (e.key === "Escape") { setEditBeerId(null); setOpenId(null); } };
     document.addEventListener("keydown", onKey);
-    return () => { document.removeEventListener("keydown", onKey); };
+    // Lock the actual scroll region behind the modal, not body, which hasn't been the
+    // scrolling element since the restructure. Without this, nothing stops the background
+    // from scrolling and bouncing while a modal sits on top of it.
+    const el = scrollAreaRef.current;
+    const prevOverflow = el ? el.style.overflow : "";
+    if (el) el.style.overflow = "hidden";
+    return () => { document.removeEventListener("keydown", onKey); if (el) el.style.overflow = prevOverflow; };
   }, [openId, editBeerId]);
 
   useEffect(() => {
