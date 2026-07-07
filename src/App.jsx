@@ -597,6 +597,7 @@ export default function TheCurfewCellar() {
   const [invoiceOwner, setInvoiceOwner] = useState("");
   const labelRef = useRef(null);
   const invoiceRef = useRef(null);
+  const scrollAreaRef = useRef(null);
 
   const beerById = useMemo(() => Object.fromEntries(library.map((b) => [b.id, b])), [library]);
 
@@ -1518,52 +1519,6 @@ export default function TheCurfewCellar() {
     return () => { document.removeEventListener("visibilitychange", onVisibility); window.removeEventListener("pagehide", flush); };
   }, [store, storageOk, cloudMode, authed, cloudReady]);
 
-  // iOS's rubber-band bounce is a native WKWebView scroll-view setting in an installed
-  // Add to Home Screen app, not something CSS overscroll-behavior can reliably switch off
-  // there. This intercepts the drag directly: find whichever element is actually
-  // scrolling under the finger (the page itself, or a modal/sheet with its own scroll),
-  // and only block the gesture once that element is already at its start or end and the
-  // drag would overscroll it, leaving ordinary scrolling everywhere untouched.
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    let startY = 0;
-    const onStart = (e) => { startY = e.touches[0].clientY; };
-    const onMove = (e) => {
-      let el = e.target;
-      while (el && el !== document.body) {
-        const cs = window.getComputedStyle(el);
-        if (/(auto|scroll)/.test(cs.overflowY) && el.scrollHeight > el.clientHeight) break;
-        el = el.parentElement;
-      }
-      const scroller = (el && el !== document.body) ? el : (document.scrollingElement || document.documentElement);
-      const atTop = scroller.scrollTop <= 0;
-      const atBottom = scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 1;
-      const dy = e.touches[0].clientY - startY;
-      if ((atTop && dy > 0) || (atBottom && dy < 0)) e.preventDefault();
-    };
-    // A fast flick keeps scrolling under iOS's own momentum after the finger lifts, with
-    // no more touch events left for the guard above to catch, so a flick can still overshoot
-    // into the bounce. This second layer runs on every scroll event, including during that
-    // momentum phase, and snaps the position straight back into range the instant it goes
-    // out of bounds, catching what the touch guard alone misses.
-    const onScroll = (e) => {
-      const t = e.target;
-      const el = (t === document || t === window) ? (document.scrollingElement || document.documentElement) : t;
-      if (!el || typeof el.scrollTop !== "number") return;
-      const max = el.scrollHeight - el.clientHeight;
-      if (el.scrollTop < 0) el.scrollTop = 0;
-      else if (max > 0 && el.scrollTop > max) el.scrollTop = max;
-    };
-    document.addEventListener("touchstart", onStart, { passive: true });
-    document.addEventListener("touchmove", onMove, { passive: false });
-    document.addEventListener("scroll", onScroll, { capture: true, passive: true });
-    return () => {
-      document.removeEventListener("touchstart", onStart);
-      document.removeEventListener("touchmove", onMove);
-      document.removeEventListener("scroll", onScroll, { capture: true });
-    };
-  }, []);
-
   // Stamp "last updated" whenever a beer is added or changed (not on first load or a remote sync)
   useEffect(() => {
     if (!hydrated) return;
@@ -1919,7 +1874,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
   const pickBeer = (beer) => { loadBeerIntoForm(beer); setShowMore(false); setFillNote({ type: "ok", text: `Loaded "${beer.name}". Just set price, best before and status.` }); setAddMode("form"); };
   const startNewBeer = () => { setForm(emptyForm); setFillNote(null); setShowMore(false); setAddMode("form"); };
   const addLineOfBeer = (beer) => { loadBeerIntoForm(beer); setShowMore(false); setFillNote({ type: "ok", text: `Loaded "${beer.name}" from your library.` }); setAddMode("form"); setView("add"); };
-  const go = (v) => { if (v === "add") { setAddMode("pick"); setAddPickSearch(""); setForm(emptyForm); setFillNote(null); setShowMore(false); } setView(v); if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" }); };
+  const go = (v) => { if (v === "add") { setAddMode("pick"); setAddPickSearch(""); setForm(emptyForm); setFillNote(null); setShowMore(false); } setView(v); if (scrollAreaRef.current) scrollAreaRef.current.scrollTo({ top: 0, behavior: "smooth" }); };
 
   const fileToBase64 = (file) => new Promise((resolve, reject) => {
     const r = new FileReader();
@@ -3210,7 +3165,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     };
 
     return (
-      <div className="min-h-screen" style={{ background: C.ink }}>
+      <div className="flex-1 overflow-y-auto" style={{ background: C.ink, overscrollBehaviorY: "none", WebkitOverflowScrolling: "touch" }}>
         <div className="mx-auto max-w-2xl px-5 py-8">
           <div style={{ border: "1.5px solid rgba(184,134,43,0.4)", borderBottom: "none", borderTopLeftRadius: 130, borderTopRightRadius: 130, padding: "28px 22px 4px" }}>
             <div className="flex flex-col items-center text-center">
@@ -3579,7 +3534,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
   }
 
   return (
-    <div className="min-h-screen w-full" style={{ background: "linear-gradient(180deg, #F6F1E4 0%, #EEE7D5 60%)", fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", minHeight: "100dvh", paddingBottom: "env(safe-area-inset-bottom)", overflowX: "clip" }}>
+    <div className="flex w-full flex-col" style={{ background: "linear-gradient(180deg, #F6F1E4 0%, #EEE7D5 60%)", fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", height: "100dvh", overflow: "hidden" }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&display=swap');
 :root { --font-data: 'Archivo', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; --font-display: 'Archivo', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
 .cc-brandtrack{letter-spacing:0.04em;}
@@ -3623,7 +3578,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
 .focus\:ring-slate-300:focus{--tw-ring-color:#C7C6B7!important}
 .focus\:ring-slate-400:focus{--tw-ring-color:#96A19B!important}`}</style>
       {view === "taplist" ? TapList() : (<>
-      <header className="no-print sticky top-0 z-40 border-b" style={{ background: "linear-gradient(180deg, #234342 0%, #1C3636 100%)", borderColor: "rgba(184,134,43,0.35)", boxShadow: "0 1px 0 rgba(184,134,43,0.22), 0 10px 26px -18px rgba(0,0,0,0.65)", paddingTop: "env(safe-area-inset-top)" }}>
+      <header className="no-print z-40 border-b" style={{ background: "linear-gradient(180deg, #234342 0%, #1C3636 100%)", borderColor: "rgba(184,134,43,0.35)", boxShadow: "0 1px 0 rgba(184,134,43,0.22), 0 10px 26px -18px rgba(0,0,0,0.65)", paddingTop: "env(safe-area-inset-top)" }}>
         <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 py-2.5">
           <div className="flex items-center gap-2.5">
             <div className="relative">
@@ -3683,6 +3638,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
           </nav>
         </div>
       </header>
+      <div ref={scrollAreaRef} className="min-h-0 flex-1 overflow-y-auto" style={{ overscrollBehaviorY: "none", WebkitOverflowScrolling: "touch", paddingBottom: "env(safe-area-inset-bottom)" }}>
       <main className="mx-auto max-w-4xl px-4 pt-6 pb-28 sm:pb-6">
         {!hydrated ? (
           <div className="flex items-center justify-center gap-2 py-16 text-sm text-slate-500"><Loader2 size={16} className="animate-spin" /> Loading your cellar…</div>
@@ -3715,6 +3671,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
           {cloudMode && <button onClick={lock} className="inline-flex items-center gap-1 font-medium text-slate-400 transition hover:text-slate-600"><Lock size={12} /> Lock</button>}
         </div>
       </footer>
+      </div>
 
       <nav className="no-print fixed inset-x-0 bottom-0 z-40 border-t bg-white sm:hidden" style={{ borderColor: C.line, paddingBottom: "env(safe-area-inset-bottom)", boxShadow: "0 -6px 22px -14px rgba(28,54,54,0.4)" }}>
         <div className="mx-auto flex max-w-md items-end justify-around px-2">
