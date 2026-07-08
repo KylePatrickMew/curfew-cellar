@@ -1630,14 +1630,7 @@ export default function TheCurfewCellar() {
     if (!(openId || editBeerId || swap || showAlerts || menuOpen) || typeof document === "undefined") return;
     const onKey = (e) => { if (e.key === "Escape") { setEditBeerId(null); setOpenId(null); setSwap(null); setShowAlerts(false); setMenuOpen(false); } };
     document.addEventListener("keydown", onKey);
-    // Lock the actual scroll region behind whatever overlay is open (modal, swap picker, bell
-    // dropdown, or the More menu), not body, which hasn't been the scrolling element since the
-    // restructure. Without this, nothing stops the background from scrolling and bouncing
-    // while any of these sit on top of it.
-    const el = scrollAreaRef.current;
-    const prevOverflow = el ? el.style.overflow : "";
-    if (el) el.style.overflow = "hidden";
-    return () => { document.removeEventListener("keydown", onKey); if (el) el.style.overflow = prevOverflow; };
+    return () => { document.removeEventListener("keydown", onKey); };
   }, [openId, editBeerId, swap, showAlerts, menuOpen]);
 
   useEffect(() => {
@@ -3608,7 +3601,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
           </nav>
         </div>
       </header>
-      <div ref={scrollAreaRef} className="min-h-0 flex-1 overflow-y-auto" style={{ overscrollBehaviorY: "none", WebkitOverflowScrolling: "touch", paddingBottom: "env(safe-area-inset-bottom)" }}>
+      <div ref={scrollAreaRef} className="min-h-0 flex-1 overflow-y-auto" style={{ overscrollBehaviorY: "none", WebkitOverflowScrolling: "touch", paddingBottom: "env(safe-area-inset-bottom)", overflow: (openId || editBeerId || swap || showAlerts || menuOpen) ? "hidden" : undefined }}>
       <main className="mx-auto max-w-4xl px-4 pt-6 pb-28 sm:pb-6">
         {!hydrated ? (
           <div className="flex items-center justify-center gap-2 py-16 text-sm text-slate-500"><Loader2 size={16} className="animate-spin" /> Loading your cellar…</div>
