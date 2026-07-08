@@ -3274,6 +3274,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                   <p className="text-base font-medium text-slate-700">{pmeta}</p>
                   <DietaryBadges beer={previewBeer} />
                 </div>
+                {previewBeer.notes && <div><p className="mb-1.5 text-sm font-medium text-slate-500">Tasting notes</p><ul className="space-y-1">{splitNote(previewBeer.notes).map((line, i) => <li key={i} className="flex gap-1.5 text-sm leading-snug text-slate-600"><span style={{ color: C.brass }}>•</span><span>{line}.</span></li>)}</ul></div>}
                 <div>
                   <p className="mb-2 text-sm font-medium text-slate-500">Allergens</p>
                   {previewBeer.allergens.length ? <div className="flex flex-wrap gap-1.5">{previewBeer.allergens.map((a) => <Badge key={a} className="bg-slate-100 text-slate-700 border-slate-200">{a}</Badge>)}</div> : <p className="text-sm text-slate-500">None recorded.</p>}
@@ -3284,7 +3285,6 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                     </div>
                   ) : <p className="mt-2 flex items-center gap-1.5 text-sm text-emerald-700"><CheckCircle2 size={15} /> Verified by staff</p>}
                 </div>
-                {previewBeer.notes && <div><p className="mb-1.5 text-sm font-medium text-slate-500">Tasting notes</p><ul className="space-y-1">{splitNote(previewBeer.notes).map((line, i) => <li key={i} className="flex gap-1.5 text-sm leading-snug text-slate-600"><span style={{ color: C.brass }}>•</span><span>{line}.</span></li>)}</ul></div>}
               </div>
               <div className="sticky bottom-0 border-t bg-white p-4" style={{ borderColor: C.line }}>
                 <button onClick={() => doSwap(previewLine.id, swap.oldId, swap.slot)} className="flex w-full items-center justify-center gap-1.5 rounded-lg px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Check size={16} /> {swap.toRack ? "Rack this cask" : "Put on"}</button>
@@ -3395,6 +3395,8 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
               <DietaryBadges beer={beer} />
             </div>
 
+            {beer.notes && <div><p className="mb-1.5 text-sm font-medium text-slate-500">Tasting notes</p><ul className="space-y-1">{splitNote(beer.notes).map((line, i) => <li key={i} className="flex gap-1.5 text-sm leading-snug text-slate-600"><span style={{ color: C.brass }}>•</span><span>{line}.</span></li>)}</ul></div>}
+
             <div>
               <p className="mb-2 text-sm font-medium text-slate-500">Allergens</p>
               {beer.allergens.length ? <div className="flex flex-wrap gap-1.5">{beer.allergens.map((a) => <Badge key={a} className="bg-slate-100 text-slate-700 border-slate-200">{a}</Badge>)}</div> : <p className="text-sm text-slate-500">None recorded.</p>}
@@ -3405,8 +3407,6 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                 </div>
               ) : <p className="mt-2 flex items-center gap-1.5 text-sm text-emerald-700"><CheckCircle2 size={15} /> Verified by staff</p>}
             </div>
-
-            {beer.notes && <div><p className="mb-1.5 text-sm font-medium text-slate-500">Tasting notes</p><ul className="space-y-1">{splitNote(beer.notes).map((line, i) => <li key={i} className="flex gap-1.5 text-sm leading-snug text-slate-600"><span style={{ color: C.brass }}>•</span><span>{line}.</span></li>)}</ul></div>}
 
             <div className="space-y-2">
               <label className="block text-xs text-slate-500">Best before
