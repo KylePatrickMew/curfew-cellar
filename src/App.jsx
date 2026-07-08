@@ -3274,9 +3274,9 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                   <p className="text-base font-medium text-slate-700">{pmeta}</p>
                   <DietaryBadges beer={previewBeer} />
                 </div>
-                {previewBeer.notes && <div><p className="mb-1.5 text-sm font-medium text-slate-500">Tasting notes</p><ul className="space-y-1">{splitNote(previewBeer.notes).map((line, i) => <li key={i} className="flex gap-1.5 text-sm leading-snug text-slate-600"><span style={{ color: C.brass }}>•</span><span>{line}.</span></li>)}</ul></div>}
+                {previewBeer.notes && <div><Eyebrow>Tasting notes</Eyebrow><ul className="space-y-1">{splitNote(previewBeer.notes).map((line, i) => <li key={i} className="flex gap-1.5 text-sm leading-snug text-slate-600"><span style={{ color: C.brass }}>•</span><span>{line}.</span></li>)}</ul></div>}
                 <div>
-                  <p className="mb-2 text-sm font-medium text-slate-500">Allergens</p>
+                  <Eyebrow>Allergens</Eyebrow>
                   {previewBeer.allergens.length ? <div className="flex flex-wrap gap-1.5">{previewBeer.allergens.map((a) => <Badge key={a} className="bg-slate-100 text-slate-700 border-slate-200">{a}</Badge>)}</div> : <p className="text-sm text-slate-500">None recorded.</p>}
                   {!previewBeer.allergensVerified ? (
                     <div className="mt-2 flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-sm text-amber-800">
@@ -3375,30 +3375,30 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     return (
       <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(28,54,54,0.45)" }} onClick={() => setOpenId(null)}>
         <div className="w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white sm:rounded-2xl cc-pop" style={{ maxHeight: "92vh", overscrollBehaviorY: "none", WebkitOverflowScrolling: "touch" }} onClick={(e) => e.stopPropagation()}>
-          <div className="sticky top-0 flex items-start justify-between gap-2 border-b bg-white p-4" style={{ borderColor: C.line }}>
-            <div>
-              <h2 className="text-xl font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</h2>
-              <p className="text-sm text-slate-500">{beer.location || ""}</p>
+          <div className="sticky top-0 z-10 flex items-start justify-between gap-3 p-4 pl-5" style={{ background: "linear-gradient(180deg, #234342 0%, #1C3636 100%)", borderLeft: `4px solid ${TYPE_ACCENT[openLine.drinkType] || C.brass}`, boxShadow: "0 1px 0 rgba(184,134,43,0.28)" }}>
+            <div className="min-w-0">
+              <h2 className="text-xl font-bold leading-snug" style={{ color: C.cream, fontFamily: "var(--font-display)", letterSpacing: "0.01em" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</h2>
+              {beer.location ? <p className="mt-1 text-xs font-semibold uppercase" style={{ color: C.brassSoft, letterSpacing: "0.14em", fontFamily: "var(--font-data)" }}>{beer.location}</p> : null}
             </div>
-            <button onClick={() => setOpenId(null)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400"><X size={18} /></button>
+            <button onClick={() => setOpenId(null)} className="shrink-0 rounded-lg p-1.5 transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ color: "rgba(243,239,230,0.75)" }}><X size={18} /></button>
           </div>
           <div className="space-y-5 p-5">
             <div className="space-y-2.5">
-              <p className="text-base" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{meta}</p>
+              <p className="text-sm font-medium" style={{ color: C.inkSoft, fontFamily: "var(--font-data)" }}>{meta}</p>
               {measures && (
-                <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm" style={{ fontFamily: "var(--font-data)" }}>
-                  <span className="text-slate-700"><span className="text-slate-400">Pint</span> {measures.pint}</span>
-                  <span className="text-slate-700"><span className="text-slate-400">Half</span> {measures.half}</span>
-                  <span className="text-slate-700"><span className="text-slate-400">Schooner</span> {measures.schooner}</span>
+                <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1" style={{ fontFamily: "var(--font-data)" }}>
+                  <span className="flex items-baseline gap-1.5"><span className="text-2xl font-bold" style={{ color: C.ink }}>{measures.pint}</span><span className="text-xs font-semibold uppercase tracking-wider text-slate-400">pint</span></span>
+                  <span className="flex items-baseline gap-1 text-sm font-medium text-slate-600">{measures.half}<span className="text-xs text-slate-400">half</span></span>
+                  <span className="flex items-baseline gap-1 text-sm font-medium text-slate-600">{measures.schooner}<span className="text-xs text-slate-400">schooner</span></span>
                 </div>
               )}
               <DietaryBadges beer={beer} />
             </div>
 
-            {beer.notes && <div><p className="mb-1.5 text-sm font-medium text-slate-500">Tasting notes</p><ul className="space-y-1">{splitNote(beer.notes).map((line, i) => <li key={i} className="flex gap-1.5 text-sm leading-snug text-slate-600"><span style={{ color: C.brass }}>•</span><span>{line}.</span></li>)}</ul></div>}
+            {beer.notes && <div><Eyebrow>Tasting notes</Eyebrow><ul className="space-y-1">{splitNote(beer.notes).map((line, i) => <li key={i} className="flex gap-1.5 text-sm leading-snug text-slate-600"><span style={{ color: C.brass }}>•</span><span>{line}.</span></li>)}</ul></div>}
 
             <div>
-              <p className="mb-2 text-sm font-medium text-slate-500">Allergens</p>
+              <Eyebrow>Allergens</Eyebrow>
               {beer.allergens.length ? <div className="flex flex-wrap gap-1.5">{beer.allergens.map((a) => <Badge key={a} className="bg-slate-100 text-slate-700 border-slate-200">{a}</Badge>)}</div> : <p className="text-sm text-slate-500">None recorded.</p>}
               {!beer.allergensVerified ? (
                 <div className="mt-2 flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-sm text-amber-800">
@@ -3408,13 +3408,15 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
               ) : <p className="mt-2 flex items-center gap-1.5 text-sm text-emerald-700"><CheckCircle2 size={15} /> Verified by staff</p>}
             </div>
 
-            <div className="space-y-2">
-              <label className="block text-xs text-slate-500">Best before
-                <input type="date" value={openLine.bestBefore || ""} onChange={(e) => setBestBefore(openLine.id, e.target.value)} className="mt-0.5 w-full rounded-md border bg-white px-2 py-1 text-center text-xs focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ WebkitAppearance: "none", appearance: "none", fontSize: 12, lineHeight: "18px", textAlign: "center", colorScheme: "light", ...(bb && bb.level === "past" ? { borderColor: C.alert, color: C.alert } : { borderColor: C.line }) }} />
+            <div className="space-y-1.5">
+              <label className="flex items-center gap-3">
+                <span className="w-24 shrink-0 text-xs font-medium text-slate-500">Best before</span>
+                <input type="date" value={openLine.bestBefore || ""} onChange={(e) => setBestBefore(openLine.id, e.target.value)} className="min-w-0 flex-1 rounded-md border bg-white px-2 py-1 text-center text-xs focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ WebkitAppearance: "none", appearance: "none", fontSize: 12, textAlign: "center", colorScheme: "light", fontFamily: "var(--font-data)", ...(bb && bb.level === "past" ? { borderColor: C.alert, color: C.alert } : { borderColor: C.line, color: C.inkSoft }) }} />
               </label>
               {openLine.drinkType !== "cider" && openLine.drinkType !== "keykeg" && (
-                <label className="block text-xs text-slate-500">Delivered by
-                  <input value={openLine.caskOwner || ""} onChange={(e) => setCaskOwner(openLine.id, e.target.value)} placeholder="Brewery / distributor" className="mt-0.5 w-full rounded-md border px-2 py-1 text-center text-xs focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
+                <label className="flex items-center gap-3">
+                  <span className="w-24 shrink-0 text-xs font-medium text-slate-500">Delivered by</span>
+                  <input value={openLine.caskOwner || ""} onChange={(e) => setCaskOwner(openLine.id, e.target.value)} placeholder="Brewery / distributor" className="min-w-0 flex-1 rounded-md border bg-white px-2 py-1 text-center text-xs focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ borderColor: C.line, color: C.inkSoft, fontFamily: "var(--font-data)" }} />
                 </label>
               )}
             </div>
