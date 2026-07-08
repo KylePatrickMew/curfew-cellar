@@ -272,7 +272,7 @@ const GUIDE_SECTIONS = [
 const FontBoot = () => <style>{`@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&display=swap');
 :root { --font-data: 'Archivo', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; --font-display: 'Archivo', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }`}</style>;
 const VIEW_TITLES = { cellar: "Cellar", add: "Add Stock", library: "Library", allergens: "Allergen Sheet", stock: "Stock List", empties: "Empties to Return", stats: "Cellar Stats", guide: "How to Use", notify: "Notifications", backup: "Backup & Restore" };
-const SIZE_OPTIONS = ["Keg 30L", "Keg 50L", "Bag-in-box 20L"];
+const SIZE_OPTIONS = ["Bag-in-box 20L"];
 const FRESH_LIMIT = 4; // days on a cask before a quality check is worth a look
 const BB_SOON = 2;     // days before best-before to start flagging
 
@@ -2498,7 +2498,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           <Field label="Type">
             <div className="flex gap-2">
               {DRINK_TYPES.map((t) => (
-                <button key={t.key} onClick={() => setF({ drinkType: t.key, size: t.key === "cider" ? "Bag-in-box 20L" : t.key === "keg" ? "Keg 50L" : "" })}
+                <button key={t.key} onClick={() => setF({ drinkType: t.key, size: t.key === "cider" ? "Bag-in-box 20L" : "" })}
                   className="flex-1 rounded-lg border px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-400"
                   style={form.drinkType === t.key ? { background: C.ink, color: "#fff", borderColor: C.ink } : { borderColor: C.line, color: C.inkSoft }}>{t.label}</button>
               ))}
@@ -2510,7 +2510,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
               <input className={inputCls} inputMode="decimal" value={form.price} onChange={(e) => setF({ price: e.target.value })} placeholder="e.g. 4.40" />
               {priceNeedsConfirm && <p className="mt-1 text-xs font-medium" style={{ color: C.brass }}>Previous price. Please confirm</p>}
             </Field>
-            {form.drinkType !== "cask" && <Field label="Container"><select className={inputCls} value={form.size} onChange={(e) => setF({ size: e.target.value })}>{SIZE_OPTIONS.map((s) => <option key={s}>{s}</option>)}</select></Field>}
+            {form.drinkType !== "cask" && form.drinkType !== "keg" && <Field label="Container"><select className={inputCls} value={form.size} onChange={(e) => setF({ size: e.target.value })}>{SIZE_OPTIONS.map((s) => <option key={s}>{s}</option>)}</select></Field>}
           </div>
           {form.drinkType !== "cider" && form.drinkType !== "keykeg" && (
             <Field label="Delivered by">
