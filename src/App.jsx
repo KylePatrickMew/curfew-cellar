@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 // import { useCallback } from "react"; // might need later
 import {
   Plus, ClipboardList, BookOpen, Beer, Sparkles, Check, CheckCircle2,
-  AlertTriangle, Clock, X, ArrowRight, Trash2, Search, Loader2, Bell, Calendar, History, ChevronDown, Database, Download, Upload, Copy, QrCode, Camera, FileText, Package, MoreHorizontal, BarChart3, Pencil, Printer, RotateCcw, Compass, Lock,
+  AlertTriangle, Clock, X, ArrowRight, Trash2, Search, Loader2, Bell, Calendar, History, ChevronDown, Database, Download, Upload, Copy, QrCode, Camera, FileText, Package, MoreHorizontal, BarChart3, Pencil, Printer, RotateCcw, Compass, Lock, Share,
 } from "lucide-react";
 
 // ---------- Brand ----------
@@ -230,39 +230,30 @@ const b64ToBytes = (b64) => {
 
 const GUIDE_SECTIONS = [
   { title: "The Cellar screen", steps: [
-    ["Pouring board", "The numbered tiles, 1 to 10, match the pumps on the bar: IPA, Pale, Bitter, Stout, then Kegs and Ciders. Tap any beer to open it."],
-    ["Racked", "Casks settling before they go on, freshly racked or already vented."],
-    ["In Store", "Everything delivered but not yet racked, grouped by style and ordered by best before, soonest first. Whatever needs racking next sits right at the top."],
-    ["Bell", "At the top of the screen. It gathers anything worth a look: a cask past or near its best before, one that has been on a while, or a vented cask ready to tap."],
+    ["Pouring", "Each beer sits in the order of the pumps along the bar: IPA, Pale, Bitter, Stout, then Kegs and Ciders. Tap any beer for its details, price and tasting notes."],
+    ["Racked", "Marked by whether they're freshly racked, vented or already tapped and ready to hook up."],
+    ["In Store", "Delivered but not yet racked. Grouped by style, with the nearest best before at the top."],
+    ["The Bell", "Top of the screen. It flags anything worth a look: a best before drawing close, a cask that's been on a while, or one vented and ready to tap."],
   ]},
   { title: "When a delivery arrives", steps: [
-    ["Scan it in", "On the Add tab, Scan a cask label fills everything in from a photo, best before and supplier included. Scan an invoice or Paste a list takes a whole delivery at once. Check the details, then Confirm all sends every beer straight into In Store."],
-    ["Or pick from your library", "Search for anything you've stocked before and the details carry over, last price and supplier included. Each is marked Please confirm, so nothing is ever assumed."],
-    ["Autofill", "Type a name and tap Autofill for the style, ABV, allergens, vegan and gluten status, and tasting notes. Always confirm details against the brewery's own information."],
-    ["Staff verified", "Tick Details verified once you've checked them against the brewery's own information. Until then, a friendly reminder follows the beer around, on the Allergen Sheet, the Library and its Cellar card, so it's never missed."],
-  ]},
-  { title: "The cask lifecycle", steps: [
-    ["In Store", "Delivered and waiting."],
-    ["Racked", "Up on the stillage to settle."],
-    ["Vented", "Soft spile in, conditioning."],
-    ["Tapped", "Tapped and ready to serve."],
-    ["Pouring", "On the bar."],
-    ["Finished", "Empty. Moves to Empties for collection."],
+    ["Scan it in", "On the Add tab, take a picture of a cask label and it fills itself in, best before and supplier too. A picture of the invoice can add a whole delivery at once."],
+    ["Confirm all", "Check the details look right, then tap Confirm all. Every beer drops straight into In Store."],
+    ["Stocked it before?", "It automatically searches your library for anything you've had on before, details and last price included."],
+    ["Autofill", "Adding one by hand instead? Type just the name and tap Autofill, and it looks up the style, ABV, allergens and tasting notes for you. Always check against the brewery's own info."],
+    ["Verify it", "Once checked, tick Details verified. Until you do, a gentle reminder follows the beer around so it's never missed."],
   ]},
   { title: "When a beer finishes", steps: [
-    ["Line finished", "Open the beer and tap Line finished, then choose its replacement from what is Tapped, Vented or Racked."],
-    ["Fill the empty rack", "The slot it leaves shows Rack from store. Tap it to bring a cask up from In Store."],
-    ["The empty cask", "It joins Empties automatically, grouped by supplier, so nothing is missed on collection day."],
-    ["Changed your mind", "Any move or removal leaves an Undo for a few seconds. Tapped the wrong beer? Undo it and go again, no harm done."],
+    ["Line finished", "Open the beer, hit Line finished, and pick what replaces it from whatever is Tapped, Vented or Racked."],
+    ["Rack the next beer", "The empty slot shows Rack from store. Tap it and choose what's next to roll up."],
+    ["The empty cask", "It moves to Empties on its own, sorted by supplier, ready for collection."],
   ]},
   { title: "The Library", steps: [
-    ["Every beer, remembered", "Details, tasting notes and allergens, plus every past price and supplier. The history button on each row shows the full trail."],
-    ["Archive, not delete", "Editing a beer lets you Archive one you won't stock again. Its history stays safe, and you can bring it back any time."],
+    ["Every beer, remembered", "Details, tasting notes, allergens, and every past price and supplier. Tap the history button on a row to see it all."],
   ]},
   { title: "Sharing and printing", steps: [
-    ["Stock List and Allergen Sheet", "Under More. Print or Share PDF for staff reference and allergen queries."],
-    ["Customer Tap List", "A customer-friendly what's on, priced by pint, half and schooner."],
-    ["Empties to Return", "On the Empties screen, Share PDF lists everything waiting to go back, grouped by supplier for collection day."],
+    ["Stock List and Allergen Sheet", "Under More. Print or share as a PDF for staff and allergen questions."],
+    ["Customer Tap List", "A tidy list of what's currently on for customers, priced by pint, half and schooner."],
+    ["Empties to Return", "On the Empties screen, the share button sends a list of everything ordered by supplier, ready for collection."],
   ]},
 ];
 
@@ -666,8 +657,6 @@ export default function TheCurfewCellar() {
   const [scanProgress, setScanProgress] = useState(null);
   const [batchSource, setBatchSource] = useState("invoice");
   const [distributors, setDistributors] = useState(seedDistributors);
-  const [listText, setListText] = useState("");
-  const [showList, setShowList] = useState(false);
   const [invoiceItems, setInvoiceItems] = useState(null);
   const [invoiceOwner, setInvoiceOwner] = useState("");
   const labelRef = useRef(null);
@@ -2064,33 +2053,6 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     } finally { setScanning(false); }
   };
   const updateInvoice = (idx, patch) => setInvoiceItems((items) => items.map((x, i) => (i === idx ? { ...x, ...patch } : x)));
-  const importListText = async (text) => {
-    if (!text.trim()) return;
-    setScanning(true); setScanError(null); setInvoiceItems(null); setScanProgress("Reading your list…");
-    try {
-      const known = distributors.filter((d) => d.trim());
-      const prompt = `This is a delivery / price list a UK pub got from suppliers, pasted as text. It is grouped into sections. A section usually starts with a distributor or supplier name${known.length ? ` (known ones: ${known.join(", ")})` : ""} and/or a format word (Cask, Keg, Cider, Can). Each drink line is roughly "Brewery Beer Name PRICE".\nFor every cask, keg or cider drink (SKIP cans and anything that isn't a drink), return STRICT JSON array only:\n[{"brewery": string, "name": string, "drinkType": "cask"|"keg"|"cider", "distributor": "the section's distributor if there is one, matched to a known name where possible, else empty", "price": "number as string or empty", "abv": "look it up, number as string or empty", "style": "look it up, short style or empty"}]\nSplit brewery from beer name using your knowledge of UK breweries (e.g. "Oakham Citra" = brewery Oakham, beer Citra). JSON array only.\n\nLIST:\n${text}`;
-      const res = await fetch("/api/anthropic", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: MODEL, max_tokens: 2500, messages: [{ role: "user", content: prompt }], tools: [{ type: "web_search_20250305", name: "web_search" }] }),
-      });
-      if (!res.ok) throw new Error("status " + res.status);
-      const data = await res.json();
-      const out = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("").trim();
-      const arr = parseLooseJSON(out);
-      if (!Array.isArray(arr) || !arr.length) throw new Error("empty");
-      const items = arr.filter((x) => x && x.name).map((x, i) => {
-        const dt = x.drinkType === "keg" ? "keg" : x.drinkType === "cider" ? "cider" : "cask";
-        const style = x.style ? String(x.style) : "";
-        const abv = x.abv != null ? String(x.abv) : "";
-        return { id: "ls" + i, include: true, drinkType: dt, brewery: x.brewery ? String(x.brewery) : "", location: "", name: String(x.name), abv, price: x.price != null ? String(x.price) : "", bestBefore: "", caskOwner: x.distributor ? String(x.distributor) : "", style, clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "", category: dt === "cask" ? categorise(style, abv) : "Misc" };
-      });
-      if (!items.length) throw new Error("empty");
-      setInvoiceItems(items); setBatchSource("list"); setInvoiceOwner(""); setAddMode("invoice"); setShowList(false); setListText("");
-    } catch (e) {
-      setScanError("Couldn't read that list. Check it's pasted in, or add items by hand.");
-    } finally { setScanning(false); setScanProgress(null); }
-  };
   const importInvoice = () => {
     const chosen = (invoiceItems || []).filter((x) => x.include && x.name.trim());
     if (!chosen.length) return;
@@ -2362,7 +2324,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
         <div className="mx-auto max-w-2xl space-y-4">
           <button onClick={() => { setAddMode("pick"); setInvoiceItems(null); }} className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"><ArrowRight size={14} className="rotate-180" /> Back</button>
           <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
-            <p className="text-base font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{batchSource === "labels" ? "Scanned labels" : batchSource === "list" ? "From your list" : "Delivery items"}</p>
+            <p className="text-base font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{batchSource === "labels" ? "Scanned labels" : "Delivery items"}</p>
             <p className="mt-1 text-sm text-slate-500">Check the details below, then confirm. Each one saves to your library and goes straight into In Store{batchSource === "labels" ? ", best before and supplier included" : ""}.</p>
             <div className="mt-3 space-y-2">
               {items.length === 0 && <p className="py-3 text-center text-sm text-slate-400">Nothing found.</p>}
@@ -2425,17 +2387,8 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
             <div className="mt-3 flex flex-wrap gap-2">
               <button onClick={() => labelRef.current && labelRef.current.click()} disabled={scanning} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:opacity-60" style={{ background: C.ink }}><Camera size={16} /> Scan a cask label / pump clip</button>
               <button onClick={() => invoiceRef.current && invoiceRef.current.click()} disabled={scanning} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-60" style={{ borderColor: C.line }}><FileText size={16} /> Scan an invoice</button>
-              <button onClick={() => setShowList((v) => !v)} disabled={scanning} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-60" style={{ borderColor: C.line }}><ClipboardList size={16} /> Paste a list</button>
               <button onClick={startNewBeer} disabled={scanning} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-60" style={{ borderColor: C.line }}><Plus size={16} /> Add manually</button>
             </div>
-            {showList && (
-              <div className="mt-3">
-                <textarea value={listText} onChange={(e) => setListText(e.target.value)} rows={6} placeholder={"Paste a delivery or price list, e.g.\n\nClark's cask\nOakham Citra 4.90\nTimothy Taylor Golden Best 4.30"} className="w-full rounded-lg border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
-                <div className="mt-2 flex items-center gap-2">
-                  <button onClick={() => importListText(listText)} disabled={scanning || !listText.trim()} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:opacity-60" style={{ background: C.ink }}><Plus size={16} /> Add list</button>
-                </div>
-              </div>
-            )}
             {scanning && <p className="mt-2 inline-flex items-center gap-2 text-sm text-slate-500"><Loader2 size={14} className="animate-spin" /> {scanProgress || "Reading… this can take a few seconds."}</p>}
             {scanError && <p className="mt-2 text-sm text-amber-700">{scanError}</p>}
           </div>
@@ -2671,7 +2624,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
   const Guide = () => (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <button onClick={shareGuidePDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-1.5 py-1.5 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40 focus:outline-none" style={{ color: "#778883" }}>{pdfBusy ? <Loader2 className="animate-spin" size={13} /> : <Download size={13} />} Share PDF</button>
+        <button onClick={shareGuidePDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-1.5 py-1.5 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40 focus:outline-none" style={{ color: "#778883" }}>{pdfBusy ? <Loader2 className="animate-spin" size={13} /> : <Share size={13} />} Share</button>
       </div>
       {GUIDE_SECTIONS.map((sec) => (
         <div key={sec.title} className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
@@ -2903,7 +2856,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-end gap-3">
-          <button onClick={shareEmptiesPDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-1 py-1 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40 focus:outline-none" style={{ color: "#778883" }}>{pdfBusy ? <Loader2 className="animate-spin" size={13} /> : <Download size={13} />} Share PDF</button>
+          <button onClick={shareEmptiesPDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-1 py-1 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40 focus:outline-none" style={{ color: "#778883" }}>{pdfBusy ? <Loader2 className="animate-spin" size={13} /> : <Share size={13} />} Share</button>
           <button onClick={() => go("cellar")} className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"><ArrowRight size={14} className="rotate-180" /> Back</button>
         </div>
         {empties.length === 0 && (
@@ -3018,7 +2971,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     return (
       <div className="space-y-4">
         <div className="no-print flex items-center justify-end gap-2">
-          <button onClick={shareAllergenPDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-1.5 py-1.5 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40 focus:outline-none" style={{ color: "#778883" }}>{pdfBusy ? <Loader2 className="animate-spin" size={13} /> : <Download size={13} />} Share PDF</button>
+          <button onClick={shareAllergenPDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-1.5 py-1.5 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40 focus:outline-none" style={{ color: "#778883" }}>{pdfBusy ? <Loader2 className="animate-spin" size={13} /> : <Share size={13} />} Share</button>
           <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Printer size={15} /> Print</button>
         </div>
         <div id="allergen-sheet" className="cc-elev rounded-xl border p-5" style={{ background: C.paper, borderColor: C.line }}>
@@ -3097,7 +3050,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     return (
       <div className="space-y-4">
         <div className="no-print flex items-center justify-end gap-2">
-          <button onClick={sharePDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-1.5 py-1.5 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40 focus:outline-none" style={{ color: "#778883" }}>{pdfBusy ? <Loader2 className="animate-spin" size={13} /> : <Download size={13} />} Share PDF</button>
+          <button onClick={sharePDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-1.5 py-1.5 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40 focus:outline-none" style={{ color: "#778883" }}>{pdfBusy ? <Loader2 className="animate-spin" size={13} /> : <Share size={13} />} Share</button>
           <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Printer size={15} /> Print</button>
         </div>
         <div className="cc-elev rounded-xl border p-5" style={{ background: C.paper, borderColor: C.line }}>
@@ -3191,7 +3144,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
               <p className="mt-0.5 text-xs uppercase tracking-widest" style={{ color: C.brassSoft }}>What's on today</p>
               {fmtUpdated(lastUpdated) && <p className="mt-2 text-xs" style={{ color: "rgba(243,239,230,0.5)" }}>Last updated: {fmtUpdated(lastUpdated)}</p>}
               <div className="mt-1 flex items-center gap-4">
-                <button onClick={shareTapListPDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-0 py-1 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40" style={{ color: "rgba(209,164,74,0.75)" }}>{pdfBusy ? <Loader2 className="animate-spin" size={12} /> : <Download size={12} />} Share PDF</button>
+                <button onClick={shareTapListPDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-0 py-1 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40" style={{ color: "rgba(209,164,74,0.75)" }}>{pdfBusy ? <Loader2 className="animate-spin" size={12} /> : <Share size={12} />} Share</button>
                 <button onClick={() => go("cellar")} className="inline-flex items-center px-0 py-1 text-xs font-medium transition hover:opacity-70" style={{ color: "rgba(209,164,74,0.75)" }}>Exit preview</button>
               </div>
             </div>
