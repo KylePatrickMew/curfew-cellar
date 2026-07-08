@@ -233,7 +233,7 @@ const GUIDE_SECTIONS = [
     ["Pouring board", "The numbered tiles, 1 to 10, match the pumps on the bar: IPA, Pale, Bitter, Stout, then Kegs and Ciders. Tap any beer to open it."],
     ["Racked", "Casks settling before they go on, freshly racked or already vented."],
     ["In Store", "Everything delivered but not yet racked, grouped by style and ordered by best before, soonest first. Whatever needs racking next sits right at the top."],
-    ["The bell", "At the top of the screen. It gathers anything worth a look: a cask past or near its best before, one that has been on a while, or a vented cask ready to tap."],
+    ["Bell", "At the top of the screen. It gathers anything worth a look: a cask past or near its best before, one that has been on a while, or a vented cask ready to tap."],
   ]},
   { title: "When a delivery arrives", steps: [
     ["Scan it in", "On the Add tab, Scan a cask label fills everything in from a photo, best before and supplier included. Scan an invoice or Paste a list takes a whole delivery at once. Check the details, then Confirm all sends every beer straight into In Store."],
@@ -338,6 +338,10 @@ const BB_STYLE = {
 };
 
 // auto-categorise by your rules; falls back to Misc when unsure
+// Some ciders end up with the same word in both Style and Sweetness (e.g. "Sweet" typed
+// into Style too), which would otherwise display as "Sweet · Sweet". Only show sweetness
+// as extra detail when it isn't just repeating the style.
+const extraSweetness = (beer) => (beer.sweetness && beer.sweetness.trim().toLowerCase() !== (beer.style || "").trim().toLowerCase()) ? beer.sweetness : "";
 const categorise = (style, abv) => {
   const s = (style || "").toLowerCase();
   if (/stout|porter/.test(s)) return "Stout/Porter";
@@ -1964,7 +1968,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
   const pickBeer = (beer) => { loadBeerIntoForm(beer); setFillNote({ type: "ok", text: `Loaded "${beer.name}". Just set price, best before and status.` }); setAddMode("form"); };
   const startNewBeer = () => { setForm(emptyForm); setFillNote(null); setAddMode("form"); };
   const addLineOfBeer = (beer) => { loadBeerIntoForm(beer); setFillNote({ type: "ok", text: `Loaded "${beer.name}" from your library.` }); setAddMode("form"); setView("add"); };
-  const go = (v) => { if (v === "add") { setAddMode("pick"); setAddPickSearch(""); setForm(emptyForm); setFillNote(null); } setView(v); if (scrollAreaRef.current) scrollAreaRef.current.scrollTo({ top: 0, behavior: "smooth" }); };
+  const go = (v) => { if (v === "add") { setAddMode("pick"); setAddPickSearch(""); setForm(emptyForm); setFillNote(null); } if (v === "empties") setPrefs((p) => ({ ...p, empties: {} })); setView(v); if (scrollAreaRef.current) scrollAreaRef.current.scrollTo({ top: 0, behavior: "smooth" }); };
 
   const fileToBase64 = (file) => new Promise((resolve, reject) => {
     const r = new FileReader();
@@ -2413,7 +2417,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
         <button key={b.id} onClick={() => pickBeer(b)} className="flex w-full items-center justify-between gap-2 rounded-lg border p-2.5 text-left transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: CAT_ACCENT[b.category] || C.line }}>
           <span className="min-w-0">
             <span className="block truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{b.brewery ? `${b.brewery} - ` : ""}{b.name}</span>
-            <span className="block truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{b.style} · {b.abv}%{b.sweetness ? ` · ${b.sweetness}` : ""}</span>
+            <span className="block truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{b.style} · {b.abv}%{extraSweetness(b) ? ` · ${extraSweetness(b)}` : ""}</span>
             <span className="block truncate text-xs text-slate-400">{b.location || ""}</span>
           </span>
           <span className="shrink-0 text-xs text-slate-400">{latestPrice(b) ? `last £${latestPrice(b)} ` : ""}→</span>
@@ -2546,7 +2550,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{b.brewery ? `${b.brewery} - ` : ""}{b.name}</p>
-              <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{b.style} · {b.abv}%{b.sweetness ? ` · ${b.sweetness}` : ""}{!b.allergensVerified ? " · not staff verified" : ""}</p>
+              <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{b.style} · {b.abv}%{extraSweetness(b) ? ` · ${extraSweetness(b)}` : ""}{!b.allergensVerified ? " · not staff verified" : ""}</p>
               <p className="truncate text-xs text-slate-400">{b.location || ""}{latestPrice(b) ? ` · Previous: £${latestPrice(b)}` : ""}{latestSupplier(b) ? ` · from ${latestSupplier(b)}` : ""}</p>
             </div>
             <div className="flex shrink-0 items-center gap-1">
@@ -3067,7 +3071,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
         <div className="mb-1.5 flex items-start justify-between gap-3 rounded-lg border px-2.5 py-2" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[l.drinkType] || C.line }}>
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</p>
-            <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{dt} · {beer.style}{beer.sweetness ? ` · ${beer.sweetness}` : ""} · {beer.abv}%</p>
+            <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{dt} · {beer.style}{extraSweetness(beer) ? ` · ${extraSweetness(beer)}` : ""} · {beer.abv}%</p>
             <p className="truncate text-xs text-slate-500" style={{ fontFamily: "var(--font-data)" }}>{beer.location || ""}{(l.caskOwner && l.drinkType !== "cider" && l.drinkType !== "keykeg") ? `${beer.location ? " · " : ""}Delivered by: ${l.caskOwner}` : ""}</p>
           </div>
           <div className="shrink-0 text-right" style={{ fontFamily: "var(--font-data)" }}>
@@ -3173,7 +3177,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
               {tlp && <p className="text-xs" style={{ color: "rgba(243,239,230,0.55)" }}>Half {tlp.half} · Schooner {tlp.schooner}</p>}
             </div>
           </div>
-          <p className="text-sm font-medium" style={{ color: "rgba(243,239,230,0.85)" }}>{beer.style}{beer.sweetness ? ` · ${beer.sweetness}` : ""} · {beer.abv}%{beer.clarity === "Hazy" ? " · Hazy" : ""}</p>
+          <p className="text-sm font-medium" style={{ color: "rgba(243,239,230,0.85)" }}>{beer.style}{extraSweetness(beer) ? ` · ${extraSweetness(beer)}` : ""} · {beer.abv}%{beer.clarity === "Hazy" ? " · Hazy" : ""}</p>
           {beer.location && <p className="text-xs" style={{ color: "rgba(243,239,230,0.5)" }}>{beer.location}</p>}
           {beer.notes && <ul className="mt-1 space-y-0.5">{splitNote(beer.notes).map((line, i) => <li key={i} className="flex gap-1.5 text-sm italic" style={{ color: faint }}><span>·</span><span>{line}.</span></li>)}</ul>}
           <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -3370,7 +3374,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     const alert = (f && openLine.status === "on" && f.level === "check") ? { cls: FRESH_STYLE.check, Icon: Clock, text: f.text } : null;
     const AlertIcon = alert ? alert.Icon : null;
     const sizeShort = openLine.size ? openLine.size.replace("Bag-in-box ", "").replace("Keg ", "") : "";
-    const meta = [DRINK_TYPES.find((t) => t.key === openLine.drinkType)?.label, beer.style, beer.sweetness || null, `${beer.abv}%`, sizeShort].filter(Boolean).join("  ·  ");
+    const meta = [DRINK_TYPES.find((t) => t.key === openLine.drinkType)?.label, beer.style, extraSweetness(beer) || null, `${beer.abv}%`, sizeShort].filter(Boolean).join("  ·  ");
     const measures = priceTriple(openLine.price);
     return (
       <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(28,54,54,0.45)" }} onClick={() => setOpenId(null)}>
