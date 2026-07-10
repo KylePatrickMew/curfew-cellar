@@ -333,6 +333,20 @@ const BB_STYLE = {
 // into Style too), which would otherwise display as "Sweet · Sweet". Only show sweetness
 // as extra detail when it isn't just repeating the style.
 const extraSweetness = (beer) => (beer.sweetness && beer.sweetness.trim().toLowerCase() !== (beer.style || "").trim().toLowerCase()) ? beer.sweetness : "";
+// Groups empties by supplier, tolerant of case and stray whitespace (e.g. "6 Barrels" vs
+// "6 Barrells" won't split into two groups). `key` is the normalised match/state key; `label`
+// is the original casing of whichever entry was seen first, used for display.
+const ownerKey = (o) => (o || "Unknown").trim().toLowerCase() || "unknown";
+const groupByOwner = (items) => {
+  const map = new Map();
+  items.forEach((l) => {
+    const raw = (l.caskOwner || "Unknown").trim() || "Unknown";
+    const key = ownerKey(raw);
+    if (!map.has(key)) map.set(key, { key, label: raw, items: [] });
+    map.get(key).items.push(l);
+  });
+  return [...map.values()].sort((a, b) => (b.items.length - a.items.length) || a.label.localeCompare(b.label));
+};
 const categorise = (style, abv) => {
   const s = (style || "").toLowerCase();
   if (/stout|porter/.test(s)) return "Stout/Porter";
@@ -1278,13 +1292,9 @@ export default function TheCurfewCellar() {
       const empties = lines.filter(IS_EMPTY);
       if (empties.length) {
         sectionHead("Empties", empties.length);
-        const owners = [...new Set(empties.map((l) => l.caskOwner || "Unknown"))].sort((a, b) => {
-              const diff = empties.filter((l) => (l.caskOwner || "Unknown") === b).length - empties.filter((l) => (l.caskOwner || "Unknown") === a).length;
-              return diff !== 0 ? diff : a.localeCompare(b);
-            });
-        owners.forEach((owner) => {
-          subHead(owner);
-          empties.filter((l) => (l.caskOwner || "Unknown") === owner).forEach((l) => beerLine(l, "#96A19B", {}));
+        groupByOwner(empties).forEach(({ label, items }) => {
+          subHead(label);
+          items.forEach((l) => beerLine(l, "#96A19B", {}));
           y += 1;
         });
       }
@@ -2083,7 +2093,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
   const setCaskOwner = (id, v) => setLines((ls) => ls.map((c) => (c.id === id ? { ...c, caskOwner: v } : c)));
   const markCollected = (id) => { snapshotUndo("Empty marked collected"); setLines((ls) => ls.map((c) => (c.id === id ? { ...c, collected: true } : c))); };
   // TODO: line cleans tracker, keep meaning to do this
-  const markOwnerCollected = (owner) => { snapshotUndo("Empties marked collected"); setLines((ls) => ls.map((c) => (IS_EMPTY(c) && (c.caskOwner || "Unknown") === owner ? { ...c, collected: true } : c))); };
+  const markOwnerCollected = (key) => { snapshotUndo("Empties marked collected"); setLines((ls) => ls.map((c) => (IS_EMPTY(c) && ownerKey(c.caskOwner) === key ? { ...c, collected: true } : c))); };
 
   const byBB = (a, b) => {
     const da = a.bestBefore ? daysUntil(a.bestBefore) : Infinity;
@@ -2142,7 +2152,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
             <p className="truncate text-sm font-semibold leading-tight" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</p>
             {!beer.allergensVerified && <AlertTriangle size={13} className="shrink-0 text-amber-500" />}
           </div>
-          <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{beer.style} · {beer.abv}% · £{line.price || "--"}{beer.location ? ` · ${beer.location}` : ""}</p>
+          <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[beer.style || "", beer.abv ? `${beer.abv}%` : "", `£${line.price || "--"}`, beer.location || ""].filter(Boolean).join("  ·  ")}</p>
         </div>
         <div className="flex flex-wrap items-center gap-1" style={{ minHeight: 22 }}>
           <DietaryMini beer={beer} />
@@ -2372,7 +2382,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
         <button key={b.id} onClick={() => pickBeer(b)} className="flex w-full items-center justify-between gap-2 rounded-lg border p-2.5 text-left transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: CAT_ACCENT[b.category] || C.line }}>
           <span className="min-w-0">
             <span className="block truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{b.brewery ? `${b.brewery} - ` : ""}{b.name}</span>
-            <span className="block truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{b.style} · {b.abv}%{extraSweetness(b) ? ` · ${extraSweetness(b)}` : ""}</span>
+            <span className="block truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[b.style || "", b.abv ? `${b.abv}%` : "", extraSweetness(b)].filter(Boolean).join("  ·  ")}</span>
             <span className="block truncate text-xs text-slate-400">{b.location || ""}</span>
           </span>
           <span className="shrink-0 text-xs text-slate-400">{latestPrice(b) ? `last £${latestPrice(b)} ` : ""}→</span>
@@ -2496,7 +2506,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{b.brewery ? `${b.brewery} - ` : ""}{b.name}</p>
-              <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{b.style} · {b.abv}%{extraSweetness(b) ? ` · ${extraSweetness(b)}` : ""}{!b.allergensVerified ? " · not staff verified" : ""}</p>
+              <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[b.style || "", b.abv ? `${b.abv}%` : "", extraSweetness(b), !b.allergensVerified ? "not staff verified" : ""].filter(Boolean).join("  ·  ")}</p>
               <p className="truncate text-xs text-slate-400">{b.location || ""}{latestPrice(b) ? ` · Previous: £${latestPrice(b)}` : ""}{latestSupplier(b) ? ` · from ${latestSupplier(b)}` : ""}</p>
             </div>
             <div className="flex shrink-0 items-center gap-1">
@@ -2822,13 +2832,8 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
       const empties = lines.filter(IS_EMPTY);
       if (!empties.length) { doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(gray[0], gray[1], gray[2]); doc.text("No empties waiting for collection.", M, y); }
       else {
-        const owners = [...new Set(empties.map((l) => l.caskOwner || "Unknown"))].sort((a, b) => {
-          const diff = empties.filter((l) => (l.caskOwner || "Unknown") === b).length - empties.filter((l) => (l.caskOwner || "Unknown") === a).length;
-          return diff !== 0 ? diff : a.localeCompare(b);
-        });
-        owners.forEach((owner) => {
-          const items = empties.filter((l) => (l.caskOwner || "Unknown") === owner);
-          sectionHead(owner, items.length);
+        groupByOwner(empties).forEach(({ label, items }) => {
+          sectionHead(label, items.length);
           items.forEach(beerLine);
           y += 1.5;
         });
@@ -2849,10 +2854,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
 
   const Empties = () => {
     const empties = lines.filter(IS_EMPTY);
-    const owners = [...new Set(empties.map((l) => l.caskOwner || "Unknown"))].sort((a, b) => {
-      const diff = empties.filter((l) => (l.caskOwner || "Unknown") === b).length - empties.filter((l) => (l.caskOwner || "Unknown") === a).length;
-      return diff !== 0 ? diff : a.localeCompare(b);
-    });
+    const groups = groupByOwner(empties);
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-end gap-3">
@@ -2866,20 +2868,19 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
             <p className="mt-1 text-sm text-slate-500">No empties waiting for collection.</p>
           </div>
         )}
-        {owners.map((owner) => {
-          const items = empties.filter((l) => (l.caskOwner || "Unknown") === owner);
-          const open = !!prefs.empties[owner];
+        {groups.map(({ key, label, items }) => {
+          const open = !!prefs.empties[key];
           return (
-            <div key={owner} className="rounded-xl border" style={{ background: C.paper, borderColor: C.line }}>
-              <button onClick={() => setPrefs((p) => ({ ...p, empties: { ...p.empties, [owner]: !p.empties[owner] } }))} className="flex w-full items-center justify-between gap-2 p-3 text-left focus:outline-none">
-                <p className="font-semibold" style={{ color: C.ink }}>{owner} <span className="text-sm font-normal text-slate-400">· {items.length}</span></p>
+            <div key={key} className="rounded-xl border" style={{ background: C.paper, borderColor: C.line }}>
+              <button onClick={() => setPrefs((p) => ({ ...p, empties: { ...p.empties, [key]: !p.empties[key] } }))} className="flex w-full items-center justify-between gap-2 p-3 text-left focus:outline-none">
+                <p className="font-semibold" style={{ color: C.ink }}>{label} <span className="text-sm font-normal text-slate-400">· {items.length}</span></p>
                 <ChevronDown size={18} className="text-slate-400" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
               </button>
               {open && (
                 <>
                   {items.length > 1 && (
                     <div className="flex justify-end px-3 pb-1.5">
-                      <button onClick={() => markOwnerCollected(owner)} className="inline-flex items-center gap-1 px-1 py-1 text-xs font-medium transition hover:opacity-70 active:scale-95 focus:outline-none" style={{ color: "#778883" }}><Check size={13} /> All collected ({items.length})</button>
+                      <button onClick={() => markOwnerCollected(key)} className="inline-flex items-center gap-1 px-1 py-1 text-xs font-medium transition hover:opacity-70 active:scale-95 focus:outline-none" style={{ color: "#778883" }}><Check size={13} /> All collected ({items.length})</button>
                     </div>
                   )}
                   <ul className="space-y-1.5 px-3 pb-3">
@@ -3018,7 +3019,8 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</p>
             <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{dt} · {beer.style}{extraSweetness(beer) ? ` · ${extraSweetness(beer)}` : ""} · {beer.abv}%</p>
-            <p className="truncate text-xs text-slate-500" style={{ fontFamily: "var(--font-data)" }}>{beer.location || ""}{(l.caskOwner && l.drinkType !== "cider" && l.drinkType !== "keykeg") ? `${beer.location ? " · " : ""}Delivered by: ${l.caskOwner}` : ""}</p>
+            {beer.location && <p className="truncate text-xs text-slate-500" style={{ fontFamily: "var(--font-data)" }}>{beer.location}</p>}
+            {(l.caskOwner && l.drinkType !== "cider" && l.drinkType !== "keykeg") && <p className="truncate text-xs text-slate-500" style={{ fontFamily: "var(--font-data)" }}>Delivered by: {l.caskOwner}</p>}
           </div>
           <div className="shrink-0 text-right" style={{ fontFamily: "var(--font-data)" }}>
             {pump && <p className="text-xs font-semibold" style={{ color: C.brass }}>{pump}</p>}
@@ -3077,17 +3079,13 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           {(() => {
             const empties = lines.filter(IS_EMPTY);
             if (!empties.length) return null;
-            const owners = [...new Set(empties.map((l) => l.caskOwner || "Unknown"))].sort((a, b) => {
-              const diff = empties.filter((l) => (l.caskOwner || "Unknown") === b).length - empties.filter((l) => (l.caskOwner || "Unknown") === a).length;
-              return diff !== 0 ? diff : a.localeCompare(b);
-            });
             return (
               <div className="mt-4">
                 <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: C.brass }}>Empties · {empties.length}</h3>
-                {owners.map((owner) => (
-                  <div key={owner} className="mt-2">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{owner}</p>
-                    {empties.filter((l) => (l.caskOwner || "Unknown") === owner).map((l) => <Row key={l.id} l={l} stage={null} />)}
+                {groupByOwner(empties).map(({ key, label, items }) => (
+                  <div key={key} className="mt-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+                    {items.map((l) => <Row key={l.id} l={l} stage={null} />)}
                   </div>
                 ))}
               </div>
@@ -3117,7 +3115,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
       return (
         <div className="py-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
           <div className="flex items-baseline justify-between gap-3">
-            <p className="text-lg font-semibold" style={{ color: C.cream, fontFamily: "var(--font-display)" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</p>
+            <p className="min-w-0 flex-1 text-lg font-semibold" style={{ color: C.cream, fontFamily: "var(--font-display)" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</p>
             <div className="shrink-0 text-right">
               <p className="text-lg font-semibold" style={{ color: C.brassSoft, fontFamily: "var(--font-display)" }}>{tlp ? tlp.pint : `£${line.price || "--"}`}</p>
               {tlp && <p className="text-xs" style={{ color: "rgba(243,239,230,0.55)" }}>Half {tlp.half} · Schooner {tlp.schooner}</p>}
@@ -3126,9 +3124,9 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           <p className="text-sm font-medium" style={{ color: "rgba(243,239,230,0.85)" }}>{beer.style}{extraSweetness(beer) ? ` · ${extraSweetness(beer)}` : ""} · {beer.abv}%{beer.clarity === "Hazy" ? " · Hazy" : ""}</p>
           {beer.location && <p className="text-xs" style={{ color: "rgba(243,239,230,0.5)" }}>{beer.location}</p>}
           {beer.notes && <ul className="mt-1 space-y-0.5">{splitNote(beer.notes).map((line, i) => <li key={i} className="flex gap-1.5 text-sm italic" style={{ color: faint }}><span>·</span><span>{line}.</span></li>)}</ul>}
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
-            {diet.map((d) => <span key={d} className="text-xs font-semibold uppercase tracking-wide" style={{ color: C.brassSoft }}>{d}</span>)}
-            <span className="text-xs" style={{ color: "rgba(243,239,230,0.45)" }}>{beer.allergensVerified ? (beer.allergens.length ? `Contains: ${beer.allergens.join(", ")}` : "No declared allergens") : "Allergens: please ask at the bar"}</span>
+          <div className="mt-1.5">
+            {diet.length > 0 && <p className="flex flex-wrap gap-x-3 text-xs font-semibold uppercase tracking-wide" style={{ color: C.brassSoft }}>{diet.map((d) => <span key={d}>{d}</span>)}</p>}
+            <p className="mt-1 text-xs" style={{ color: "rgba(243,239,230,0.45)" }}>{beer.allergensVerified ? (beer.allergens.length ? `Contains: ${beer.allergens.join(", ")}` : "No declared allergens") : "Allergens: please ask at the bar"}</p>
           </div>
         </div>
       );
@@ -3261,7 +3259,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
                         <button key={l.id} onClick={() => setSwapPreviewId(l.id)} className="flex w-full items-center justify-between gap-2 rounded-xl border p-3 text-left transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[swap.drink] || C.line }}>
                           <span className="min-w-0">
                             <span className="block font-semibold leading-snug" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</span>
-                            <span className="block truncate text-sm font-medium text-slate-600">{beer.style} · {beer.abv}%</span>
+                            <span className="block truncate text-sm font-medium text-slate-600">{[beer.style || "", beer.abv ? `${beer.abv}%` : ""].filter(Boolean).join("  ·  ")}</span>
                             <span className="block truncate text-xs text-slate-400">{beer.location || ""}</span>
                           </span>
                           <span className="flex shrink-0 items-center gap-1 text-xs text-slate-400">{when ? fmt(when) : ""} <ArrowRight size={14} /></span>
