@@ -374,7 +374,7 @@ Name: ${name.trim()}
 
 HOW TO WORK, in order:
 1. Search the web for this exact beer from this exact producer. Do not answer from memory alone.
-2. Prioritise the producer's own website or their own official product/trade page. That is the best source for ABV, vegan status, gluten status and allergens.
+2. Prioritise the producer's own website or their own official product/trade page. That is the best source for ABV, vegan status, gluten status and allergens. If the producer's own site gives you nothing for this beer, search Untappd for it specifically.
 3. Cross-check against at least one further independent source (a reputable retailer, wholesaler, or a beer database such as Untappd or RateBeer). If two sources disagree, prefer the producer's own.
 4. Confirm you have the RIGHT beer: the producer and product name must both match. Breweries reuse names, and different breweries have similarly named beers. If you cannot confirm you have the correct beer, say so rather than describing a different one.
 
@@ -398,22 +398,46 @@ Return STRICT JSON only. No markdown, no backticks, no commentary.
   "vegan": true or false,
   "allergens": ["choose ONLY from: ${ALLERGEN_OPTIONS.join(", ")}"],${isCider ? `
   "sweetness": "one of exactly: ${CIDER_SWEETNESS.join(" | ")}, as the producer actually describes it",` : ""}
-  "notes": "FLASHCARD FORMAT, like revision cards, not sentences. Part 1: 3 to 5 single words or very short phrases separated by commas, no linking words like \\"and\\" or \\"with\\", ending in a period (e.g. \\"Biscuity, citrus, pear.\\"). Part 2, ONLY if a source confirms a real fun fact about the beer or brewery (what the name refers to, a notable first, an award), written as one short plain clause under 10 words. If you cannot confirm a real fact, output part 1 only. Never invent a fact.",
+  "notes": "FLASHCARD FORMAT, like revision cards, not sentences. Part 1: 3 to 5 single words or very short phrases separated by commas, no linking words like \\"and\\" or \\"with\\", ending in a period (e.g. \\"Biscuity, citrus, pear.\\"). Part 2, ONLY if a source confirms a real fun fact about the beer or brewery (what the name refers to, a notable first, an award), written as one short plain clause under 10 words. Part 3, ONLY if the beer is vegan, gluten-free or low gluten: one short clause saying HOW, taken from a source (e.g. \\"Vegan, unfined.\\" or \\"Gluten removed with enzyme.\\"), so staff can answer dietary questions with confidence. If you cannot confirm a fact or a how, leave that part out. Never invent either.",
   "confidence": "verified | partial | unverified. Use 'verified' ONLY if you found this exact beer and confirmed the ABV and the dietary details against sources. Use 'partial' if you found the beer but could not confirm all of the dietary details. Use 'unverified' if you could not confirm you found the right beer at all.",
   "sources": ["the sites you actually used, e.g. the producer's own site. Empty if none."]
 }
 
 JSON only.`;
-// Turns the model's self-reported confidence into an honest message. A cheerful "done!" on a
-// guess is precisely what costs time behind the bar, so anything short of properly verified
-// says so plainly, and allergens always need a human tick regardless.
+// Deterministic sanity check run on every AI-filled result, no AI involved, just logic. Catches
+// internally inconsistent combinations that can slip past even a well-sourced AI answer, e.g.
+// marked vegan while isinglass (a fish product) is listed as an allergen. Returns plain-English
+// warnings, or an empty array if nothing looks contradictory.
+const checkContradictions = (f) => {
+  const warnings = [];
+  const allergens = Array.isArray(f.allergens) ? f.allergens : [];
+  const has = (a) => allergens.includes(a);
+  if (f.vegan && has("Fish (isinglass finings)")) warnings.push("Marked vegan, but isinglass finings (a fish product) is listed, these aren't compatible.");
+  if (f.vegan && has("Milk (lactose)")) warnings.push("Marked vegan, but milk/lactose is listed, these aren't compatible.");
+  if (f.glutenStatus === "Gluten-free" && ["Barley (gluten)", "Wheat (gluten)", "Oats (gluten)", "Rye (gluten)"].some(has)) {
+    warnings.push("Marked gluten-free, but a gluten grain is listed as an allergen, worth double-checking which is right.");
+  }
+  const abv = parseFloat(f.abv);
+  if (Number.isFinite(abv)) {
+    if (f.drinkType === "cider" ? (abv < 2 || abv > 12) : (abv < 2 || abv > 14)) {
+      warnings.push(`${abv}% is unusual for this style, worth confirming it's correct.`);
+    }
+  }
+  return warnings;
+};
+// Appends any contradiction warnings to a base note, without changing its type unless the base
+// note was otherwise a plain success (in which case a contradiction upgrades it to a warning).
+const withContradictionCheck = (note, fields) => {
+  const warnings = checkContradictions(fields);
+  if (!warnings.length) return note;
+  return { type: "warn", text: `${note.text} ${warnings.join(" ")}` };
+};
+// One concise message after autofill. Kyle's call: no stacked warnings, just a clear pointer
+// to the brewery's official information. The only exception keeps a warning tone: when the
+// model could not confirm it found the right beer at all, sounding confident would be worse.
 const autofillNote = (p) => {
-  const srcs = Array.isArray(p.sources) ? p.sources.filter(Boolean) : [];
-  const host = (s) => { try { return new URL(String(s)).hostname.replace(/^www\./, ""); } catch { return String(s); } };
-  const from = srcs.length ? ` Checked against ${srcs.slice(0, 2).map(host).join(" and ")}.` : "";
-  if (p.confidence === "verified") return { type: "ai", text: `Filled in and cross-checked.${from} Still confirm allergens before serving.` };
-  if (p.confidence === "unverified") return { type: "warn", text: "Could not confirm this is the right beer, so treat every field as a guess. Check the ABV and allergens against the cask or the brewery before serving." };
-  return { type: "warn", text: `Filled in, but some details could not be confirmed.${from} Check the ABV and allergens against the brewery's own information before serving.` };
+  if (p.confidence === "unverified") return { type: "warn", text: "This beer couldn't be confirmed, so treat the details as a guess. Always check against the brewery's official information." };
+  return { type: "ai", text: "Filled in. Always check against the brewery's official information." };
 };
 const categorise = (style, abv) => {
   const s = (style || "").toLowerCase();
@@ -1840,7 +1864,7 @@ export default function TheCurfewCellar() {
       const allergens = Array.isArray(p.allergens) ? p.allergens.filter((a) => ALLERGEN_OPTIONS.includes(a)) : [];
       const style = p.style ? String(p.style) : "";
       const abv = p.abv != null ? String(p.abv) : "";
-      setF({
+      const merged = {
         style: form.style.trim() ? form.style : style,
         abv: form.abv.trim() ? form.abv : abv,
         brewery: form.brewery.trim() ? form.brewery : (p.brewery ? cleanBrewery(p.brewery) : form.brewery),
@@ -1854,8 +1878,9 @@ export default function TheCurfewCellar() {
         allergensVerified: form.allergensVerified,
         category: form.drinkType === "cask" ? categorise(style, abv) : form.category,
         sweetness: form.sweetness ? form.sweetness : (CIDER_SWEETNESS.includes(p.sweetness) ? p.sweetness : form.sweetness),
-      });
-      setFillNote(autofillNote(p));
+      };
+      setF(merged);
+      setFillNote(withContradictionCheck(autofillNote(p), { ...merged, drinkType: form.drinkType }));
     } catch (err) {
       const d = aiDraft(form.name);
       setF({ ...d, category: form.drinkType === "cask" ? categorise(d.style, d.abv) : form.category, sweetness: form.sweetness ? form.sweetness : (d.sweetness || form.sweetness) });
@@ -2007,7 +2032,7 @@ export default function TheCurfewCellar() {
       const allergens = Array.isArray(p.allergens) ? p.allergens.filter((a) => ALLERGEN_OPTIONS.includes(a)) : beer.allergens;
       const style = p.style ? String(p.style) : beer.style;
       const abv = p.abv != null ? String(p.abv) : beer.abv;
-      updateBeer(beer.id, {
+      const merged = {
         style: beer.style ? beer.style : style,
         abv: beer.abv ? beer.abv : abv,
         brewery: beer.brewery.trim() ? beer.brewery : (p.brewery ? cleanBrewery(p.brewery) : beer.brewery),
@@ -2021,8 +2046,9 @@ export default function TheCurfewCellar() {
         allergensVerified: false,
         category: beer.category || categorise(style, abv),
         sweetness: beer.sweetness ? beer.sweetness : (CIDER_SWEETNESS.includes(p.sweetness) ? p.sweetness : beer.sweetness),
-      });
-      setEditNote(autofillNote(p));
+      };
+      updateBeer(beer.id, merged);
+      setEditNote(withContradictionCheck(autofillNote(p), { ...merged, drinkType: isCider ? "cider" : "cask" }));
     } catch (err) {
       setEditNote({ type: "warn", text: "Couldn't auto-fill just now. Add the details by hand." });
     } finally { setEditBusy(false); }
@@ -2081,7 +2107,7 @@ export default function TheCurfewCellar() {
     return (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("").trim();
   };
   const distHint = distributors.filter((d) => d.trim()).length ? ` Known distributors: ${distributors.filter((d) => d.trim()).join(", ")}. If one of these appears (often after "To:"), set deliveredBy to it, not the brewery.` : "";
-  const labelPrompt = `This image is a beer or cider pump clip, cask end, or bottle/can label. Read what's printed AND use your knowledge of this product (look it up if it helps) to complete the details accurately. Pay close attention to any printed allergen statement, ingredients list, "contains" or "allergy advice" text, or vegan/gluten-free logos on the label itself, cask casks and bottle labels very often state this explicitly. If the label states it, use exactly what it says over any general assumption. Return STRICT JSON only:\\n{"brewery": string, "location": "town or county the brewery is based in (use your knowledge if not printed)", "name": string, "kind": "beer"|"cider", "style": string, "abv": "number as string", "bestBefore": "best before date if printed, as YYYY-MM-DD, reading any dd/mm/yyyy in UK day-month order", "deliveredBy": "distributor or wholesaler named on the label, e.g. after 'To:', else empty", "clarity": "Clear|Hazy", "glutenStatus": "Standard|Low gluten|Gluten-free", "vegan": true|false, "allergens": [only from: ${ALLERGEN_OPTIONS.join(", ")}], "notes": "same flashcard format: part 1 is 3 to 5 comma-separated keywords, no linking words, e.g. \"Biscuity, citrus, pear.\" Part 2 only a genuine fun fact under 10 words if you know one, never invented, never more than these two parts"}\\nIf allergen or vegan/gluten-free information is printed on the label, use it directly. Otherwise recall the real, specific, published facts about this exact beer if you know them. Only as a last resort, estimate from the style: most ales then get "Barley (gluten)", most ciders get "Sulphites", vegan=false, glutenStatus="Standard". If a field isn't legible or known, use "" for text fields.${distHint} JSON only, no other text.`;
+  const labelPrompt = `This image is a beer or cider pump clip, cask end, or bottle/can label. Read what's printed AND use your knowledge of this product (look it up if it helps) to complete the details accurately. Pay close attention to any printed allergen statement, ingredients list, "contains" or "allergy advice" text, or vegan/gluten-free logos on the label itself, cask casks and bottle labels very often state this explicitly. If the label states it, use exactly what it says over any general assumption. Return STRICT JSON only:\\n{"brewery": string, "location": "town or county the brewery is based in (use your knowledge if not printed)", "name": string, "kind": "beer"|"cider", "style": string, "abv": "number as string", "bestBefore": "best before date if printed, as YYYY-MM-DD, reading any dd/mm/yyyy in UK day-month order", "deliveredBy": "distributor or wholesaler named on the label, e.g. after 'To:', else empty", "clarity": "Clear|Hazy", "glutenStatus": "Standard|Low gluten|Gluten-free", "vegan": true|false, "allergens": [only from: ${ALLERGEN_OPTIONS.join(", ")}], "notes": "same flashcard format: part 1 is 3 to 5 comma-separated keywords, no linking words, e.g. \"Biscuity, citrus, pear.\" Part 2 only a genuine fun fact under 10 words if you know one, never invented. Part 3 only if vegan, gluten-free or low gluten: one short clause saying HOW (e.g. Vegan, unfined.), from the label or a source, never invented"}\\nIf allergen or vegan/gluten-free information is printed on the label, use it directly. Otherwise verify against the brewery's own website, and if that gives nothing, Untappd, rather than assuming. Only as a last resort, estimate from the style: most ales then get "Barley (gluten)", most ciders get "Sulphites", vegan=false, glutenStatus="Standard". If a field isn't legible or known, use "" for text fields.${distHint} JSON only, no other text.`;
   const labelToItem = (p, i) => {
     const dt = p.kind === "cider" ? "cider" : "cask";
     const style = p.style ? String(p.style) : "";
@@ -2095,7 +2121,7 @@ export default function TheCurfewCellar() {
       const it = labelToItem(p, 0);
       setForm({ ...emptyForm, drinkType: it.drinkType, brewery: it.brewery, location: it.location, name: it.name, style: it.style, abv: it.abv, bestBefore: it.bestBefore, caskOwner: it.caskOwner, clarity: it.clarity, glutenStatus: it.glutenStatus, vegan: it.vegan, allergens: it.allergens, notes: it.notes, allergensVerified: false, category: it.category });
       setAddMode("form");
-      setFillNote({ type: "ai", text: "Read from the label. Check everything, especially allergens, before serving." });
+      setFillNote(withContradictionCheck({ type: "ai", text: "Read from the label. Check everything, especially allergens, before serving." }, it));
     } catch (e) {
       setScanError("Couldn't read that image. Try a clearer, well-lit photo, or enter it by hand.");
       setFillNote(null);
@@ -2418,6 +2444,7 @@ export default function TheCurfewCellar() {
                     <input type="checkbox" checked={x.include} onChange={(e) => updateInvoice(idx, { include: e.target.checked })} className="h-4 w-4" />
                     <input value={x.name} onChange={(e) => updateInvoice(idx, { name: e.target.value })} placeholder="Name" className={cellChk} style={{ borderColor: C.line }} />
                   </div>
+                  {(() => { const warn = checkContradictions(x); return warn.length > 0 && <p className="mt-1.5 flex items-start gap-1 text-xs" style={{ color: C.alert }}><AlertTriangle size={12} className="mt-0.5 shrink-0" /> {warn.join(" ")}</p>; })()}
                   <div className={`mt-2 grid grid-cols-2 gap-2 ${batchSource === "invoice" ? "sm:grid-cols-3" : "sm:grid-cols-4"}`}>
                     <input value={x.brewery} onChange={(e) => updateInvoice(idx, { brewery: e.target.value })} placeholder="Brewery" className="rounded border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
                     <input value={x.abv} onChange={(e) => updateInvoice(idx, { abv: e.target.value })} inputMode="decimal" placeholder="ABV %" className="rounded border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
@@ -3633,7 +3660,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
           </nav>
         </div>
       </header>
-      <div ref={scrollAreaRef} className="min-h-0 flex-1 overflow-y-auto" style={{ overscrollBehaviorY: "none", paddingBottom: "env(safe-area-inset-bottom)", ...((openId || editBeerId || swap || showAlerts || menuOpen) ? { overflow: "hidden", overflowY: "hidden", WebkitOverflowScrolling: "auto", touchAction: "none" } : { WebkitOverflowScrolling: "touch" }) }}>
+      <div ref={scrollAreaRef} className="min-h-0 flex-1 overflow-y-auto" style={{ overscrollBehaviorY: "none", paddingBottom: "env(safe-area-inset-bottom)", ...((openId || editBeerId || swap || showAlerts || menuOpen) ? { overflow: "hidden", overflowY: "hidden", WebkitOverflowScrolling: "auto" } : { WebkitOverflowScrolling: "touch" }) }}>
       <main className="mx-auto max-w-4xl px-4 pt-6 pb-28 sm:pb-6">
         {!hydrated ? (
           <div className="flex items-center justify-center gap-2 py-16 text-sm text-slate-500"><Loader2 size={16} className="animate-spin" /> Loading your cellar…</div>
