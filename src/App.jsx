@@ -3553,7 +3553,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
           </nav>
         </div>
       </header>
-      <div ref={scrollAreaRef} className="min-h-0 flex-1 overflow-y-auto" style={{ overscrollBehaviorY: "none", WebkitOverflowScrolling: "touch", paddingBottom: "env(safe-area-inset-bottom)", overflow: (openId || editBeerId || swap || showAlerts || menuOpen) ? "hidden" : undefined }}>
+      <div ref={scrollAreaRef} className="min-h-0 flex-1 overflow-y-auto" style={{ overscrollBehaviorY: "none", paddingBottom: "env(safe-area-inset-bottom)", ...((openId || editBeerId || swap || showAlerts || menuOpen) ? { overflow: "hidden", overflowY: "hidden", WebkitOverflowScrolling: "auto", touchAction: "none" } : { WebkitOverflowScrolling: "touch" }) }}>
       <main className="mx-auto max-w-4xl px-4 pt-6 pb-28 sm:pb-6">
         {!hydrated ? (
           <div className="flex items-center justify-center gap-2 py-16 text-sm text-slate-500"><Loader2 size={16} className="animate-spin" /> Loading your cellar…</div>
