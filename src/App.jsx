@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useLayoutEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 // import { useCallback } from "react"; // might need later
 import {
   Plus, ClipboardList, BookOpen, Beer, Sparkles, Check, CheckCircle2,
@@ -676,8 +676,6 @@ export default function TheCurfewCellar() {
   const labelRef = useRef(null);
   const invoiceRef = useRef(null);
   const scrollAreaRef = useRef(null);
-  const scrollLockY = useRef(0);
-  const isScrollLocked = useRef(false);
 
   const beerById = useMemo(() => Object.fromEntries(library.map((b) => [b.id, b])), [library]);
 
@@ -1634,27 +1632,6 @@ export default function TheCurfewCellar() {
     return () => { document.removeEventListener("keydown", onKey); };
   }, [openId, editBeerId, swap, showAlerts, menuOpen]);
 
-  useLayoutEffect(() => {
-    const el = scrollAreaRef.current;
-    if (!el) return;
-    const locked = !!(openId || editBeerId || swap || showAlerts || menuOpen);
-    if (locked && !isScrollLocked.current) {
-      scrollLockY.current = el.scrollTop;
-      el.style.position = "fixed";
-      el.style.top = `-${scrollLockY.current}px`;
-      el.style.left = "0";
-      el.style.right = "0";
-      el.style.bottom = "0";
-    } else if (!locked && isScrollLocked.current) {
-      el.style.position = "";
-      el.style.top = "";
-      el.style.left = "";
-      el.style.right = "";
-      el.style.bottom = "";
-      el.scrollTop = scrollLockY.current;
-    }
-    isScrollLocked.current = locked;
-  }, [openId, editBeerId, swap, showAlerts, menuOpen]);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
