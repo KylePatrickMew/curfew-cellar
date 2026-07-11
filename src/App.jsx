@@ -347,6 +347,74 @@ const groupByOwner = (items) => {
   });
   return [...map.values()].sort((a, b) => (b.items.length - a.items.length) || a.label.localeCompare(b.label));
 };
+// Brewery names come back from the AI with company suffixes attached ("Ossett Brewing Company
+// Limited", "Wharfedale Brewery Ltd"), which crowd out the beer's own name in lists. Strip the
+// trailing suffix words so only the distinctive part remains. Applied to AI output only, never
+// to what Kyle types by hand, and it never strips the name down to nothing.
+const cleanBrewery = (name) => {
+  if (!name) return "";
+  let out = String(name).trim();
+  for (let i = 0; i < 4; i++) {
+    const next = out.replace(/[\s,]+(?:limited|ltd\.?|co\.?|company|brewery|brewing|brewhouse|breweries|brewers|brew\s*co\.?|plc)$/i, "").trim();
+    if (next === out) break;
+    out = next;
+  }
+  return out || String(name).trim();
+};
+// Both autofill paths (Add Stock and Edit beer details) share this. Kept in one place so the
+// two can never drift apart. Wrong details cost real time behind the bar, so the model is told
+// to actually look things up and cross-check rather than answer from memory, and to admit when
+// it could not verify something instead of guessing confidently.
+const AUTOFILL_TOOLS = [{ type: "web_search_20250305", name: "web_search" }];
+const buildAutofillPrompt = (brewery, name, isCider) => `You help the cellar app for a UK micropub. Wrong details cost real time behind the bar and can mislead a customer with an allergy, so accuracy matters far more than filling every field.
+
+Product type: ${isCider ? "draught cider/perry" : "beer (cask or keg)"}
+Producer: ${brewery ? brewery.trim() : "(not given)"}
+Name: ${name.trim()}
+
+HOW TO WORK, in order:
+1. Search the web for this exact beer from this exact producer. Do not answer from memory alone.
+2. Prioritise the producer's own website or their own official product/trade page. That is the best source for ABV, vegan status, gluten status and allergens.
+3. Cross-check against at least one further independent source (a reputable retailer, wholesaler, or a beer database such as Untappd or RateBeer). If two sources disagree, prefer the producer's own.
+4. Confirm you have the RIGHT beer: the producer and product name must both match. Breweries reuse names, and different breweries have similarly named beers. If you cannot confirm you have the correct beer, say so rather than describing a different one.
+
+ACCURACY RULES, these matter most:
+- ABV: use the specific published ABV for this exact beer. Real ABVs are often not round numbers (4.1, 5.3). Never default to 4.0/4.5/5.0 out of habit.
+- Vegan: only true if a source explicitly states it (e.g. "suitable for vegans"). Cask ales are often fined with isinglass and are NOT vegan. If unstated, use false.
+- Gluten: only "Gluten-free" or "Low gluten" if a source explicitly says so. Otherwise "Standard".
+- Allergens: base these on the actual stated ingredients. Most ales contain Barley (gluten); many also list Wheat or Oats. Cask ales fined with isinglass must include "Fish (isinglass finings)". Most ciders are just "Sulphites".
+- Never state a vegan, gluten or allergen claim more confidently than your sources support.
+
+Return STRICT JSON only. No markdown, no backticks, no commentary.
+
+{
+  "brewery": "the producer's name, correctly spelled and capitalised, WITHOUT any company suffix (no Ltd, Limited, Co, Company, Brewery, Brewing, Brewhouse, plc). For example 'Ossett Brewing Company Limited' becomes 'Ossett', and 'Wharfedale Brewery Ltd' becomes 'Wharfedale'. Keep the distinctive part only.",
+  "name": "the product name with correct spelling and capitalisation",
+  "location": "town or county the producer is based in",
+  "style": ${isCider ? '"Dry | Medium | Sweet | Perry"' : '"e.g. Pale Ale, IPA, Blonde, Best Bitter, Mild, Stout, Porter"'},
+  "abv": "number as a string, e.g. 4.5",
+  "clarity": "Clear | Hazy",
+  "glutenStatus": "Standard | Low gluten | Gluten-free",
+  "vegan": true or false,
+  "allergens": ["choose ONLY from: ${ALLERGEN_OPTIONS.join(", ")}"],${isCider ? `
+  "sweetness": "one of exactly: ${CIDER_SWEETNESS.join(" | ")}, as the producer actually describes it",` : ""}
+  "notes": "FLASHCARD FORMAT, like revision cards, not sentences. Part 1: 3 to 5 single words or very short phrases separated by commas, no linking words like \\"and\\" or \\"with\\", ending in a period (e.g. \\"Biscuity, citrus, pear.\\"). Part 2, ONLY if a source confirms a real fun fact about the beer or brewery (what the name refers to, a notable first, an award), written as one short plain clause under 10 words. If you cannot confirm a real fact, output part 1 only. Never invent a fact.",
+  "confidence": "verified | partial | unverified. Use 'verified' ONLY if you found this exact beer and confirmed the ABV and the dietary details against sources. Use 'partial' if you found the beer but could not confirm all of the dietary details. Use 'unverified' if you could not confirm you found the right beer at all.",
+  "sources": ["the sites you actually used, e.g. the producer's own site. Empty if none."]
+}
+
+JSON only.`;
+// Turns the model's self-reported confidence into an honest message. A cheerful "done!" on a
+// guess is precisely what costs time behind the bar, so anything short of properly verified
+// says so plainly, and allergens always need a human tick regardless.
+const autofillNote = (p) => {
+  const srcs = Array.isArray(p.sources) ? p.sources.filter(Boolean) : [];
+  const host = (s) => { try { return new URL(String(s)).hostname.replace(/^www\./, ""); } catch { return String(s); } };
+  const from = srcs.length ? ` Checked against ${srcs.slice(0, 2).map(host).join(" and ")}.` : "";
+  if (p.confidence === "verified") return { type: "ai", text: `Filled in and cross-checked.${from} Still confirm allergens before serving.` };
+  if (p.confidence === "unverified") return { type: "warn", text: "Could not confirm this is the right beer, so treat every field as a guess. Check the ABV and allergens against the cask or the brewery before serving." };
+  return { type: "warn", text: `Filled in, but some details could not be confirmed.${from} Check the ABV and allergens against the brewery's own information before serving.` };
+};
 const categorise = (style, abv) => {
   const s = (style || "").toLowerCase();
   if (/stout|porter/.test(s)) return "Stout/Porter";
@@ -632,6 +700,9 @@ export default function TheCurfewCellar() {
   const [swapPreviewId, setSwapPreviewId] = useState(null);
   const [prefs, setPrefs] = useState({ on: true, racked: true, store: false, empties: {} });
   const [lastUpdated, setLastUpdated] = useState(() => new Date().toISOString());
+  // The realtime subscription is registered once, so it closes over stale state. Keep the
+  // newest lastUpdated in a ref so the staleness guard below always compares against reality.
+  const lastUpdatedRef = useRef(lastUpdated);
   const bumpReady = useRef(false);
   const skipBump = useRef(false);
   const cloudMode = typeof window !== "undefined" && !window.storage;
@@ -977,11 +1048,15 @@ export default function TheCurfewCellar() {
   // Wipe it to blank so staff re-autofill it and get the correct flashcard format.
   // Our correct keyword notes top out around 55 chars, so 70 is a safe threshold.
   // Not guarded by a pref -- runs on every load but only changes notes that are still too long.
+  // RETIRED. This used to delete the notes of any beer with over 70 characters, and it was
+  // never gated, so it re-ran on every load and kept wiping perfectly good autofilled notes
+  // (keywords plus a fun fact easily exceed 70 characters). Its original one-off cleanup of
+  // old sentence-style notes is long done, and the 70-character rule is simply wrong now, so
+  // it no longer deletes anything. It only marks itself complete, which permanently disarms
+  // it without destroying data. Do not reintroduce a length-based notes purge.
   const migrateNotes4 = (data) => {
-    if (!data) return data;
-    const lib = (data.library || []).map((b) => (b.notes && b.notes.length > 70) ? { ...b, notes: "" } : b);
-    const changed = (data.library || []).some((b) => b.notes && b.notes.length > 70);
-    return changed ? { ...data, library: lib, lastUpdated: new Date().toISOString() } : data;
+    if (!data || (data.prefs && data.prefs.notesV4)) return data;
+    return { ...data, prefs: { ...(data.prefs || {}), notesV4: true } };
   };
 
   // Force-rewrite every beer's tasting notes to the correct keyword/flashcard style.
@@ -1059,9 +1134,35 @@ export default function TheCurfewCellar() {
     const lib = (data.library || []).map((b) => (b.clarity === "Cloudy" ? { ...b, clarity: "Hazy" } : b));
     return { ...data, library: lib, prefs: { ...(data.prefs || {}), clarityV1: true }, lastUpdated: new Date().toISOString() };
   };
+  // One-off tidy of existing data, gated by prefs.tidyV1 so it can only ever run once.
+  // 1. Strips company suffixes from brewery names already in the library, so old entries match
+  //    what autofill now produces ("Ossett Brewing Company Limited" becomes "Ossett").
+  // 2. Backfills the library's price from the beer's live line, or failing that its last
+  //    recorded price, so the Edit beer details price field is no longer blank for anything
+  //    that arrived via a delivery.
+  // Deliberately does NOT touch tasting notes: the ones migrateNotes4 deleted are simply gone
+  // and cannot be recovered, so it would be dishonest to pretend otherwise. Re-autofill those.
+  // Deliberately does NOT touch caskOwner ("Delivered by"), because that is who collects the
+  // empties (LWC, HB Clark), not the brewery, and renaming it would break empties grouping.
+  const migrateTidy = (data) => {
+    if (!data || (data.prefs && data.prefs.tidyV1)) return data;
+    const lines = Array.isArray(data.lines) ? data.lines : [];
+    const lib = (data.library || []).map((b) => {
+      const next = { ...b };
+      if (b.brewery) next.brewery = cleanBrewery(b.brewery);
+      if (next.price === undefined || next.price === null || next.price === "") {
+        const live = lines.find((l) => l.beerId === b.id && l.status !== "off" && l.price);
+        const hist = (b.history || []).slice().reverse().find((h) => h && h.price);
+        const p = (live && live.price) || (hist && hist.price) || "";
+        if (p) next.price = String(p);
+      }
+      return next;
+    });
+    return { ...data, library: lib, prefs: { ...(data.prefs || {}), tidyV1: true }, lastUpdated: new Date().toISOString() };
+  };
   // The one migration chain. Every load path MUST parse through this, and any new
   // migration is added here only, so no call site can ever miss one.
-  const migrate = (json) => migrateClarity(migrateNotes5(migrateNotes4(migrateNotes3(migrateNotes2(migrateNotes(migrateEmpties2(migrateEmpties(migrateLaunch(JSON.parse(json))))))))));
+  const migrate = (json) => migrateTidy(migrateClarity(migrateNotes5(migrateNotes4(migrateNotes3(migrateNotes2(migrateNotes(migrateEmpties2(migrateEmpties(migrateLaunch(JSON.parse(json)))))))))));
   const applyData = (data, remote) => {
     if (!data) return;
     if (remote) skipBump.current = true;
@@ -1069,7 +1170,7 @@ export default function TheCurfewCellar() {
     if (Array.isArray(data.lines)) { const lib = Array.isArray(data.library) ? data.library : library; setLines(assignPumps(data.lines.map((l) => l.status === "en_route" ? { ...l, status: "in_cellar", dates: { ...l.dates, delivered: l.dates && l.dates.delivered ? l.dates.delivered : (l.dates && l.dates.ordered) || new Date().toISOString() } } : l), catFromLib(lib))); }
     if (Array.isArray(data.distributors)) setDistributors(data.distributors);
     if (data.prefs) setPrefs((p) => ({ ...p, ...data.prefs, store: false, empties: data.prefs.empties || {} }));
-    if (data.lastUpdated) setLastUpdated(data.lastUpdated);
+    if (data.lastUpdated) { lastUpdatedRef.current = data.lastUpdated; setLastUpdated(data.lastUpdated); }
   };
 
   // Load once on mount. In cloud mode the load waits for sign in (handled below).
@@ -1123,7 +1224,19 @@ export default function TheCurfewCellar() {
     let cancelled = false;
     (async () => {
       const ok = await loadCellar();
-      if (!cancelled && ok) store.subscribe((j) => { try { applyData(migrate(j), true); } catch (e) { /* ignore */ } });
+      // Only ever apply a remote payload that is genuinely NEWER than what this device holds.
+      // Without this guard, any remote write lands wholesale, including a stale snapshot
+      // force-written by a device that was backgrounded, which silently reverts live lines
+      // (e.g. a beer that was Pouring reappearing In Store).
+      if (!cancelled && ok) store.subscribe((j) => {
+        try {
+          const data = migrate(j);
+          const remoteAt = data && data.lastUpdated ? Date.parse(data.lastUpdated) : 0;
+          const localAt = lastUpdatedRef.current ? Date.parse(lastUpdatedRef.current) : 0;
+          if (!remoteAt || (localAt && remoteAt <= localAt)) return;
+          applyData(data, true);
+        } catch (e) { /* ignore */ }
+      });
     })();
     return () => { cancelled = true; };
   }, [authed]);
@@ -1622,7 +1735,9 @@ export default function TheCurfewCellar() {
     if (!hydrated) return;
     if (skipBump.current) { skipBump.current = false; return; }
     if (!bumpReady.current) { bumpReady.current = true; return; }
-    setLastUpdated(new Date().toISOString());
+    const now = new Date().toISOString();
+    lastUpdatedRef.current = now;
+    setLastUpdated(now);
   }, [lines, library, hydrated]);
 
   useEffect(() => {
@@ -1701,35 +1816,14 @@ export default function TheCurfewCellar() {
   const autoFill = async () => {
     if (!form.name.trim()) { setFillNote({ type: "warn", text: "Add a name first." }); return; }
     setLoading(true);
-    setFillNote({ type: "loading", text: "Filling in a draft…" });
+    setFillNote({ type: "loading", text: "Looking it up and checking sources…" });
     const isCider = form.drinkType === "cider";
-    const prompt = `You help the cellar app for a UK micropub. Given a producer and product name, return your best-known real details as STRICT JSON only. No markdown, no backticks, no commentary.
-
-Product type: ${isCider ? "draught cider/perry" : "beer (cask or keg)"}
-Producer: ${form.brewery.trim() || "(not given)"}
-Name: ${form.name.trim()}
-
-Return exactly:
-{
-  "brewery": "the producer name with correct spelling and capitalisation",
-  "name": "the product name with correct spelling and capitalisation",
-  "location": "town or county the producer is based in, your best knowledge",
-  "style": ${isCider ? '"Dry | Medium | Sweet | Perry"' : '"e.g. Pale Ale, IPA, Blonde, Best Bitter, Mild, Stout, Porter"'},
-  "abv": "number as a string, e.g. 4.5",
-  "clarity": "Clear | Hazy",
-  "glutenStatus": "Standard | Low gluten | Gluten-free",
-  "vegan": true or false,
-  "allergens": ["choose ONLY from: ${ALLERGEN_OPTIONS.join(", ")}"],${isCider ? `
-  "sweetness": "one of exactly: ${CIDER_SWEETNESS.join(" | ")}, your best knowledge of how this cider is actually described",` : ""}
-  "notes": "FLASHCARD FORMAT, like revision cards, not sentences. Part 1: 3 to 5 single words or very short phrases separated by commas, no linking words like \"and\" or \"with\", ending in a period (e.g. \"Biscuity, citrus, pear.\"). Part 2, ONLY if you know a real fun fact about the beer or brewery (what the name refers to, a notable first, an award), written as one short plain clause under 10 words, still no padding (e.g. \"Named after a Para Handy character.\"). If you do not know a real fact, output part 1 only. Never invent a fact, never write more than these two short parts"
-}
-
-Rules: Correct obvious misspellings or odd capitalisation in the producer and product names to the real ones you recognise (e.g. "hope back" -> "Hop Back", "sanford" -> "Sandford Orchards"), but do not swap in a different beer. For ABV, recall the real, specific, published ABV of that exact named beer from this producer if you know it (most named cask and keg beers have a fixed, well-documented ABV, often not a round number, e.g. 4.1 or 5.3). Only fall back to a style-typical estimate if you genuinely do not recognise the specific beer, and in that case keep the rest of the response otherwise unaffected. Do not default to round numbers like 4.0, 4.5 or 5.0 out of habit. For allergens, vegan status and gluten status, recall the real, specific, published facts about that exact named beer if you know them (many breweries state these explicitly, e.g. "suitable for vegans", "gluten-free", or list malted wheat/oats alongside barley), rather than defaulting to a generic style assumption. Only fall back to a style-typical default if you genuinely do not know the specific beer: most ales then get "Barley (gluten)" and most ciders get "Sulphites", vegan=false, and glutenStatus="Standard" (ciders are usually gluten-free unless fruited with something that changes that). Never state a vegan or gluten-free claim with more confidence than you actually have. JSON only.`;
+    const prompt = buildAutofillPrompt(form.brewery, form.name, isCider);
     let stage = "network";
     try {
       const res = await fetch("/api/anthropic", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: MODEL, max_tokens: 1000, messages: [{ role: "user", content: prompt }] }),
+        body: JSON.stringify({ model: MODEL, max_tokens: 3000, messages: [{ role: "user", content: prompt }], tools: AUTOFILL_TOOLS }),
       });
       if (!res.ok) throw new Error("status " + res.status);
       const data = await res.json();
@@ -1749,7 +1843,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
       setF({
         style: form.style.trim() ? form.style : style,
         abv: form.abv.trim() ? form.abv : abv,
-        brewery: form.brewery.trim() ? form.brewery : (p.brewery ? String(p.brewery) : form.brewery),
+        brewery: form.brewery.trim() ? form.brewery : (p.brewery ? cleanBrewery(p.brewery) : form.brewery),
         name: form.name.trim() ? form.name : (p.name ? String(p.name) : form.name),
         location: form.location.trim() ? form.location : (libraryLocationFor(p.brewery ? String(p.brewery) : form.brewery) || (p.location ? String(p.location) : form.location)),
         clarity: form.clarity ? form.clarity : (CLARITY_OPTIONS.includes(p.clarity) ? p.clarity : (p.clarity === "Cloudy" ? "Hazy" : "Clear")),
@@ -1761,7 +1855,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
         category: form.drinkType === "cask" ? categorise(style, abv) : form.category,
         sweetness: form.sweetness ? form.sweetness : (CIDER_SWEETNESS.includes(p.sweetness) ? p.sweetness : form.sweetness),
       });
-      setFillNote({ type: "ai", text: "Draft filled in. Check it, then confirm details against the brewery's own information before serving." });
+      setFillNote(autofillNote(p));
     } catch (err) {
       const d = aiDraft(form.name);
       setF({ ...d, category: form.drinkType === "cask" ? categorise(d.style, d.abv) : form.category, sweetness: form.sweetness ? form.sweetness : (d.sweetness || form.sweetness) });
@@ -1896,34 +1990,13 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
   const toggleBeerAllergen = (id, a) => setLibrary((lib) => lib.map((b) => (b.id === id ? { ...b, allergens: b.allergens.includes(a) ? b.allergens.filter((x) => x !== a) : [...b.allergens, a] } : b)));
   const autoFillBeer = async (beer) => {
     if (!beer.name || !beer.name.trim()) { setEditNote({ type: "warn", text: "Add a name first." }); return; }
-    setEditBusy(true); setEditNote({ type: "loading", text: "Filling in a draft…" });
+    setEditBusy(true); setEditNote({ type: "loading", text: "Looking it up and checking sources…" });
     const isCider = /cider|perry/i.test(`${beer.style || ""} ${beer.name || ""}`);
-    const prompt = `You help the cellar app for a UK micropub. Given a producer and product name, return your best-known real details as STRICT JSON only. No markdown, no backticks, no commentary.
-
-Product type: ${isCider ? "draught cider/perry" : "beer (cask or keg)"}
-Producer: ${beer.brewery ? beer.brewery.trim() : "(not given)"}
-Name: ${beer.name.trim()}
-
-Return exactly:
-{
-  "brewery": "the producer name with correct spelling and capitalisation",
-  "name": "the product name with correct spelling and capitalisation",
-  "location": "town or county the producer is based in, your best knowledge",
-  "style": ${isCider ? '"Dry | Medium | Sweet | Perry"' : '"e.g. Pale Ale, IPA, Blonde, Best Bitter, Mild, Stout, Porter"'},
-  "abv": "number as a string, e.g. 4.5",
-  "clarity": "Clear | Hazy",
-  "glutenStatus": "Standard | Low gluten | Gluten-free",
-  "vegan": true or false,
-  "allergens": ["choose ONLY from: ${ALLERGEN_OPTIONS.join(", ")}"],${isCider ? `
-  "sweetness": "one of exactly: ${CIDER_SWEETNESS.join(" | ")}, your best knowledge of how this cider is actually described",` : ""}
-  "notes": "FLASHCARD FORMAT, like revision cards, not sentences. Part 1: 3 to 5 single words or very short phrases separated by commas, no linking words like \"and\" or \"with\", ending in a period (e.g. \"Biscuity, citrus, pear.\"). Part 2, ONLY if you know a real fun fact about the beer or brewery (what the name refers to, a notable first, an award), written as one short plain clause under 10 words, still no padding (e.g. \"Named after a Para Handy character.\"). If you do not know a real fact, output part 1 only. Never invent a fact, never write more than these two short parts"
-}
-
-Rules: Correct obvious misspellings or odd capitalisation in the producer and product names to the real ones you recognise (e.g. "hope back" -> "Hop Back", "sanford" -> "Sandford Orchards"), but do not swap in a different beer. For ABV, recall the real, specific, published ABV of that exact named beer from this producer if you know it (most named cask and keg beers have a fixed, well-documented ABV, often not a round number, e.g. 4.1 or 5.3). Only fall back to a style-typical estimate if you genuinely do not recognise the specific beer, and in that case keep the rest of the response otherwise unaffected. Do not default to round numbers like 4.0, 4.5 or 5.0 out of habit. For allergens, vegan status and gluten status, recall the real, specific, published facts about that exact named beer if you know them (many breweries state these explicitly, e.g. "suitable for vegans", "gluten-free", or list malted wheat/oats alongside barley), rather than defaulting to a generic style assumption. Only fall back to a style-typical default if you genuinely do not know the specific beer: most ales then get "Barley (gluten)" and most ciders get "Sulphites", vegan=false, and glutenStatus="Standard" (ciders are usually gluten-free unless fruited with something that changes that). Never state a vegan or gluten-free claim with more confidence than you actually have. JSON only.`;
+    const prompt = buildAutofillPrompt(beer.brewery, beer.name, isCider);
     try {
       const res = await fetch("/api/anthropic", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: MODEL, max_tokens: 1000, messages: [{ role: "user", content: prompt }] }),
+        body: JSON.stringify({ model: MODEL, max_tokens: 3000, messages: [{ role: "user", content: prompt }], tools: AUTOFILL_TOOLS }),
       });
       if (!res.ok) throw new Error("status " + res.status);
       const data = await res.json();
@@ -1937,7 +2010,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
       updateBeer(beer.id, {
         style: beer.style ? beer.style : style,
         abv: beer.abv ? beer.abv : abv,
-        brewery: beer.brewery.trim() ? beer.brewery : (p.brewery ? String(p.brewery) : beer.brewery),
+        brewery: beer.brewery.trim() ? beer.brewery : (p.brewery ? cleanBrewery(p.brewery) : beer.brewery),
         name: beer.name.trim() ? beer.name : (p.name ? String(p.name) : beer.name),
         location: beer.location.trim() ? beer.location : (libraryLocationFor(p.brewery ? String(p.brewery) : beer.brewery) || (p.location ? String(p.location) : beer.location)),
         clarity: beer.clarity ? beer.clarity : (CLARITY_OPTIONS.includes(p.clarity) ? p.clarity : (p.clarity === "Cloudy" ? "Hazy" : "Clear")),
@@ -1949,7 +2022,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
         category: beer.category || categorise(style, abv),
         sweetness: beer.sweetness ? beer.sweetness : (CIDER_SWEETNESS.includes(p.sweetness) ? p.sweetness : beer.sweetness),
       });
-      setEditNote({ type: "ai", text: "Draft filled in. Check it, then confirm allergens before serving." });
+      setEditNote(autofillNote(p));
     } catch (err) {
       setEditNote({ type: "warn", text: "Couldn't auto-fill just now. Add the details by hand." });
     } finally { setEditBusy(false); }
@@ -2013,7 +2086,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     const dt = p.kind === "cider" ? "cider" : "cask";
     const style = p.style ? String(p.style) : "";
     const abv = p.abv != null ? String(p.abv) : "";
-    return { id: "lb" + i + "_" + uid(), include: true, drinkType: dt, brewery: p.brewery ? String(p.brewery) : "", location: p.location ? String(p.location) : "", name: p.name ? String(p.name) : "", abv, price: "", bestBefore: toISO(p.bestBefore), caskOwner: p.deliveredBy ? String(p.deliveredBy) : "", style, clarity: CLARITY_OPTIONS.includes(p.clarity) ? p.clarity : (p.clarity === "Cloudy" ? "Hazy" : "Clear"), glutenStatus: GLUTEN_OPTIONS.includes(p.glutenStatus) ? p.glutenStatus : "Standard", vegan: !!p.vegan, allergens: Array.isArray(p.allergens) ? p.allergens.filter((a) => ALLERGEN_OPTIONS.includes(a)) : [], notes: p.notes ? String(p.notes) : "", category: dt === "cask" ? categorise(style, abv) : "Misc" };
+    return { id: "lb" + i + "_" + uid(), include: true, drinkType: dt, brewery: p.brewery ? cleanBrewery(p.brewery) : "", location: p.location ? String(p.location) : "", name: p.name ? String(p.name) : "", abv, price: "", bestBefore: toISO(p.bestBefore), caskOwner: p.deliveredBy ? String(p.deliveredBy) : "", style, clarity: CLARITY_OPTIONS.includes(p.clarity) ? p.clarity : (p.clarity === "Cloudy" ? "Hazy" : "Clear"), glutenStatus: GLUTEN_OPTIONS.includes(p.glutenStatus) ? p.glutenStatus : "Standard", vegan: !!p.vegan, allergens: Array.isArray(p.allergens) ? p.allergens.filter((a) => ALLERGEN_OPTIONS.includes(a)) : [], notes: p.notes ? String(p.notes) : "", category: dt === "cask" ? categorise(style, abv) : "Misc" };
   };
   const scanLabel = async (file) => {
     setScanning(true); setScanError(null); setFillNote({ type: "loading", text: "Reading the label…" });
@@ -2051,7 +2124,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
       const expanded = [];
       (Array.isArray(arr) ? arr : []).forEach((x) => {
         const name = x.name ? String(x.name).trim() : "";
-        const brewery = x.brewery ? String(x.brewery).trim() : "";
+        const brewery = x.brewery ? cleanBrewery(x.brewery) : "";
         if (!name || SKIP.test(name) || SKIP.test(brewery)) return;
         const qty = Math.max(1, Math.min(36, parseInt(x.qty, 10) || 1));
         for (let q = 0; q < qty; q++) expanded.push({ id: "inv" + expanded.length, brewery, name, abv: x.abv != null ? String(x.abv) : "", price: "", caskOwner: x.deliveredBy ? String(x.deliveredBy) : "", drinkType: "cask", include: true });
@@ -3283,6 +3356,13 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
     const beer = editBeerId ? beerById[editBeerId] : null;
     if (!beer) return null;
     const close = () => { setEditBeerId(null); setEditNote(null); };
+    // Price is stored on the line, and only ever copied onto the library beer if someone types
+    // it here. So a beer that arrived via a delivery has a real price on its line but nothing
+    // in the library, which used to show as an empty field. Fall back to the live line (then
+    // the last known price) ONLY when the library has no price recorded at all, so deliberately
+    // clearing the field still leaves it cleared rather than instantly refilling itself.
+    const liveLine = lines.find((l) => l.beerId === beer.id && l.status !== "off");
+    const shownPrice = beer.price !== undefined && beer.price !== null ? beer.price : ((liveLine && liveLine.price) || latestPrice(beer) || "");
     const detailValues = {
       name: beer.name, brewery: beer.brewery, location: beer.location || "", style: beer.style || "", abv: beer.abv || "",
       category: beer.category || "Misc", sweetness: beer.sweetness || "", clarity: beer.clarity || "Clear", glutenStatus: beer.glutenStatus || "Standard",
@@ -3297,7 +3377,7 @@ Rules: Correct obvious misspellings or odd capitalisation in the producer and pr
           </div>
           <div className="space-y-3 p-4">
             <BeerDetailsFields values={detailValues} onChange={(patch) => updateBeer(beer.id, patch)} onAutoFill={() => autoFillBeer(beer)} busy={editBusy} note={editNote} toggleAllergen={(a) => toggleBeerAllergen(beer.id, a)} />
-            <Field label="Price (£ per pint)"><input className={inputCls} inputMode="decimal" value={beer.price || ""} onChange={(e) => updateBeerPrice(beer.id, e.target.value)} placeholder="e.g. 4.40" /></Field>
+            <Field label="Price (£ per pint)"><input className={inputCls} inputMode="decimal" value={shownPrice} onChange={(e) => updateBeerPrice(beer.id, e.target.value)} placeholder="e.g. 4.40" /></Field>
             <button onClick={() => { updateBeer(beer.id, { archived: !beer.archived }); close(); }} className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium text-slate-500 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>
               <Package size={15} /> {beer.archived ? "Restore from archive" : "Archive this beer"}
             </button>
