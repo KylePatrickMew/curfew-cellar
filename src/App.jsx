@@ -365,25 +365,22 @@ const cleanBrewery = (name) => {
 // two can never drift apart. Wrong details cost real time behind the bar, so the model is told
 // to actually look things up and cross-check rather than answer from memory, and to admit when
 // it could not verify something instead of guessing confidently.
-const AUTOFILL_TOOLS = [{ type: "web_search_20250305", name: "web_search" }];
 const buildAutofillPrompt = (brewery, name, isCider) => `You help the cellar app for a UK micropub. Wrong details cost real time behind the bar and can mislead a customer with an allergy, so accuracy matters far more than filling every field.
 
 Product type: ${isCider ? "draught cider/perry" : "beer (cask or keg)"}
 Producer: ${brewery ? brewery.trim() : "(not given)"}
 Name: ${name.trim()}
 
-HOW TO WORK, in order:
-1. Search the web for this exact beer from this exact producer. Do not answer from memory alone.
-2. Prioritise the producer's own website or their own official product/trade page. That is the best source for ABV, vegan status, gluten status and allergens. If the producer's own site gives you nothing for this beer, search Untappd for it specifically.
-3. Cross-check against at least one further independent source (a reputable retailer, wholesaler, or a beer database such as Untappd or RateBeer). If two sources disagree, prefer the producer's own.
-4. Confirm you have the RIGHT beer: the producer and product name must both match. Breweries reuse names, and different breweries have similarly named beers. If you cannot confirm you have the correct beer, say so rather than describing a different one.
+HOW TO WORK:
+1. Recall what you actually know about this exact beer from this exact producer. Do not confuse it with a similarly named beer from a different brewery, breweries reuse names.
+2. If you do not genuinely recognise this specific beer, say so via the confidence field rather than inventing plausible-sounding details. A blank or low-confidence answer is far more useful than a confident wrong one.
 
 ACCURACY RULES, these matter most:
-- ABV: use the specific published ABV for this exact beer. Real ABVs are often not round numbers (4.1, 5.3). Never default to 4.0/4.5/5.0 out of habit.
-- Vegan: only true if a source explicitly states it (e.g. "suitable for vegans"). Cask ales are often fined with isinglass and are NOT vegan. If unstated, use false.
-- Gluten: only "Gluten-free" or "Low gluten" if a source explicitly says so. Otherwise "Standard".
-- Allergens: base these on the actual stated ingredients. Most ales contain Barley (gluten); many also list Wheat or Oats. Cask ales fined with isinglass must include "Fish (isinglass finings)". Most ciders are just "Sulphites".
-- Never state a vegan, gluten or allergen claim more confidently than your sources support.
+- ABV: give the specific real ABV for this exact beer if you know it. Real ABVs are often not round numbers (4.1, 5.3). Never default to 4.0/4.5/5.0 out of habit. If you do not know it, leave it empty rather than guessing.
+- Vegan: only true if you actually know this beer is marked suitable for vegans. Cask ales are often fined with isinglass and are NOT vegan. If unsure, use false.
+- Gluten: only "Gluten-free" or "Low gluten" if you actually know it is. Otherwise "Standard".
+- Allergens: base these on the real ingredients. Most ales contain Barley (gluten); many also list Wheat or Oats. Cask ales fined with isinglass must include "Fish (isinglass finings)". Most ciders are just "Sulphites".
+- Never state a vegan, gluten or allergen claim more confidently than you actually know it.
 
 Return STRICT JSON only. No markdown, no backticks, no commentary.
 
@@ -398,9 +395,8 @@ Return STRICT JSON only. No markdown, no backticks, no commentary.
   "vegan": true or false,
   "allergens": ["choose ONLY from: ${ALLERGEN_OPTIONS.join(", ")}"],${isCider ? `
   "sweetness": "one of exactly: ${CIDER_SWEETNESS.join(" | ")}, as the producer actually describes it",` : ""}
-  "notes": "FLASHCARD FORMAT, like revision cards, not sentences. Part 1: 3 to 5 single words or very short phrases separated by commas, no linking words like \\"and\\" or \\"with\\", ending in a period (e.g. \\"Biscuity, citrus, pear.\\"). Part 2, ONLY if a source confirms a real fun fact about the beer or brewery (what the name refers to, a notable first, an award), written as one short plain clause under 10 words. Part 3, ONLY if the beer is vegan, gluten-free or low gluten: one short clause saying HOW, taken from a source (e.g. \\"Vegan, unfined.\\" or \\"Gluten removed with enzyme.\\"), so staff can answer dietary questions with confidence. If you cannot confirm a fact or a how, leave that part out. Never invent either.",
-  "confidence": "verified | partial | unverified. Use 'verified' ONLY if you found this exact beer and confirmed the ABV and the dietary details against sources. Use 'partial' if you found the beer but could not confirm all of the dietary details. Use 'unverified' if you could not confirm you found the right beer at all.",
-  "sources": ["the sites you actually used, e.g. the producer's own site. Empty if none."]
+  "notes": "FLASHCARD FORMAT, like revision cards, not sentences. Part 1: 3 to 5 single words or very short phrases separated by commas, no linking words like \\"and\\" or \\"with\\", ending in a period (e.g. \\"Biscuity, citrus, pear.\\"). Part 2, ONLY if you genuinely know a real fun fact about the beer or brewery (what the name refers to, a notable first, an award), written as one short plain clause under 10 words. Part 3, ONLY if you genuinely know the beer is vegan, gluten-free or low gluten: one short clause saying HOW (e.g. \\"Vegan, unfined.\\" or \\"Gluten removed with enzyme.\\"), so staff can answer dietary questions with confidence. If you do not genuinely know a fact or a how, leave that part out. Never invent either.",
+  "confidence": "known | partial | unsure. Use 'known' ONLY if you genuinely recognise this exact beer from this exact producer and are confident of the ABV and dietary details. Use 'partial' if you recognise the beer but are unsure of some dietary details. Use 'unsure' if you do not genuinely recognise this specific beer."
 }
 
 JSON only.`;
@@ -436,7 +432,7 @@ const withContradictionCheck = (note, fields) => {
 // to the brewery's official information. The only exception keeps a warning tone: when the
 // model could not confirm it found the right beer at all, sounding confident would be worse.
 const autofillNote = (p) => {
-  if (p.confidence === "unverified") return { type: "warn", text: "This beer couldn't be confirmed, so treat the details as a guess. Always check against the brewery's official information." };
+  if (p.confidence === "unsure") return { type: "warn", text: "This beer wasn't recognised, so treat the details as a guess. Always check against the brewery's official information." };
   return { type: "ai", text: "Filled in. Always check against the brewery's official information." };
 };
 const categorise = (style, abv) => {
@@ -1840,14 +1836,14 @@ export default function TheCurfewCellar() {
   const autoFill = async () => {
     if (!form.name.trim()) { setFillNote({ type: "warn", text: "Add a name first." }); return; }
     setLoading(true);
-    setFillNote({ type: "loading", text: "Looking it up and checking sources…" });
+    setFillNote({ type: "loading", text: "Filling in a draft…" });
     const isCider = form.drinkType === "cider";
     const prompt = buildAutofillPrompt(form.brewery, form.name, isCider);
     let stage = "network";
     try {
       const res = await fetch("/api/anthropic", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: MODEL, max_tokens: 3000, messages: [{ role: "user", content: prompt }], tools: AUTOFILL_TOOLS }),
+        body: JSON.stringify({ model: MODEL, max_tokens: 1000, messages: [{ role: "user", content: prompt }] }),
       });
       if (!res.ok) throw new Error("status " + res.status);
       const data = await res.json();
@@ -2020,13 +2016,13 @@ export default function TheCurfewCellar() {
   const toggleBeerAllergen = (id, a) => setLibrary((lib) => lib.map((b) => (b.id === id ? { ...b, allergens: b.allergens.includes(a) ? b.allergens.filter((x) => x !== a) : [...b.allergens, a] } : b)));
   const autoFillBeer = async (beer) => {
     if (!beer.name || !beer.name.trim()) { setEditNote({ type: "warn", text: "Add a name first." }); return; }
-    setEditBusy(true); setEditNote({ type: "loading", text: "Looking it up and checking sources…" });
+    setEditBusy(true); setEditNote({ type: "loading", text: "Filling in a draft…" });
     const isCider = /cider|perry/i.test(`${beer.style || ""} ${beer.name || ""}`);
     const prompt = buildAutofillPrompt(beer.brewery, beer.name, isCider);
     try {
       const res = await fetch("/api/anthropic", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: MODEL, max_tokens: 3000, messages: [{ role: "user", content: prompt }], tools: AUTOFILL_TOOLS }),
+        body: JSON.stringify({ model: MODEL, max_tokens: 1000, messages: [{ role: "user", content: prompt }] }),
       });
       if (!res.ok) throw new Error("status " + res.status);
       const data = await res.json();
