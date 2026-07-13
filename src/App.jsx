@@ -1910,6 +1910,7 @@ export default function TheCurfewCellar() {
       brewery: form.brewery.trim(), location: form.location.trim(), name: form.name.trim(),
       style: form.style.trim(), abv: form.abv.trim(), clarity: form.clarity, glutenStatus: form.glutenStatus,
       vegan: form.vegan, allergens: form.allergens, notes: form.notes.trim(), allergensVerified: form.allergensVerified, category, sweetness: form.sweetness,
+      price: form.price.trim(),
     };
     const entry = { date: new Date().toISOString(), abv: form.abv.trim(), price: form.price.trim(), caskOwner: (form.caskOwner.trim() || form.brewery.trim()) };
     const saved = findSavedBeer(form.brewery, form.name);
@@ -2011,7 +2012,11 @@ export default function TheCurfewCellar() {
   const setLineCategory = (id, beerId, cat) => { setLibrary((lib) => lib.map((b) => (b.id === beerId ? { ...b, category: cat } : b))); };
   const verify = (beerId) => setLibrary((lib) => lib.map((b) => (b.id === beerId ? { ...b, allergensVerified: true } : b)));
   const updateBeer = (id, patch) => setLibrary((lib) => lib.map((b) => (b.id === id ? { ...b, ...patch } : b)));
-  const updateBeerPrice = (id, v) => { setLibrary((lib) => lib.map((b) => (b.id === id ? { ...b, price: v } : b))); setLines((ls) => ls.map((c) => (c.beerId === id ? { ...c, price: v } : c))); };
+  // Writes the price to the library (as a cache for beers with no live line) and to the beer's
+  // live lines. Deliberately does NOT touch finished ("off") lines: those casks have already
+  // been sold and returned, and rewriting their price would retroactively falsify what was
+  // actually charged. Past prices are preserved in each beer's history entries.
+  const updateBeerPrice = (id, v) => { setLibrary((lib) => lib.map((b) => (b.id === id ? { ...b, price: v } : b))); setLines((ls) => ls.map((c) => (c.beerId === id && c.status !== "off" ? { ...c, price: v } : c))); };
   const toggleBeerAllergen = (id, a) => setLibrary((lib) => lib.map((b) => (b.id === id ? { ...b, allergens: b.allergens.includes(a) ? b.allergens.filter((x) => x !== a) : [...b.allergens, a] } : b)));
   const autoFillBeer = async (beer) => {
     if (!beer.name || !beer.name.trim()) { setEditNote({ type: "warn", text: "Add a name first." }); return; }
@@ -2175,10 +2180,10 @@ export default function TheCurfewCellar() {
       let beerId;
       // Reviewed and confirmed here, on this screen, so this is going straight to the
       // cellar: no separate "just added, please check" step needed afterwards.
-      if (existing) { beerId = existing.id; lib = lib.map((b) => (b.id === existing.id ? { ...b, abv: x.abv || b.abv, history: [...(b.history || []), entry] } : b)); }
+      if (existing) { beerId = existing.id; lib = lib.map((b) => (b.id === existing.id ? { ...b, abv: x.abv || b.abv, price: x.price || b.price, history: [...(b.history || []), entry] } : b)); }
       else {
         beerId = uid();
-        lib = [...lib, { id: beerId, brewery: x.brewery.trim(), location: x.location || "", name: x.name.trim(), style: x.style || "", abv: x.abv, clarity: x.clarity || "Clear", glutenStatus: x.glutenStatus || "Standard", vegan: x.vegan || false, allergens: x.allergens || [], notes: x.notes || "", allergensVerified: false, category: x.category || (x.drinkType === "cask" ? categorise(x.style || "", x.abv) : "Misc"), history: [entry] }];
+        lib = [...lib, { id: beerId, brewery: x.brewery.trim(), location: x.location || "", name: x.name.trim(), style: x.style || "", abv: x.abv, price: x.price || "", clarity: x.clarity || "Clear", glutenStatus: x.glutenStatus || "Standard", vegan: x.vegan || false, allergens: x.allergens || [], notes: x.notes || "", allergensVerified: false, category: x.category || (x.drinkType === "cask" ? categorise(x.style || "", x.abv) : "Misc"), history: [entry] }];
       }
       const dates = { ordered: null, delivered: null, racked: null, vented: null, tapped: null, on: null, off: null };
       dates[STATUSES[STATUS_INDEX["in_cellar"]].dateKey] = nowIso;
@@ -3383,13 +3388,15 @@ export default function TheCurfewCellar() {
     const beer = editBeerId ? beerById[editBeerId] : null;
     if (!beer) return null;
     const close = () => { setEditBeerId(null); setEditNote(null); };
-    // Price is stored on the line, and only ever copied onto the library beer if someone types
-    // it here. So a beer that arrived via a delivery has a real price on its line but nothing
-    // in the library, which used to show as an empty field. Fall back to the live line (then
-    // the last known price) ONLY when the library has no price recorded at all, so deliberately
-    // clearing the field still leaves it cleared rather than instantly refilling itself.
+    // Price lives on the LINE (each delivery can come in at a different price), and that is what
+    // the Cellar card, tap list and PDFs all display. The library's own `price` field is only a
+    // cache, written when someone types here, so it goes stale the moment a new delivery of the
+    // same beer arrives at a different price. So: if the beer has a live line, that line is the
+    // source of truth and Edit must agree with it. Only fall back to the library value (then the
+    // last recorded price) when there is no live line at all, i.e. archived or never stocked.
+    // updateBeerPrice writes to both, so typing here keeps the two in step.
     const liveLine = lines.find((l) => l.beerId === beer.id && l.status !== "off");
-    const shownPrice = beer.price !== undefined && beer.price !== null ? beer.price : ((liveLine && liveLine.price) || latestPrice(beer) || "");
+    const shownPrice = liveLine ? (liveLine.price || "") : (beer.price !== undefined && beer.price !== null ? beer.price : (latestPrice(beer) || ""));
     const detailValues = {
       name: beer.name, brewery: beer.brewery, location: beer.location || "", style: beer.style || "", abv: beer.abv || "",
       category: beer.category || "Misc", sweetness: beer.sweetness || "", clarity: beer.clarity || "Clear", glutenStatus: beer.glutenStatus || "Standard",
