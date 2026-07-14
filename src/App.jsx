@@ -2062,14 +2062,16 @@ export default function TheCurfewCellar() {
   // Another one of the same beer, e.g. two casks of the same ale in one delivery. It lands In
   // Store (a second cask can't already be on the bar) with a fresh lifecycle, but keeps the
   // price, supplier, best before and container so nothing needs re-typing.
+  // Closes the modal deliberately: leaving it open (or worse, re-pointing it at the new copy)
+  // looks identical to the original, reads as "nothing happened", and invites repeat taps that
+  // each duplicate again. Closing makes the action visibly complete and removes the button.
   const duplicateLine = (id) => {
     const src = lines.find((c) => c.id === id);
     if (!src) return;
     snapshotUndo("Duplicated");
     const dates = { ordered: null, delivered: new Date().toISOString(), racked: null, vented: null, tapped: null, on: null, off: null };
-    const nid = uid();
-    setLines((ls) => [...ls, { id: nid, beerId: src.beerId, drinkType: src.drinkType, size: src.size, price: src.price, status: "in_cellar", caskOwner: src.caskOwner, collected: false, bestBefore: src.bestBefore, dates }]);
-    setOpenId(nid);
+    setLines((ls) => [...ls, { id: uid(), beerId: src.beerId, drinkType: src.drinkType, size: src.size, price: src.price, status: "in_cellar", caskOwner: src.caskOwner, collected: false, bestBefore: src.bestBefore, dates }]);
+    setOpenId(null);
     showToast("Duplicated. The copy is In Store.");
   };
   const latestPrice = (beer) => { const h = beer.history || []; return h.length ? h[h.length - 1].price : ""; };
