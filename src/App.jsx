@@ -174,12 +174,16 @@ const assignPumps = (ls, catOf) => {
   return out;
 };
 const catFromLib = (lib) => (l) => ((lib.find((b) => b.id === l.beerId) || {}).category) || "Misc";
-// Pint is the stored price; Half = pint/2; Schooner = pint x 2/3, each rounded to the penny.
+// Pint is the stored price. Half = pint/2 and Schooner = pint x 2/3, both rounded UP to the
+// nearest 5p so every measure is a round figure to take at the bar (2.87 becomes 2.90, 2.12
+// becomes 2.15). The epsilon stops floating-point error nudging a price that already sits
+// exactly on a 5p boundary (2.85) up to the next one.
 const money = (n) => `£${(Math.round(n * 100) / 100).toFixed(2)}`;
+const roundUpTo5p = (n) => Math.ceil((n * 100 - 1e-6) / 5) * 5 / 100;
 const priceTriple = (pint) => {
   const p = parseFloat(pint);
   if (!isFinite(p) || p <= 0) return null;
-  return { pint: money(p), half: money(p / 2), schooner: money(p * 2 / 3) };
+  return { pint: money(p), half: money(roundUpTo5p(p / 2)), schooner: money(roundUpTo5p(p * 2 / 3)) };
 };
 const fmtUpdated = (iso) => { if (!iso) return null; try { return new Date(iso).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }); } catch { return null; } };
 const STATUS_STYLE = {
@@ -2055,6 +2059,19 @@ export default function TheCurfewCellar() {
     } finally { setEditBusy(false); }
   };
   const removeLine = (id) => { snapshotUndo("Removed from cellar"); setLines((ls) => ls.filter((c) => c.id !== id)); setOpenId(null); };
+  // Another one of the same beer, e.g. two casks of the same ale in one delivery. It lands In
+  // Store (a second cask can't already be on the bar) with a fresh lifecycle, but keeps the
+  // price, supplier, best before and container so nothing needs re-typing.
+  const duplicateLine = (id) => {
+    const src = lines.find((c) => c.id === id);
+    if (!src) return;
+    snapshotUndo("Duplicated");
+    const dates = { ordered: null, delivered: new Date().toISOString(), racked: null, vented: null, tapped: null, on: null, off: null };
+    const nid = uid();
+    setLines((ls) => [...ls, { id: nid, beerId: src.beerId, drinkType: src.drinkType, size: src.size, price: src.price, status: "in_cellar", caskOwner: src.caskOwner, collected: false, bestBefore: src.bestBefore, dates }]);
+    setOpenId(nid);
+    showToast("Duplicated. The copy is In Store.");
+  };
   const latestPrice = (beer) => { const h = beer.history || []; return h.length ? h[h.length - 1].price : ""; };
   const latestSupplier = (beer) => { const h = beer.history || []; for (let i = h.length - 1; i >= 0; i--) { if (h[i].caskOwner) return h[i].caskOwner; } return ""; };
   const loadBeerIntoForm = (beer) => { setConfirmDupe(false); return setForm({ ...emptyForm, drinkType: beer.pendingDrinkType || "cask", brewery: beer.brewery, location: beer.location, name: beer.name, style: beer.style, abv: beer.abv, clarity: beer.clarity, glutenStatus: beer.glutenStatus, vegan: beer.vegan, allergens: beer.allergens, notes: beer.notes, allergensVerified: beer.allergensVerified, category: beer.category || categorise(beer.style, beer.abv), sweetness: beer.sweetness || "", price: latestPrice(beer) || beer.pendingPrice || "", bestBefore: beer.pendingBestBefore || "", caskOwner: latestSupplier(beer) || beer.pendingCaskOwner || "" }); };
@@ -2164,6 +2181,12 @@ export default function TheCurfewCellar() {
     } finally { setScanning(false); }
   };
   const updateInvoice = (idx, patch) => setInvoiceItems((items) => items.map((x, i) => (i === idx ? { ...x, ...patch } : x)));
+  // Two casks of the same beer arrive together often enough that re-typing the row is a chore.
+  // Inserts a copy directly beneath the original so they stay side by side while reviewing.
+  const duplicateInvoice = (idx) => setInvoiceItems((items) => {
+    const copy = { ...items[idx], id: "dup" + uid(), include: true };
+    return [...items.slice(0, idx + 1), copy, ...items.slice(idx + 1)];
+  });
   const importInvoice = () => {
     const chosen = (invoiceItems || []).filter((x) => x.include && x.name.trim());
     if (!chosen.length) return;
@@ -2444,6 +2467,7 @@ export default function TheCurfewCellar() {
                   <div className="flex items-center gap-2">
                     <input type="checkbox" checked={x.include} onChange={(e) => updateInvoice(idx, { include: e.target.checked })} className="h-4 w-4" />
                     <input value={x.name} onChange={(e) => updateInvoice(idx, { name: e.target.value })} placeholder="Name" className={cellChk} style={{ borderColor: C.line }} />
+                    <button onClick={() => duplicateInvoice(idx)} title="Duplicate this beer" className="shrink-0 rounded-lg border p-1.5 text-slate-500 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><Copy size={14} /></button>
                   </div>
                   {(() => { const warn = checkContradictions(x); return warn.length > 0 && <p className="mt-1.5 flex items-start gap-1 text-xs" style={{ color: C.alert }}><AlertTriangle size={12} className="mt-0.5 shrink-0" /> {warn.join(" ")}</p>; })()}
                   <div className={`mt-2 grid grid-cols-2 gap-2 ${batchSource === "invoice" ? "sm:grid-cols-3" : "sm:grid-cols-4"}`}>
@@ -3510,6 +3534,7 @@ export default function TheCurfewCellar() {
 
             <div className="flex items-center justify-between border-t pt-4" style={{ borderColor: C.line }}>
               <button onClick={() => { setEditBeerId(beer.id); setOpenId(null); }} className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 transition hover:text-slate-900"><Pencil size={15} /> Edit details</button>
+              <button onClick={() => duplicateLine(openLine.id)} className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 transition hover:text-slate-900"><Copy size={15} /> Duplicate</button>
               <button onClick={() => removeLine(openLine.id)} className="inline-flex items-center gap-1.5 text-sm font-medium text-red-600 transition hover:text-red-700"><Trash2 size={15} /> Remove</button>
             </div>
           </div>
