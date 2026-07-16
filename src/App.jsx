@@ -787,6 +787,8 @@ export default function TheCurfewCellar() {
   const undoTimer = useRef(null);
   const [importText, setImportText] = useState("");
   const [backupMsg, setBackupMsg] = useState(null);
+  const [confirmCacheReset, setConfirmCacheReset] = useState(false);
+  const [cacheResetMsg, setCacheResetMsg] = useState(null);
   const [pendingImport, setPendingImport] = useState(null);
   const fileRef = useRef(null);
   const [addMode, setAddMode] = useState("pick");
@@ -2953,6 +2955,28 @@ export default function TheCurfewCellar() {
     );
   };
 
+  // Clears whatever might be holding a stale copy of the app's own code (service worker
+  // registrations, the Cache Storage API), then forces a hard, cache-busted reload. Does NOT
+  // touch cellar data, that lives in Supabase and your own device storage, entirely separate
+  // from this. This exists because iOS home-screen PWAs cache very aggressively, sometimes
+  // persisting through an ordinary reload.
+  const resetAppCache = async () => {
+    setConfirmCacheReset(false);
+    setCacheResetMsg({ type: "loading", text: "Clearing cache…" });
+    try {
+      if ("serviceWorker" in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.unregister()));
+      }
+      if (typeof caches !== "undefined") {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((k) => caches.delete(k)));
+      }
+    } catch (e) { /* proceed to reload regardless */ }
+    const url = new URL(window.location.href);
+    url.searchParams.set("_cachebust", Date.now().toString());
+    window.location.href = url.toString();
+  };
   const Backup = () => {
     const taCls = `${inputCls} h-28 resize-none font-mono text-xs`;
     return (
@@ -2987,6 +3011,23 @@ export default function TheCurfewCellar() {
               )}
             </div>
           )}
+        </div>
+
+        <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
+          <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Fix a stuck app</h2>
+          <p className="mt-1 text-sm text-slate-500">If the app seems out of date after an update, e.g. it doesn't match what you were told changed, this clears whatever's holding the old version and reloads fresh. Your cellar data is untouched, this only clears cached app files.</p>
+          {!confirmCacheReset ? (
+            <button onClick={() => setConfirmCacheReset(true)} className="mt-3 inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><RotateCcw size={16} /> Reset app cache</button>
+          ) : (
+            <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+              <p className="text-sm text-amber-800">This reloads the app immediately. Make sure nothing else needs saving first.</p>
+              <div className="mt-2 flex gap-2">
+                <button onClick={resetAppCache} className="rounded-md bg-amber-800 px-3 py-1.5 text-sm font-semibold text-white hover:bg-amber-900">Reset now</button>
+                <button onClick={() => setConfirmCacheReset(false)} className="rounded-md border px-3 py-1.5 text-sm font-medium text-slate-600" style={{ borderColor: C.line }}>Cancel</button>
+              </div>
+            </div>
+          )}
+          {cacheResetMsg && <p className="mt-2 text-sm text-slate-500">{cacheResetMsg.text}</p>}
         </div>
       </div>
     );
