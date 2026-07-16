@@ -19,7 +19,7 @@ const DIET_BADGE_STYLE = {
   gluten: { background: "#E8F2F1", color: "#1F5C54", borderColor: "#BFDDD9" },
   hazy: { background: "#F7E9E7", color: C.alert, borderColor: "#E8CCC8" },
 };
-const CAT_ACCENT = { IPA: "#E8D976", Pale: "#E3A93E", Bitter: "#D6823C", "Stout/Porter": "#6E4A32", Stout: "#6E4A32", Porter: "#6E4A32", Cider: "#5E8C4F", Sour: "#A13B5C", Misc: "#96A19B" };
+const CAT_ACCENT = { IPA: "#E3A93E", Pale: "#E8D976", Bitter: "#D6823C", "Stout/Porter": "#6E4A32", Stout: "#6E4A32", Porter: "#6E4A32", Cider: "#5E8C4F", Sour: "#A13B5C", Misc: "#96A19B" };
 const STORE_KEY = "curfew-cellar:data:v1";
 const MODEL = "claude-sonnet-4-6";
 // ---- Cloud sync (active only in the deployed app; the preview uses window.storage) ----
@@ -297,9 +297,14 @@ const fmtDate = (s) => { if (!s) return "--"; return new Date(s + "T00:00:00").t
 // One bullet per sentence, splitting on every ". " (not just the first), so notes with any
 // number of sentences display correctly, not just exactly two. Splitting on period-plus-space
 // specifically (not just period) means it won't misfire on a decimal like "4.5%" inside a note.
+// One bullet per sentence, splitting on a period followed by ANY whitespace, not just a literal
+// space. A note typed or pasted from elsewhere (Notes app, a website) can leave a non-breaking
+// space or similar after the full stop, which an exact ". " match silently fails to find,
+// producing one long bullet instead of several. \s in JS regex covers regular spaces, non-
+// breaking spaces, tabs and newlines, so this is a strict superset of the old behaviour.
 const splitNote = (notes) => {
   if (!notes) return [];
-  return notes.trim().split(". ").map((x) => x.trim().replace(/\.$/, "")).filter(Boolean);
+  return notes.trim().split(/\.\s+/).map((x) => x.trim().replace(/\.$/, "")).filter(Boolean);
 };
 const dayDiff = (aIso, bIso) => { const a = new Date(aIso); a.setHours(0, 0, 0, 0); const b = new Date(bIso); b.setHours(0, 0, 0, 0); return Math.round((b - a) / DAY); };
 const daysUntil = (dateStr) => { if (!dateStr) return null; const a = new Date(); a.setHours(0, 0, 0, 0); const b = new Date(dateStr + "T00:00:00"); return Math.round((b - a) / DAY); };
@@ -3597,7 +3602,10 @@ export default function TheCurfewCellar() {
               <div className="space-y-1.5">
                 <label className="flex items-center gap-3">
                   <span className="w-24 shrink-0 text-xs font-medium text-slate-500">Best before</span>
-                  <input type="date" value={openLine.bestBefore || ""} onChange={(e) => setBestBefore(openLine.id, e.target.value)} className="min-w-0 flex-1 rounded-md border bg-white px-2 py-1 text-center text-xs focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ WebkitAppearance: "none", appearance: "none", fontSize: 12, textAlign: "center", colorScheme: "light", fontFamily: "var(--font-data)", ...(bb && bb.level === "past" ? { borderColor: C.alert, color: C.alert } : { borderColor: C.line, color: C.inkSoft }) }} />
+                  <span className="relative min-w-0 flex-1">
+                    <input type="date" value={openLine.bestBefore || ""} onChange={(e) => setBestBefore(openLine.id, e.target.value)} className="w-full rounded-md border bg-white px-2 py-1 text-center text-xs focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ WebkitAppearance: "none", appearance: "none", fontSize: 12, textAlign: "center", colorScheme: "light", fontFamily: "var(--font-data)", ...(bb && bb.level === "past" ? { borderColor: C.alert, color: C.alert } : { borderColor: C.line, color: C.inkSoft }) }} />
+                    {!openLine.bestBefore && <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)" }}>Tap to set</span>}
+                  </span>
                 </label>
                 {openLine.drinkType !== "cider" && openLine.drinkType !== "keykeg" && (
                   <label className="flex items-center gap-3">
