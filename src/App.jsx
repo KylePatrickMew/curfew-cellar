@@ -3566,13 +3566,17 @@ export default function TheCurfewCellar() {
           <div className="space-y-5 p-5">
             <div className="space-y-2.5">
               <p className="text-sm font-medium" style={{ color: C.inkSoft, fontFamily: "var(--font-data)" }}>{meta}</p>
-              {measures && (
-                <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1" style={{ fontFamily: "var(--font-data)" }}>
-                  <span className="flex items-baseline gap-1.5"><span className="text-2xl font-bold" style={{ color: C.ink }}>{measures.pint}</span><span className="text-xs font-semibold uppercase tracking-wider text-slate-400">pint</span></span>
-                  <span className="flex items-baseline gap-1 text-sm font-medium text-slate-600">{measures.half}<span className="text-xs text-slate-400">half</span></span>
-                  <span className="flex items-baseline gap-1 text-sm font-medium text-slate-600">{measures.schooner}<span className="text-xs text-slate-400">schooner</span></span>
-                </div>
-              )}
+              <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1" style={{ fontFamily: "var(--font-data)" }}>
+                <span className="flex items-baseline gap-1.5">
+                  <span className="flex items-baseline">
+                    <span className="text-2xl font-bold" style={{ color: C.ink }}>£</span>
+                    <input inputMode="decimal" value={openLine ? (openLine.price || "") : (beer.price || "")} onChange={(e) => updateBeerPrice(beer.id, e.target.value)} placeholder="0.00" className="w-20 border-0 border-b-2 bg-transparent p-0 text-2xl font-bold focus:outline-none" style={{ color: C.ink, borderColor: C.brass }} />
+                  </span>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">pint</span>
+                </span>
+                {measures && <span className="flex items-baseline gap-1 text-sm font-medium text-slate-600">{measures.half}<span className="text-xs text-slate-400">half</span></span>}
+                {measures && <span className="flex items-baseline gap-1 text-sm font-medium text-slate-600">{measures.schooner}<span className="text-xs text-slate-400">schooner</span></span>}
+              </div>
               <DietaryBadges beer={beer} />
             </div>
 
