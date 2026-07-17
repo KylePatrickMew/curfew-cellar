@@ -744,6 +744,10 @@ export default function TheCurfewCellar() {
   // CardModal can tell the two cases apart and hide whatever doesn't apply without one.
   const [libraryOpenId, setLibraryOpenId] = useState(null);
   const [editBeerId, setEditBeerId] = useState(null);
+  // Which physical line (if any) Edit details was opened from. Best before and Delivered by
+  // live on the line, not the library beer, so the edit screen needs this to know which one
+  // to show and write to. Null when editing was opened straight from the Library (no line).
+  const [editBeerLineId, setEditBeerLineId] = useState(null);
   const [editBusy, setEditBusy] = useState(false);
   const [editNote, setEditNote] = useState(null);
   const [swap, setSwap] = useState(null);
@@ -3366,8 +3370,8 @@ export default function TheCurfewCellar() {
       return (
         <div className="py-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
           <div className="flex items-baseline justify-between gap-3">
-            <div className="flex min-w-0 flex-1 items-start gap-1.5">
-              <span className="mt-2"><CatDot category={beer.category} /></span>
+            <div className="flex min-w-0 flex-1 items-center gap-1.5">
+              <CatDot category={beer.category} />
               <p className="min-w-0 text-lg font-semibold" style={{ color: C.cream, fontFamily: "var(--font-display)" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</p>
             </div>
             <div className="shrink-0 text-right">
@@ -3469,8 +3473,8 @@ export default function TheCurfewCellar() {
               </div>
               <div className="flex-1 space-y-4 overflow-y-auto p-4" style={{ overscrollBehaviorY: "none", WebkitOverflowScrolling: "touch" }}>
                 <div>
-                  <div className="flex items-start gap-2">
-                    <span className="mt-2.5"><CatDot category={previewBeer.category} /></span>
+                  <div className="flex items-center gap-2">
+                    <CatDot category={previewBeer.category} />
                     <h2 className="text-xl font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{previewBeer.name}</h2>
                   </div>
                   <p className="text-sm text-slate-500">{previewBeer.brewery} · {previewBeer.location}</p>
@@ -3515,8 +3519,8 @@ export default function TheCurfewCellar() {
                       return (
                         <button key={l.id} onClick={() => setSwapPreviewId(l.id)} className="flex w-full items-center justify-between gap-2 rounded-xl border p-3 text-left transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[swap.drink] || C.line }}>
                           <span className="min-w-0">
-                            <span className="flex items-start gap-1.5">
-                              <span className="mt-1"><CatDot category={beer.category} /></span>
+                            <span className="flex items-center gap-1.5">
+                              <CatDot category={beer.category} />
                               <span className="font-semibold leading-snug" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</span>
                             </span>
                             <span className="block truncate text-sm font-medium text-slate-600">{[beer.style || "", beer.abv ? `${beer.abv}%` : ""].filter(Boolean).join("  ·  ")}</span>
@@ -3541,7 +3545,9 @@ export default function TheCurfewCellar() {
   const EditBeer = () => {
     const beer = editBeerId ? beerById[editBeerId] : null;
     if (!beer) return null;
-    const close = () => { setEditBeerId(null); setEditNote(null); };
+    const close = () => { setEditBeerId(null); setEditBeerLineId(null); setEditNote(null); };
+    const editLine = editBeerLineId ? lines.find((l) => l.id === editBeerLineId) : null;
+    const bb = editLine ? bbStatus(editLine) : null;
     // Price lives on the LINE (each delivery can come in at a different price), and that is what
     // the Cellar card, tap list and PDFs all display. The library's own `price` field is only a
     // cache, written when someone types here, so it goes stale the moment a new delivery of the
@@ -3566,6 +3572,19 @@ export default function TheCurfewCellar() {
           <div className="space-y-3 p-4">
             <BeerDetailsFields values={detailValues} onChange={(patch) => updateBeer(beer.id, patch)} onAutoFill={() => autoFillBeer(beer)} busy={editBusy} note={editNote} toggleAllergen={(a) => toggleBeerAllergen(beer.id, a)} />
             <Field label="Price (£ per pint)"><input className={inputCls} inputMode="decimal" value={shownPrice} onChange={(e) => updateBeerPrice(beer.id, e.target.value)} placeholder="e.g. 4.40" /></Field>
+            {editLine && (
+              <>
+                <Field label="Best before">
+                  <span className="relative block">
+                    <input type="date" value={editLine.bestBefore || ""} onChange={(e) => setBestBefore(editLine.id, e.target.value)} className={inputCls} style={{ WebkitAppearance: "none", appearance: "none", colorScheme: "light", ...(bb && bb.level === "past" ? { borderColor: C.alert, color: C.alert } : {}) }} />
+                    {!editLine.bestBefore && <span className="pointer-events-none absolute inset-0 flex items-center px-3 text-sm text-slate-400">Tap to set</span>}
+                  </span>
+                </Field>
+                {editLine.drinkType !== "cider" && editLine.drinkType !== "keykeg" && (
+                  <Field label="Delivered by"><input className={inputCls} value={editLine.caskOwner || ""} onChange={(e) => setCaskOwner(editLine.id, e.target.value)} placeholder="Brewery / distributor" /></Field>
+                )}
+              </>
+            )}
             <button onClick={() => { updateBeer(beer.id, { archived: !beer.archived }); close(); }} className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium text-slate-500 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>
               <Package size={15} /> {beer.archived ? "Restore from archive" : "Archive this beer"}
             </button>
@@ -3598,8 +3617,8 @@ export default function TheCurfewCellar() {
         <div className="w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white sm:rounded-2xl cc-pop" style={{ maxHeight: "92vh", overscrollBehaviorY: "none", WebkitOverflowScrolling: "touch" }} onClick={(e) => e.stopPropagation()}>
           <div className="sticky top-0 z-10 flex items-start justify-between gap-3 p-4 pl-5" style={{ background: "linear-gradient(180deg, #234342 0%, #1C3636 100%)", borderLeft: `4px solid ${(openLine && TYPE_ACCENT[openLine.drinkType]) || C.brass}`, boxShadow: "0 1px 0 rgba(184,134,43,0.28)" }}>
             <div className="min-w-0">
-              <div className="flex items-start gap-2">
-                <span className="mt-2.5"><CatDot category={beer.category} /></span>
+              <div className="flex items-center gap-2">
+                <CatDot category={beer.category} />
                 <h2 className="text-xl font-bold leading-snug" style={{ color: C.cream, fontFamily: "var(--font-display)", letterSpacing: "0.01em" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</h2>
               </div>
               {beer.location ? <p className="mt-1 text-xs font-semibold uppercase" style={{ color: C.brassSoft, letterSpacing: "0.14em", fontFamily: "var(--font-data)" }}>{beer.location}</p> : null}
@@ -3612,17 +3631,13 @@ export default function TheCurfewCellar() {
           <div className="space-y-5 p-5">
             <div className="space-y-2.5">
               <p className="text-sm font-medium" style={{ color: C.inkSoft, fontFamily: "var(--font-data)" }}>{meta}</p>
-              <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1" style={{ fontFamily: "var(--font-data)" }}>
-                <span className="flex items-baseline gap-1.5">
-                  <span className="flex items-baseline">
-                    <span className="text-2xl font-bold" style={{ color: C.ink }}>£</span>
-                    <input inputMode="decimal" value={openLine ? (openLine.price || "") : (beer.price || "")} onChange={(e) => updateBeerPrice(beer.id, e.target.value)} placeholder="0.00" className="w-20 border-0 border-b-2 bg-transparent p-0 text-2xl font-bold focus:outline-none" style={{ color: C.ink, borderColor: C.brass }} />
-                  </span>
-                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">pint</span>
-                </span>
-                {measures && <span className="flex items-baseline gap-1 text-sm font-medium text-slate-600">{measures.half}<span className="text-xs text-slate-400">half</span></span>}
-                {measures && <span className="flex items-baseline gap-1 text-sm font-medium text-slate-600">{measures.schooner}<span className="text-xs text-slate-400">schooner</span></span>}
-              </div>
+              {measures && (
+                <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1" style={{ fontFamily: "var(--font-data)" }}>
+                  <span className="flex items-baseline gap-1.5"><span className="text-2xl font-bold" style={{ color: C.ink }}>{measures.pint}</span><span className="text-xs font-semibold uppercase tracking-wider text-slate-400">pint</span></span>
+                  <span className="flex items-baseline gap-1 text-sm font-medium text-slate-600">{measures.half}<span className="text-xs text-slate-400">half</span></span>
+                  <span className="flex items-baseline gap-1 text-sm font-medium text-slate-600">{measures.schooner}<span className="text-xs text-slate-400">schooner</span></span>
+                </div>
+              )}
               <DietaryBadges beer={beer} />
             </div>
 
@@ -3641,18 +3656,15 @@ export default function TheCurfewCellar() {
 
             {openLine && (
               <div className="space-y-1.5">
-                <label className="flex items-center gap-3">
+                <div className="flex items-center gap-3">
                   <span className="w-24 shrink-0 text-xs font-medium text-slate-500">Best before</span>
-                  <span className="relative min-w-0 flex-1">
-                    <input type="date" value={openLine.bestBefore || ""} onChange={(e) => setBestBefore(openLine.id, e.target.value)} className="w-full rounded-md border bg-white px-2 py-1 text-center text-xs focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ WebkitAppearance: "none", appearance: "none", fontSize: 12, textAlign: "center", colorScheme: "light", fontFamily: "var(--font-data)", ...(bb && bb.level === "past" ? { borderColor: C.alert, color: C.alert } : { borderColor: C.line, color: C.inkSoft }) }} />
-                    {!openLine.bestBefore && <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)" }}>Tap to set</span>}
-                  </span>
-                </label>
+                  <span className="text-sm" style={{ color: (bb && bb.level === "past") ? C.alert : C.inkSoft, fontFamily: "var(--font-data)" }}>{openLine.bestBefore ? new Date(openLine.bestBefore + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "Not set"}</span>
+                </div>
                 {openLine.drinkType !== "cider" && openLine.drinkType !== "keykeg" && (
-                  <label className="flex items-center gap-3">
+                  <div className="flex items-center gap-3">
                     <span className="w-24 shrink-0 text-xs font-medium text-slate-500">Delivered by</span>
-                    <input value={openLine.caskOwner || ""} onChange={(e) => setCaskOwner(openLine.id, e.target.value)} placeholder="Brewery / distributor" className="min-w-0 flex-1 rounded-md border bg-white px-2 py-1 text-center text-xs focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ borderColor: C.line, color: C.inkSoft, fontFamily: "var(--font-data)" }} />
-                  </label>
+                    <span className="text-sm" style={{ color: C.inkSoft, fontFamily: "var(--font-data)" }}>{openLine.caskOwner || "Not set"}</span>
+                  </div>
                 )}
               </div>
             )}
@@ -3688,7 +3700,7 @@ export default function TheCurfewCellar() {
             )}
 
             <div className="flex items-center justify-between border-t pt-4" style={{ borderColor: C.line }}>
-              <button onClick={() => { setEditBeerId(beer.id); close(); }} className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 transition hover:text-slate-900"><Pencil size={15} /> Edit details</button>
+              <button onClick={() => { setEditBeerId(beer.id); setEditBeerLineId(openLine ? openLine.id : null); close(); }} className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 transition hover:text-slate-900"><Pencil size={15} /> Edit details</button>
               {openLine && <button onClick={() => duplicateLine(openLine.id)} className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 transition hover:text-slate-900"><Copy size={15} /> Duplicate</button>}
               {openLine && <button onClick={() => removeLine(openLine.id)} className="inline-flex items-center gap-1.5 text-sm font-medium text-red-600 transition hover:text-red-700"><Trash2 size={15} /> Remove</button>}
             </div>
@@ -3909,7 +3921,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
       )}
       </>)}
       {toast && (
-        <div className="no-print fixed inset-x-0 bottom-24 z-50 flex justify-center px-4 sm:bottom-4">
+        <div className="no-print fixed inset-x-0 bottom-24 flex justify-center px-4 sm:bottom-4" style={{ zIndex: 60 }}>
           <div className="cc-pop flex items-center gap-2 rounded-full px-4 py-2 text-sm text-white shadow-lg" style={{ background: C.ink }}>
             <AlertTriangle size={14} style={{ color: C.brassSoft }} />
             <span>{toast}</span>
