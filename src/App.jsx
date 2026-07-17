@@ -22,6 +22,10 @@ const DIET_BADGE_STYLE = {
 const CAT_ACCENT = { IPA: "#E3A93E", Pale: "#E8D976", Bitter: "#D6823C", "Stout/Porter": "#6E4A32", Stout: "#6E4A32", Porter: "#6E4A32", Cider: "#5E8C4F", Sour: "#A13B5C", Misc: "#96A19B" };
 const STORE_KEY = "curfew-cellar:data:v1";
 const MODEL = "claude-sonnet-4-6";
+// Updated by hand every time a new App.jsx is handed over. Check this against what you were
+// just given, if it doesn't match, the deploy hasn't actually landed yet, whatever the app
+// looks like otherwise. Shown in Backup & Restore.
+const APP_BUILD = "2026-07-17 05:52";
 // ---- Cloud sync (active only in the deployed app; the preview uses window.storage) ----
 const SB_URL = "https://fnqhrckxmzioinbokicb.supabase.co";
 const SB_KEY = "sb_publishable_RyO06sDdZg3bH7Mt6hwHEQ_EA9RNkJ8";
@@ -2985,6 +2989,7 @@ export default function TheCurfewCellar() {
     const taCls = `${inputCls} h-28 resize-none font-mono text-xs`;
     return (
       <div className="mx-auto max-w-2xl space-y-5">
+        <p className="text-center text-xs text-slate-400" style={{ fontFamily: "var(--font-data)" }}>Build {APP_BUILD}</p>
         <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
           <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Export</h2>
           <p className="mt-0.5 text-xs text-slate-400">{prefs.lastBackup ? `Last backup: ${fmtUpdated(prefs.lastBackup)}` : "No backup taken yet. The cloud keeps no history, so a saved copy is your safety net."}</p>
@@ -3686,7 +3691,7 @@ export default function TheCurfewCellar() {
                 </div>
                 {alert && <p className="mt-2.5 inline-flex items-center gap-1 text-xs font-semibold text-amber-700">{AlertIcon && <AlertIcon size={13} />} {alert.text}</p>}
                 <div className="mt-3 flex gap-2">
-                  {stageIdx > 0 && <button onClick={() => goBack(openLine.id)} className="inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-lg border bg-white px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><ArrowRight size={15} className="rotate-180" /> Back</button>}
+                  {stageIdx > 0 && <button onClick={() => goBack(openLine.id)} className="inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-lg border bg-white px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><ArrowRight size={15} className="rotate-180" /> Back to {flow[stageIdx - 1] === "tapped" ? "Tapped" : STATUS_BY_KEY[flow[stageIdx - 1]].label}</button>}
                   {openLine.status === "on"
                     ? <button onClick={() => finishAndChoose(openLine)} className="inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Check size={16} /> Line finished</button>
                     : stageIdx < flow.length - 1
