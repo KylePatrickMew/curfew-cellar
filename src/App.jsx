@@ -1,5 +1,4 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
-// import { useCallback } from "react"; // might need later
 import {
   Plus, ClipboardList, BookOpen, Beer, Sparkles, Check, CheckCircle2,
   AlertTriangle, Clock, X, ArrowRight, Trash2, Search, Loader2, Bell, Calendar, History, ChevronDown, Database, Download, Upload, Copy, QrCode, Camera, FileText, Package, MoreHorizontal, BarChart3, Pencil, Printer, RotateCcw, Compass, Lock, Share,
@@ -25,7 +24,7 @@ const MODEL = "claude-sonnet-4-6";
 // Updated by hand every time a new App.jsx is handed over. Check this against what you were
 // just given, if it doesn't match, the deploy hasn't actually landed yet, whatever the app
 // looks like otherwise. Shown in Backup & Restore.
-const APP_BUILD = "2026-07-17 06:45";
+const APP_BUILD = "2026-07-17 06:55";
 // ---- Cloud sync (active only in the deployed app; the preview uses window.storage) ----
 const SB_URL = "https://fnqhrckxmzioinbokicb.supabase.co";
 const SB_KEY = "sb_publishable_RyO06sDdZg3bH7Mt6hwHEQ_EA9RNkJ8";
@@ -198,7 +197,6 @@ const STATUS_STYLE = {
   off: "bg-zinc-100 text-zinc-500 border-zinc-200",
 };
 
-// TODO: add bottles + cans as a 4th type
 const DRINK_TYPES = [
   { key: "cask", label: "Cask ale" },
   { key: "keg", label: "Keg" },
@@ -2304,7 +2302,6 @@ function TheCurfewCellarApp() {
   const doUndo = () => { if (!undoState) return; setLines(undoState.lines); setUndoState(null); if (undoTimer.current) clearTimeout(undoTimer.current); };
   const setCaskOwner = (id, v) => setLines((ls) => ls.map((c) => (c.id === id ? { ...c, caskOwner: v } : c)));
   const markCollected = (id) => { snapshotUndo("Empty marked collected"); setLines((ls) => ls.map((c) => (c.id === id ? { ...c, collected: true } : c))); };
-  // TODO: line cleans tracker, keep meaning to do this
   const markOwnerCollected = (key) => { snapshotUndo("Empties marked collected"); setLines((ls) => ls.map((c) => (IS_EMPTY(c) && ownerKey(c.caskOwner) === key ? { ...c, collected: true } : c))); };
 
   const byBB = (a, b) => {
@@ -3162,59 +3159,6 @@ function TheCurfewCellarApp() {
             </div>
           );
         })}
-      </div>
-    );
-  };
-
-  const Insights = () => {
-    const onNow = lines.filter((l) => l.status === "on");
-    const completed = lines.filter((l) => l.dates.on && l.dates.off);
-    const withName = completed.map((l) => ({ name: beerById[l.beerId]?.name || "Unknown", days: dayDiff(l.dates.on, l.dates.off) }));
-    const lasted = withName.map((x) => x.days);
-    const avgDays = lasted.length ? Math.round(lasted.reduce((a, b) => a + b, 0) / lasted.length) : null;
-    const fastest = withName.length ? withName.reduce((a, b) => (b.days < a.days ? b : a)) : null;
-    const slowest = withName.length ? withName.reduce((a, b) => (b.days > a.days ? b : a)) : null;
-    const caskOn = onNow.filter((l) => l.drinkType === "cask");
-    const catCounts = CATEGORIES.map((cat) => ({ cat, n: caskOn.filter((l) => (beerById[l.beerId]?.category || "Misc") === cat).length })).filter((c) => c.n);
-    const maxCat = Math.max(1, ...catCounts.map((c) => c.n));
-    const Stat = ({ label, value, sub }) => (
-      <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
-        <p className="text-xs uppercase tracking-wide text-slate-400">{label}</p>
-        <p className="mt-1 text-2xl font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{value}</p>
-        {sub && <p className="text-xs text-slate-500">{sub}</p>}
-      </div>
-    );
-    return (
-      <div className="space-y-5">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <Stat label="On now" value={onNow.length} />
-          <Stat label="Avg days a cask lasts" value={avgDays == null ? "--" : avgDays} sub={lasted.length ? `from ${lasted.length} finished` : "no finished casks yet"} />
-          <Stat label="In the library" value={library.length} />
-        </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
-            <p className="text-xs uppercase tracking-wide text-slate-400">Fastest to go</p>
-            {fastest ? <p className="mt-1 text-sm" style={{ color: C.ink }}><span className="font-semibold">{fastest.name}</span> · {fastest.days} day{fastest.days === 1 ? "" : "s"}</p> : <p className="mt-1 text-sm text-slate-400">No finished casks yet.</p>}
-          </div>
-          <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
-            <p className="text-xs uppercase tracking-wide text-slate-400">Slowest to go</p>
-            {slowest ? <p className="mt-1 text-sm" style={{ color: C.ink }}><span className="font-semibold">{slowest.name}</span> · {slowest.days} day{slowest.days === 1 ? "" : "s"}</p> : <p className="mt-1 text-sm text-slate-400">No finished casks yet.</p>}
-          </div>
-        </div>
-        <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
-          <p className="mb-2 text-xs uppercase tracking-wide text-slate-400">Cask ale on now, by category</p>
-          {catCounts.length === 0 ? <p className="text-sm text-slate-400">No cask ale on right now.</p> : (
-            <div className="space-y-2">
-              {catCounts.map((c) => (
-                <div key={c.cat} className="flex items-center gap-2">
-                  <span className="w-24 shrink-0 text-xs text-slate-600">{c.cat}</span>
-                  <span className="h-4 rounded" style={{ width: `${(c.n / maxCat) * 100}%`, minWidth: "8px", background: C.brass }} />
-                  <span className="text-xs text-slate-500">{c.n}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
       </div>
     );
   };
