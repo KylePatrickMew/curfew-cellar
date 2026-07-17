@@ -25,7 +25,7 @@ const MODEL = "claude-sonnet-4-6";
 // Updated by hand every time a new App.jsx is handed over. Check this against what you were
 // just given, if it doesn't match, the deploy hasn't actually landed yet, whatever the app
 // looks like otherwise. Shown in Backup & Restore.
-const APP_BUILD = "2026-07-17 06:29";
+const APP_BUILD = "2026-07-17 06:45";
 // ---- Cloud sync (active only in the deployed app; the preview uses window.storage) ----
 const SB_URL = "https://fnqhrckxmzioinbokicb.supabase.co";
 const SB_KEY = "sb_publishable_RyO06sDdZg3bH7Mt6hwHEQ_EA9RNkJ8";
@@ -736,7 +736,7 @@ const Eyebrow = ({ children, count }) => (
 );
 
 // ---------- Main ----------
-export default function TheCurfewCellar() {
+function TheCurfewCellarApp() {
   const [library, setLibrary] = useState(seedLibrary);
   const [lines, setLines] = useState(() => assignPumps(seedLines, catFromLib(seedLibrary)));
   const [view, setView] = useState("cellar");
@@ -3946,4 +3946,31 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
       {SwapChooser()}
     </div>
   );
+}
+
+// If any component throws, this catches it and shows a calm recovery screen instead of a blank
+// white void, which is what React gives you by default and is the worst possible thing to hit
+// mid-service behind a bar. Must be a class component: React only supports error boundaries via
+// componentDidCatch/getDerivedStateFromError, there is no hook equivalent.
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { error: null, showDetails: false }; }
+  static getDerivedStateFromError(error) { return { error }; }
+  componentDidCatch(error, info) { this.lastInfo = info; }
+  render() {
+    if (!this.state.error) return this.props.children;
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center p-6 text-center" style={{ background: "linear-gradient(180deg, #F6F1E4 0%, #EEE7D5 60%)", fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif" }}>
+        <div className="w-full max-w-sm rounded-2xl border bg-white p-6" style={{ borderColor: "#E6E2D8" }}>
+          <p className="text-lg font-bold" style={{ color: "#1C3636" }}>Something went wrong</p>
+          <p className="mt-2 text-sm text-slate-600">The app hit a problem and needs a reload. Your cellar data lives in the cloud, not in this screen, so nothing here is lost, reloading is safe.</p>
+          <button onClick={() => window.location.reload()} className="mt-4 w-full rounded-lg px-4 py-2.5 text-sm font-semibold text-white" style={{ background: "#1C3636" }}>Reload the app</button>
+          <button onClick={() => this.setState((s) => ({ showDetails: !s.showDetails }))} className="mt-3 text-xs text-slate-400 underline">{this.state.showDetails ? "Hide" : "Show"} technical details</button>
+          {this.state.showDetails && <p className="mt-2 max-h-40 overflow-y-auto rounded-lg bg-slate-50 p-2 text-left text-xs text-slate-500" style={{ fontFamily: "monospace" }}>{String(this.state.error && this.state.error.message)}</p>}
+        </div>
+      </div>
+    );
+  }
+}
+export default function TheCurfewCellar() {
+  return (<ErrorBoundary><TheCurfewCellarApp /></ErrorBoundary>);
 }
