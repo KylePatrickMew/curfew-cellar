@@ -24,7 +24,7 @@ const MODEL = "claude-sonnet-4-6";
 // Updated by hand every time a new App.jsx is handed over. Check this against what you were
 // just given, if it doesn't match, the deploy hasn't actually landed yet, whatever the app
 // looks like otherwise. Shown in Backup & Restore.
-const APP_BUILD = "2026-07-17 07:27";
+const APP_BUILD = "2026-07-17 07:45";
 // ---- Cloud sync (active only in the deployed app; the preview uses window.storage) ----
 const SB_URL = "https://fnqhrckxmzioinbokicb.supabase.co";
 const SB_KEY = "sb_publishable_RyO06sDdZg3bH7Mt6hwHEQ_EA9RNkJ8";
@@ -3225,6 +3225,7 @@ function TheCurfewCellarApp() {
             <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[dt, beer.style || "", extraSweetness(beer), beer.abv ? `${beer.abv}%` : ""].filter(Boolean).join("  ·  ")}</p>
             {beer.location && <p className="truncate text-xs text-slate-500" style={{ fontFamily: "var(--font-data)" }}>{beer.location}</p>}
             {(l.caskOwner && l.drinkType !== "cider" && l.drinkType !== "keykeg") && <p className="truncate text-xs text-slate-500" style={{ fontFamily: "var(--font-data)" }}>Delivered by: {l.caskOwner}</p>}
+            <div className="mt-1 flex flex-wrap items-center gap-1"><DietaryMini beer={beer} /></div>
           </div>
           <div className="shrink-0 text-right" style={{ fontFamily: "var(--font-data)" }}>
             {pump && <p className="text-xs font-semibold" style={{ color: C.brass }}>{pump}</p>}
@@ -3245,14 +3246,22 @@ function TheCurfewCellarApp() {
         <div className="mt-1">{items.map((l) => <Row key={l.id} l={l} stage={withStage ? (STATUS_BY_KEY[l.status] && STATUS_BY_KEY[l.status].label) : null} />)}</div>
       </div>
     ) : null;
-    const storeGroups = [["cask", "Cask"], ["keg", "Keg"], ["keykeg", "Key Keg"], ["cider", "Cider"]].map(([dt, label]) => {
-      const items = storeL.filter((l) => l.drinkType === dt);
-      if (!items.length) return null;
-      const sub = dt === "cask"
-        ? CATEGORIES.map((cat) => ({ cat, items: items.filter((l) => (beerById[l.beerId]?.category || "Misc") === cat).sort(byBB) })).filter((g) => g.items.length)
-        : [{ cat: null, items: items.slice().sort(byBB) }];
-      return { label, sub };
-    }).filter(Boolean);
+    // Same style order and grouping the Cellar screen uses, so this reads exactly like it: cask
+    // styles in priority order, stage shown per row since Racked lumps together three different
+    // stages (tapped/vented/racked), then best before within each style.
+    const STYLE_ORDER = ["IPA", "Pale", "Bitter", "Stout/Porter", "Misc"];
+    const prepGroups = STYLE_ORDER.map((cat) => ({
+      label: cat === "Stout/Porter" ? "Stout & Porter" : cat,
+      items: prep.filter((l) => (beerById[l.beerId]?.category || "Misc") === cat).sort((a, b) => prepOrder[a.status] - prepOrder[b.status] || byBB(a, b)),
+    })).filter((g) => g.items.length);
+    // Cellar's own In Store order: cask styles first (same STYLE_ORDER), then Keg, then Cider,
+    // flowing as one continuous list rather than separate Cask/Keg/Cider top-level sections.
+    const storeCask = storeL.filter((l) => l.drinkType === "cask");
+    const storeGroups = [
+      ...STYLE_ORDER.map((cat) => ({ label: cat === "Stout/Porter" ? "Stout & Porter" : cat, items: storeCask.filter((l) => (beerById[l.beerId]?.category || "Misc") === cat).sort(byBB) })),
+      { label: "Keg", items: storeL.filter((l) => PUMP_DRINK(l.drinkType) === "keg").sort(byBB) },
+      { label: "Cider", items: storeL.filter((l) => l.drinkType === "cider").sort(byBB) },
+    ].filter((g) => g.items.length);
     return (
       <div className="space-y-4">
         <div className="no-print flex items-center justify-end gap-2">
@@ -3263,19 +3272,24 @@ function TheCurfewCellarApp() {
           {fmtUpdated(lastUpdated) && <p className="text-xs text-slate-400">Last updated: {fmtUpdated(lastUpdated)}</p>}
           {total === 0 && <p className="mt-4 text-sm text-slate-400">No stock yet.</p>}
           <Section title="Pouring" items={onL} withStage={false} />
-          <Section title="Racked" items={prep} withStage={true} />
+          {prep.length > 0 && (
+            <div className="mt-4">
+              <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: C.brass }}>Racked · {prep.length}</h3>
+              {prepGroups.map((g) => (
+                <div key={g.label} className="mt-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{g.label}</p>
+                  {g.items.map((l) => <Row key={l.id} l={l} stage={STATUS_BY_KEY[l.status] && STATUS_BY_KEY[l.status].label} />)}
+                </div>
+              ))}
+            </div>
+          )}
           {storeL.length > 0 && (
             <div className="mt-4">
               <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: C.brass }}>In Store · {storeL.length}</h3>
               {storeGroups.map((g) => (
                 <div key={g.label} className="mt-2">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{g.label}</p>
-                  {g.sub.map((sg) => (
-                    <div key={sg.cat || g.label}>
-                      {sg.cat && <p className="mt-1 text-xs uppercase tracking-wide text-slate-400">{sg.cat}</p>}
-                      {sg.items.map((l) => <Row key={l.id} l={l} stage={null} />)}
-                    </div>
-                  ))}
+                  {g.items.map((l) => <Row key={l.id} l={l} stage={null} />)}
                 </div>
               ))}
             </div>
