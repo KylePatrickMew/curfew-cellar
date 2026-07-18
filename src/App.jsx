@@ -24,7 +24,7 @@ const MODEL = "claude-sonnet-4-6";
 // Updated by hand every time a new App.jsx is handed over. Check this against what you were
 // just given, if it doesn't match, the deploy hasn't actually landed yet, whatever the app
 // looks like otherwise. Shown in Backup & Restore.
-const APP_BUILD = "2026-07-17 06:55";
+const APP_BUILD = "2026-07-17 07:27";
 // ---- Cloud sync (active only in the deployed app; the preview uses window.storage) ----
 const SB_URL = "https://fnqhrckxmzioinbokicb.supabase.co";
 const SB_KEY = "sb_publishable_RyO06sDdZg3bH7Mt6hwHEQ_EA9RNkJ8";
@@ -639,7 +639,7 @@ const DietaryBadges = ({ beer }) => (
 );
 const DietaryMini = ({ beer }) => {
   const items = [];
-  if (beer.vegan) items.push(["Ve", "Vegan", DIET_BADGE_STYLE.vegan]);
+  if (beer.vegan) items.push(["VG", "Vegan", DIET_BADGE_STYLE.vegan]);
   if (beer.glutenStatus === "Gluten-free") items.push(["GF", "Gluten-free", DIET_BADGE_STYLE.gluten]);
   else if (beer.glutenStatus === "Low gluten") items.push(["<20ppm", "Low gluten, under 20ppm", DIET_BADGE_STYLE.gluten]);
   if (beer.clarity === "Hazy") items.push(["Hazy", "Hazy", DIET_BADGE_STYLE.hazy]);
@@ -1504,16 +1504,6 @@ function TheCurfewCellarApp() {
         });
       }
       if (!onL.length && !prep.length && !storeL.length) { doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(gray[0], gray[1], gray[2]); doc.text("No stock yet.", M, y); }
-
-      const empties = lines.filter(IS_EMPTY);
-      if (empties.length) {
-        sectionHead("Empties", empties.length);
-        groupByOwner(empties).forEach(({ label, items }) => {
-          subHead(label);
-          items.forEach((l) => beerLine(l, "#96A19B", {}));
-          y += 1;
-        });
-      }
 
       const pageCount = doc.internal.getNumberOfPages();
       for (let p = 1; p <= pageCount; p++) {
@@ -2709,6 +2699,10 @@ function TheCurfewCellarApp() {
       if (a.allergensVerified !== b.allergensVerified) return a.allergensVerified ? 1 : -1;
       return (a.brewery || "").localeCompare(b.brewery || "") || (a.name || "").localeCompare(b.name || "");
     });
+    // Library array order is insertion order (new beers are always appended), so the last 10
+    // entries are genuinely the 10 most recently added, same approach as the existing "Recently
+    // added" list in the Add Stock picker.
+    const recentAdded = library.filter((b) => !b.archived).slice(-10).reverse();
     const histChrono = (b) => (b.history || []).slice().sort((x, y) => new Date(x.date) - new Date(y.date));
     const libRow = (b) => {
       const h = histChrono(b);
@@ -2786,6 +2780,12 @@ function TheCurfewCellarApp() {
               <p className="font-semibold" style={{ color: C.ink }}>Search your library</p>
               <p className="mt-1 text-sm text-slate-500">{library.length} beer{library.length === 1 ? "" : "s"} saved. Type a name, brewery or style.</p>
             </div>
+            {recentAdded.length > 0 && (
+              <div>
+                <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">Recently added</p>
+                <div className="space-y-2">{recentAdded.map(libRow)}</div>
+              </div>
+            )}
             {rest.length > 0 && (
               <div>
                 <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">Library</p>
@@ -3280,21 +3280,6 @@ function TheCurfewCellarApp() {
               ))}
             </div>
           )}
-          {(() => {
-            const empties = lines.filter(IS_EMPTY);
-            if (!empties.length) return null;
-            return (
-              <div className="mt-4">
-                <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: C.brass }}>Empties · {empties.length}</h3>
-                {groupByOwner(empties).map(({ key, label, items }) => (
-                  <div key={key} className="mt-2">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
-                    {items.map((l) => <Row key={l.id} l={l} stage={null} />)}
-                  </div>
-                ))}
-              </div>
-            );
-          })()}
         </div>
       </div>
     );
