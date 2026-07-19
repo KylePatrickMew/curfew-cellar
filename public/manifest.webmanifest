@@ -1,6 +1,6 @@
 {
-  "name": "The Curfew Cellar",
-  "short_name": "Cellar",
+  "name": "The Curfew",
+  "short_name": "Curfew",
   "description": "Micropub cellar management",
   "start_url": "/",
   "display": "standalone",
