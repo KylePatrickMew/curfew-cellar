@@ -24,7 +24,7 @@ const MODEL = "claude-sonnet-4-6";
 // Updated by hand every time a new App.jsx is handed over. Check this against what you were
 // just given, if it doesn't match, the deploy hasn't actually landed yet, whatever the app
 // looks like otherwise. Shown in Backup & Restore.
-const APP_BUILD = "2026-07-17 07:45";
+const APP_BUILD = "2026-07-19 11:53";
 // ---- Cloud sync (active only in the deployed app; the preview uses window.storage) ----
 const SB_URL = "https://fnqhrckxmzioinbokicb.supabase.co";
 const SB_KEY = "sb_publishable_RyO06sDdZg3bH7Mt6hwHEQ_EA9RNkJ8";
@@ -201,14 +201,6 @@ const priceTriple = (pint) => {
   return { pint: money(p), half: money(roundUpTo5p(p / 2)), schooner: money(roundUpTo5p(p * 2 / 3)) };
 };
 const fmtUpdated = (iso) => { if (!iso) return null; try { return new Date(iso).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }); } catch { return null; } };
-const STATUS_STYLE = {
-  in_cellar: "bg-indigo-50 text-indigo-700 border-indigo-200",
-  vented: "bg-violet-50 text-violet-700 border-violet-200",
-  tapped: "bg-blue-50 text-blue-700 border-blue-200",
-  on: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  off: "bg-zinc-100 text-zinc-500 border-zinc-200",
-};
-
 const DRINK_TYPES = [
   { key: "cask", label: "Cask ale" },
   { key: "keg", label: "Keg" },
@@ -235,14 +227,6 @@ const caskCategoryGroups = (items, catOf) => {
   leftover.forEach((cat) => groups.push({ cat, items: items.filter((it) => catOf(it) === cat) }));
   return groups.filter((g) => g.items.length);
 };
-const CAT_STYLE = {
-  IPA: "bg-amber-50 text-amber-800 border-amber-200",
-  Pale: "bg-yellow-50 text-yellow-800 border-yellow-200",
-  Bitter: "bg-orange-50 text-orange-800 border-orange-200",
-  "Stout/Porter": "bg-stone-200 text-stone-700 border-stone-300",
-  Misc: "bg-slate-100 text-slate-600 border-slate-200",
-};
-
 const ALLERGEN_OPTIONS = [
   "Barley (gluten)", "Wheat (gluten)", "Oats (gluten)", "Rye (gluten)",
   "Sulphites", "Fish (isinglass finings)", "Milk (lactose)",
@@ -347,11 +331,6 @@ const freshness = (line) => {
   if (line.status === "off") return { level: "off", text: `Lasted ${d} day${d === 1 ? "" : "s"}` };
   if (d < FRESH_LIMIT) return null;
   return { level: "check", text: `On for ${d} days · check quality` };
-};
-const FRESH_STYLE = {
-  fresh: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  check: "bg-amber-50 text-amber-800 border-amber-200",
-  off: "bg-zinc-100 text-zinc-500 border-zinc-200",
 };
 const bbStatus = (line) => {
   if (!line.bestBefore) return null;
@@ -681,7 +660,6 @@ const CatDot = ({ category }) => {
 const Badge = ({ className = "", style, children }) => (
   <span style={style} className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${className}`}>{children}</span>
 );
-const StatusBadge = ({ status }) => <Badge className={STATUS_STYLE[status]}>{STATUSES[STATUS_INDEX[status]].label}</Badge>;
 const DietaryBadges = ({ beer }) => (
   <div className="flex flex-wrap gap-1.5">
     {beer.vegan && <Badge style={DIET_BADGE_STYLE.vegan}>Vegan</Badge>}
@@ -1064,8 +1042,6 @@ function TheCurfewCellarApp() {
   const showToast = (text) => { setToast(text); if (toastTimer.current) clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(null), 4000); };
   const [hydrated, setHydrated] = useState(false);
   const [storageOk, setStorageOk] = useState(null);
-  const [confirmReset, setConfirmReset] = useState(false);
-  const [resetText, setResetText] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [undoState, setUndoState] = useState(null);
   const undoTimer = useRef(null);
@@ -2122,14 +2098,6 @@ function TheCurfewCellarApp() {
     m.setAttribute("content", "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover");
   }, []);
 
-  const resetDemo = () => {
-    setLibrary(clone(seedLibrary));
-    setLines(assignPumps(clone(seedLines), catFromLib(seedLibrary)));
-    setDistributors(clone(seedDistributors));
-    setLastUpdated(new Date().toISOString());
-    setOpenId(null); setHistoryOpen({}); setLibrarySearch(""); setForm(emptyForm); setFillNote(null); setView("cellar"); setConfirmReset(false); setResetText("");
-  };
-
   const exportData = () => JSON.stringify({ app: "thecurfewcellar", version: 1, exportedAt: new Date().toISOString(), library, lines }, null, 2);
   const noteBackupTaken = () => {
     const stamp = new Date().toISOString();
@@ -2859,6 +2827,7 @@ function TheCurfewCellarApp() {
     // is a plain pass-through. This is the only Add-Stock-specific behaviour BeerDetailsFields
     // itself doesn't need to know about.
     const handleFieldChange = (patch) => {
+      if ("brewery" in patch || "name" in patch) setConfirmDupe(false);
       if (form.drinkType === "cask" && ("style" in patch || "abv" in patch)) {
         const nextStyle = "style" in patch ? patch.style : form.style;
         const nextAbv = "abv" in patch ? patch.abv : form.abv;
@@ -2887,7 +2856,7 @@ function TheCurfewCellarApp() {
               <input className={inputCls} inputMode="decimal" value={form.price} onChange={(e) => setF({ price: e.target.value })} placeholder="e.g. 4.40" />
               {priceNeedsConfirm && <p className="mt-1 text-xs font-medium" style={{ color: C.brass }}>Previous price. Please confirm</p>}
             </Field>
-            {form.drinkType !== "cask" && form.drinkType !== "keg" && <Field label="Container"><select className={inputCls} value={form.size} onChange={(e) => setF({ size: e.target.value })}>{SIZE_OPTIONS.map((s) => <option key={s}>{s}</option>)}</select></Field>}
+            {form.drinkType === "cider" && <Field label="Container"><select className={inputCls} value={form.size} onChange={(e) => setF({ size: e.target.value })}>{SIZE_OPTIONS.map((s) => <option key={s}>{s}</option>)}</select></Field>}
           </div>
           {form.drinkType !== "cider" && form.drinkType !== "keykeg" && (
             <Field label="Delivered by">
@@ -3485,7 +3454,6 @@ function TheCurfewCellarApp() {
   };
   const TapList = () => {
     const on = lines.filter((l) => l.status === "on");
-    const soon = lines.filter((l) => ["tapped", "vented", "in_cellar"].includes(l.status));
     const cask = on.filter((l) => l.drinkType === "cask");
     const keg = on.filter((l) => PUMP_DRINK(l.drinkType) === "keg").sort(byBB);
     const cider = on.filter((l) => l.drinkType === "cider").sort(byBB);
@@ -3663,7 +3631,7 @@ function TheCurfewCellarApp() {
     const bb = openLine ? bbStatus(openLine) : null;
     const flow = openLine ? flowFor(openLine.drinkType) : [];
     const stageIdx = openLine ? flow.indexOf(openLine.status) : -1;
-    const alert = (f && openLine.status === "on" && f.level === "check") ? { cls: FRESH_STYLE.check, Icon: Clock, text: f.text } : null;
+    const alert = (f && openLine.status === "on" && f.level === "check") ? { Icon: Clock, text: f.text } : null;
     const AlertIcon = alert ? alert.Icon : null;
     const sizeShort = openLine && openLine.size ? openLine.size.replace("Bag-in-box ", "").replace("Keg ", "") : "";
     const meta = openLine
@@ -3979,7 +3947,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
       )}
       </>)}
       {toast && (
-        <div className="no-print fixed inset-x-0 bottom-24 flex justify-center px-4 sm:bottom-4" style={{ zIndex: 60 }}>
+        <div className="no-print fixed inset-x-0 bottom-40 flex justify-center px-4 sm:bottom-16" style={{ zIndex: 60 }}>
           <div className="cc-pop flex items-center gap-2 rounded-full px-4 py-2 text-sm text-white shadow-lg" style={{ background: C.ink }}>
             <AlertTriangle size={14} style={{ color: C.brassSoft }} />
             <span>{toast}</span>
