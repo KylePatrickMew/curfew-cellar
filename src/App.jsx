@@ -108,10 +108,12 @@ const cloudStore = {
   async subscribe(onRemote) {
     try {
       const c = await _client();
-      c.channel("cellar-sync").on("postgres_changes", { event: "*", schema: "public", table: "cellar" }, (payload) => {
+      const channel = c.channel("cellar-sync").on("postgres_changes", { event: "*", schema: "public", table: "cellar" }, (payload) => {
         try { const row = payload.new; if (!row || !row.data) return; const v = JSON.stringify(row.data); const rev = _revOf(v); if (rev && rev === _rev) return; _rev = rev; onRemote(v); } catch (e) {}
-      }).subscribe();
-    } catch (e) {}
+      });
+      channel.subscribe();
+      return channel;
+    } catch (e) { return null; }
   },
 };
 const store = (typeof window !== "undefined" && window.storage) ? window.storage : cloudStore;
@@ -1579,13 +1581,14 @@ function TheCurfewCellarApp() {
   useEffect(() => {
     if (!cloudMode || !authed) return;
     let cancelled = false;
+    let channel = null;
     (async () => {
       const ok = await loadCellar();
       // Only ever apply a remote payload that is genuinely NEWER than what this device holds.
       // Without this guard, any remote write lands wholesale, including a stale snapshot
       // force-written by a device that was backgrounded, which silently reverts live lines
       // (e.g. a beer that was Pouring reappearing In Store).
-      if (!cancelled && ok) store.subscribe((j) => {
+      if (!cancelled && ok) channel = await store.subscribe((j) => {
         try {
           const data = migrate(j);
           const remoteAt = data && data.lastUpdated ? Date.parse(data.lastUpdated) : 0;
@@ -1595,7 +1598,10 @@ function TheCurfewCellarApp() {
         } catch (e) { /* ignore */ }
       });
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      if (channel) _client().then((c) => c.removeChannel(channel)).catch(() => {});
+    };
   }, [authed]);
 
   // iOS suspends live subscriptions while the app is backgrounded and doesn't reliably
@@ -2098,7 +2104,7 @@ function TheCurfewCellarApp() {
     m.setAttribute("content", "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover");
   }, []);
 
-  const exportData = () => JSON.stringify({ app: "thecurfewcellar", version: 1, exportedAt: new Date().toISOString(), library, lines }, null, 2);
+  const exportData = () => JSON.stringify({ app: "thecurfewcellar", version: 1, exportedAt: new Date().toISOString(), library, lines, distributors, prefs }, null, 2);
   const noteBackupTaken = () => {
     const stamp = new Date().toISOString();
     const nextPrefs = { ...prefs, lastBackup: stamp };
@@ -2128,7 +2134,7 @@ function TheCurfewCellarApp() {
     try {
       const data = JSON.parse(text);
       if (!Array.isArray(data.library) || !Array.isArray(data.lines)) throw new Error("shape");
-      setPendingImport({ library: data.library, lines: data.lines });
+      setPendingImport({ library: data.library, lines: data.lines, distributors: data.distributors, prefs: data.prefs });
       setBackupMsg({ type: "ask", text: `Found ${data.library.length} saved items and ${data.lines.length} cellar lines. Importing replaces everything currently in the app.` });
     } catch (e) { setPendingImport(null); setBackupMsg({ type: "warn", text: "That doesn't look like a valid Curfew backup." }); }
   };
@@ -2145,6 +2151,8 @@ function TheCurfewCellarApp() {
     if (!pendingImport) return;
     const cleaned = normaliseData({ library: pendingImport.library, lines: pendingImport.lines });
     setLibrary(cleaned.library); setLines(assignPumps(cleaned.lines, catFromLib(cleaned.library)));
+    if (Array.isArray(pendingImport.distributors)) setDistributors(pendingImport.distributors);
+    if (pendingImport.prefs && typeof pendingImport.prefs === "object") setPrefs((p) => ({ ...p, ...pendingImport.prefs }));
     setPendingImport(null); setImportText(""); setOpenId(null); setHistoryOpen({}); setView("cellar");
     setBackupMsg({ type: "ok", text: "Backup imported." });
   };
