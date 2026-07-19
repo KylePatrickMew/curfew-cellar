@@ -54,12 +54,12 @@ export default async function handler(req, res) {
   }));
 
   if (gone.length) {
-    try {
-      await fetch(`${SB_URL}/rest/v1/push_subs?endpoint=in.(${gone.map((g) => `"${encodeURIComponent(g)}"`).join(",")})`, {
+    await Promise.all(gone.map((endpoint) =>
+      fetch(`${SB_URL}/rest/v1/push_subs?endpoint=eq.${encodeURIComponent(endpoint)}`, {
         method: "DELETE",
         headers: { apikey: service, authorization: `Bearer ${service}` },
-      });
-    } catch (e) { /* best effort */ }
+      }).catch(() => {}) // best effort
+    ));
   }
 
   res.status(200).json({ sent: true });

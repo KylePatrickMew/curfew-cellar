@@ -115,6 +115,14 @@ const cloudStore = {
       return channel;
     } catch (e) { return null; }
   },
+  async fetchHistory(limit = 15) {
+    try {
+      const c = await _client();
+      const { data, error } = await c.from("cellar_history").select("id, data, created_at").order("created_at", { ascending: false }).limit(limit);
+      if (error) throw error;
+      return data || [];
+    } catch (e) { return null; }
+  },
 };
 const store = (typeof window !== "undefined" && window.storage) ? window.storage : cloudStore;
 const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -1051,6 +1059,9 @@ function TheCurfewCellarApp() {
   const [backupMsg, setBackupMsg] = useState(null);
   const [confirmCacheReset, setConfirmCacheReset] = useState(false);
   const [cacheResetMsg, setCacheResetMsg] = useState(null);
+  const [historyList, setHistoryList] = useState(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [confirmSnapshotId, setConfirmSnapshotId] = useState(null);
   const [pendingImport, setPendingImport] = useState(null);
   const fileRef = useRef(null);
   const [addMode, setAddMode] = useState("pick");
@@ -1747,8 +1758,8 @@ function TheCurfewCellarApp() {
       }
       if (storeL.length) {
         sectionHead("In store", storeL.length);
-        [["cask", "Cask"], ["keg", "Keg"], ["keykeg", "Key Keg"], ["cider", "Cider"]].forEach(([dt, label]) => {
-          const items = storeL.filter((l) => l.drinkType === dt);
+        [["cask", "Cask"], ["keg", "Keg"], ["cider", "Cider"]].forEach(([dt, label]) => {
+          const items = dt === "keg" ? storeL.filter((l) => PUMP_DRINK(l.drinkType) === "keg") : storeL.filter((l) => l.drinkType === dt);
           if (!items.length) return;
           subHead(label);
           if (dt === "cask") {
@@ -1756,7 +1767,7 @@ function TheCurfewCellarApp() {
               catHead(cat); sub.slice().sort(cmpBB).forEach((l) => beerLine(l, CAT_ACCENT[cat] || "#96A19B", {}));
             });
           } else {
-            items.slice().sort(cmpBB).forEach((l) => beerLine(l, TYPE_ACCENT[dt] || "#B8862B", {}));
+            items.slice().sort(cmpBB).forEach((l) => beerLine(l, TYPE_ACCENT[l.drinkType] || "#B8862B", {}));
           }
           y += 1;
         });
@@ -2147,14 +2158,30 @@ function TheCurfewCellarApp() {
     reader.readAsText(file);
     ev.target.value = "";
   };
+  const applyBackupData = (data) => {
+    const cleaned = normaliseData({ library: data.library, lines: data.lines });
+    setLibrary(cleaned.library); setLines(assignPumps(cleaned.lines, catFromLib(cleaned.library)));
+    if (Array.isArray(data.distributors)) setDistributors(data.distributors);
+    if (data.prefs && typeof data.prefs === "object") setPrefs((p) => ({ ...p, ...data.prefs }));
+    setOpenId(null); setHistoryOpen({}); setView("cellar");
+  };
   const confirmImport = () => {
     if (!pendingImport) return;
-    const cleaned = normaliseData({ library: pendingImport.library, lines: pendingImport.lines });
-    setLibrary(cleaned.library); setLines(assignPumps(cleaned.lines, catFromLib(cleaned.library)));
-    if (Array.isArray(pendingImport.distributors)) setDistributors(pendingImport.distributors);
-    if (pendingImport.prefs && typeof pendingImport.prefs === "object") setPrefs((p) => ({ ...p, ...pendingImport.prefs }));
-    setPendingImport(null); setImportText(""); setOpenId(null); setHistoryOpen({}); setView("cellar");
+    applyBackupData(pendingImport);
+    setPendingImport(null); setImportText("");
     setBackupMsg({ type: "ok", text: "Backup imported." });
+  };
+  const loadHistory = async () => {
+    setHistoryLoading(true);
+    const rows = await store.fetchHistory(15);
+    setHistoryList(rows || []);
+    setHistoryLoading(false);
+  };
+  const restoreSnapshot = (row) => {
+    applyBackupData(row.data);
+    setConfirmSnapshotId(null);
+    setHistoryList(null);
+    showToast(`Restored the cellar to how it looked at ${fmtUpdated(row.created_at)}.`);
   };
 
   const autoFill = async () => {
@@ -3214,6 +3241,40 @@ function TheCurfewCellarApp() {
             </div>
           )}
         </div>
+
+        {cloudMode && (
+          <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
+            <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Recent snapshots</h2>
+            <p className="mt-1 text-sm text-slate-500">The cloud keeps the last 30 states the cellar has been in, taken automatically. If something goes wrong on any device, you can put it back here, no manual backup needed.</p>
+            {historyList === null ? (
+              <button onClick={loadHistory} disabled={historyLoading} className="mt-3 inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-50" style={{ borderColor: C.line }}>
+                <History size={16} /> {historyLoading ? "Loading…" : "Load recent snapshots"}
+              </button>
+            ) : historyList.length === 0 ? (
+              <p className="mt-3 text-sm text-slate-400">No snapshots yet. These build up automatically as changes get saved.</p>
+            ) : (
+              <div className="mt-3 space-y-1.5">
+                {historyList.map((row) => (
+                  <div key={row.id} className="rounded-lg border px-3 py-2" style={{ borderColor: C.line }}>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-sm" style={{ color: C.ink, fontFamily: "var(--font-data)" }}>{fmtUpdated(row.created_at)}</span>
+                      {confirmSnapshotId !== row.id && <button onClick={() => setConfirmSnapshotId(row.id)} className="shrink-0 rounded-md border px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50" style={{ borderColor: C.line }}>Restore</button>}
+                    </div>
+                    {confirmSnapshotId === row.id && (
+                      <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5">
+                        <p className="text-xs text-amber-800">Replaces everything currently in the app with how the cellar looked at this point. Cannot be undone from here, take a backup first if you're not sure.</p>
+                        <div className="mt-2 flex gap-2">
+                          <button onClick={() => restoreSnapshot(row)} className="rounded-md bg-amber-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-900">Restore now</button>
+                          <button onClick={() => setConfirmSnapshotId(null)} className="rounded-md border px-3 py-1.5 text-xs font-medium text-slate-600" style={{ borderColor: C.line }}>Cancel</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
           <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Fix a stuck app</h2>
