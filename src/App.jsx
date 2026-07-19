@@ -48,6 +48,18 @@ const _client = async () => {
   return _sb;
 };
 const _revOf = (v) => { try { return JSON.parse(v).lastUpdated || null; } catch (e) { return null; } };
+// The deployed /api/anthropic proxy now requires a signed-in staff session (see anthropic.js),
+// so every call through it must carry the current Supabase access token as a bearer header.
+// In the preview sandbox there is no Supabase session and the AI calls are intercepted before
+// they ever reach that proxy, so falling back to a plain header there is safe, not a workaround.
+const authedFetchHeaders = async () => {
+  try {
+    const c = await _client();
+    const { data } = await c.auth.getSession();
+    const token = data && data.session ? data.session.access_token : null;
+    return token ? { "Content-Type": "application/json", "Authorization": `Bearer ${token}` } : { "Content-Type": "application/json" };
+  } catch (e) { return { "Content-Type": "application/json" }; }
+};
 const _loadJsPDF = () => new Promise((resolve, reject) => {
   if (typeof window === "undefined") return reject(new Error("no window"));
   if (window.jspdf && window.jspdf.jsPDF) return resolve(window.jspdf.jsPDF);
@@ -208,6 +220,21 @@ const PUMP_DRINK = (dt) => (dt === "keykeg" ? "keg" : dt);
 // An empty awaiting collection: finished, not yet collected, and returnable (ciders and one-way key kegs are not).
 const IS_EMPTY = (l) => l.status === "off" && !l.collected && l.drinkType !== "cider" && l.drinkType !== "keykeg";
 const CATEGORIES = ["IPA", "Pale", "Bitter", "Stout/Porter", "Misc"];
+// Groups a set of items by cask category, always in CATEGORIES' fixed order first, but never
+// silently dropping anything. A cask can carry a category CATEGORIES doesn't list (Sour is a
+// valid chip choice in BeerDetailsFields; Cider can be picked on a cask by mistake), and six
+// different screens and PDFs used to iterate CATEGORIES directly, so any such cask vanished
+// from the list body while still being counted in that same list's own header total. Any
+// leftover category actually present in the data gets one further group, named after itself,
+// appended after the fixed five. `catOf` resolves a category from whatever `items` holds
+// (a line via beerById, or a beer record directly), so this works for either.
+const caskCategoryGroups = (items, catOf) => {
+  const groups = CATEGORIES.map((cat) => ({ cat, items: items.filter((it) => catOf(it) === cat) }));
+  const known = new Set(CATEGORIES);
+  const leftover = [...new Set(items.map(catOf).filter((c) => !known.has(c)))].sort();
+  leftover.forEach((cat) => groups.push({ cat, items: items.filter((it) => catOf(it) === cat) }));
+  return groups.filter((g) => g.items.length);
+};
 const CAT_STYLE = {
   IPA: "bg-amber-50 text-amber-800 border-amber-200",
   Pale: "bg-yellow-50 text-yellow-800 border-yellow-200",
@@ -466,15 +493,41 @@ const categorise = (style, abv) => {
 // tells us unambiguously what it is. Keg gets the same style-based derivation as cask, since keg
 // beers have real styles (IPA, Stout, Pale...) just as casks do.
 const deriveCategory = (drinkType, style, abv) => (drinkType === "cider" ? "Cider" : categorise(style, abv));
+const EMPTY_DATES = { ordered: null, delivered: null, racked: null, vented: null, tapped: null, on: null, off: null };
+const normaliseData = (data) => {
+  if (!data) return data;
+  const lib = Array.isArray(data.library) ? data.library.map((b) => ({
+    ...b,
+    allergens: Array.isArray(b.allergens) ? b.allergens : [],
+    history: Array.isArray(b.history) ? b.history : [],
+  })) : [];
+  const libIds = new Set(lib.map((b) => b.id));
+  const rawLines = Array.isArray(data.lines) ? data.lines : [];
+  const dropped = rawLines.filter((l) => !l || !libIds.has(l.beerId)).length;
+  if (dropped) console.warn(`normaliseData: dropped ${dropped} line(s) with no matching library beer.`);
+  const lines = rawLines.filter((l) => l && libIds.has(l.beerId)).map((l) => ({
+    ...l,
+    status: STATUS_BY_KEY[l.status] ? l.status : "in_cellar",
+    dates: { ...EMPTY_DATES, ...(l.dates || {}) },
+    collected: !!l.collected,
+  }));
+  return { ...data, library: lib, lines };
+};
 
+// Local fallback draft, used only when the AI lookup can't be reached. This is a guess at
+// flavour and style only, never at dietary facts: vegan/gluten/allergens default to the
+// unverified, unsafe-to-assume position (vegan false, allergens empty, gluten Standard) rather
+// than a confident-looking guess, matching the rule the real autofill prompt itself follows.
+// Ciders still default to Sulphites and gluten-free, since that's true of the category as a
+// whole rather than a beer-specific claim, but never to vegan true.
 const aiDraft = (name) => {
   const l = (name || "").toLowerCase();
-  let d = { style: "Pale Ale", abv: "4.2", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Golden and sessionable, light citrus and a clean dry finish." };
-  if (/stout|porter/.test(l)) d = { ...d, style: /porter/.test(l) ? "Porter" : "Stout", abv: "4.8", allergens: ["Barley (gluten)", "Oats (gluten)"], notes: "Dark and roasty, coffee and dark chocolate, smooth and dry." };
-  else if (/ipa/.test(l)) d = { ...d, style: "IPA", abv: "5.6", clarity: /hazy|juic|neipa/.test(l) ? "Hazy" : "Clear", allergens: ["Barley (gluten)", "Wheat (gluten)"], notes: "Hop-forward, tropical fruit and citrus over a firm bitterness." };
+  let d = { style: "Pale Ale", abv: "4.2", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "Golden and sessionable, light citrus and a clean dry finish." };
+  if (/stout|porter/.test(l)) d = { ...d, style: /porter/.test(l) ? "Porter" : "Stout", abv: "4.8", notes: "Dark and roasty, coffee and dark chocolate, smooth and dry." };
+  else if (/ipa/.test(l)) d = { ...d, style: "IPA", abv: "5.6", clarity: /hazy|juic|neipa/.test(l) ? "Hazy" : "Clear", notes: "Hop-forward, tropical fruit and citrus over a firm bitterness." };
   else if (/bitter/.test(l)) d = { ...d, style: "Best Bitter", abv: "3.9", notes: "Amber, biscuity malt with earthy English hops." };
-  else if (/cider|scrumpy|apple/.test(l)) d = { style: "Medium", abv: "5.2", clarity: "Clear", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Traditional medium cider, crisp apple with a gentle tannic finish.", sweetness: /dry/.test(l) ? "Dry" : /sweet/.test(l) ? "Sweet" : "Medium" };
-  else if (/pear|perry/.test(l)) d = { style: "Perry", abv: "4.5", clarity: "Clear", glutenStatus: "Gluten-free", vegan: true, allergens: ["Sulphites"], notes: "Soft, lightly sweet perry with ripe pear notes.", sweetness: "Medium Sweet" };
+  else if (/cider|scrumpy|apple/.test(l)) d = { style: "Medium", abv: "5.2", clarity: "Clear", glutenStatus: "Gluten-free", vegan: false, allergens: ["Sulphites"], notes: "Traditional medium cider, crisp apple with a gentle tannic finish.", sweetness: /dry/.test(l) ? "Dry" : /sweet/.test(l) ? "Sweet" : "Medium" };
+  else if (/pear|perry/.test(l)) d = { style: "Perry", abv: "4.5", clarity: "Clear", glutenStatus: "Gluten-free", vegan: false, allergens: ["Sulphites"], notes: "Soft, lightly sweet perry with ripe pear notes.", sweetness: "Medium Sweet" };
   return { ...d, allergensVerified: false };
 };
 
@@ -1265,7 +1318,7 @@ function TheCurfewCellarApp() {
     });
     return { ...data, library: lib, prefs: { ...(data.prefs || {}), historyResetV1: true }, lastUpdated: new Date().toISOString() };
   };
-  const migrate = (json) => migrateHistoryResetV1(migrateCategoryV1(migrateTidy(migrateClarity(migrateNotes5(migrateNotes4(migrateNotes3(migrateNotes2(migrateNotes(migrateEmpties2(migrateEmpties(migrateLaunch(JSON.parse(json)))))))))))));
+  const migrate = (json) => migrateHistoryResetV1(migrateCategoryV1(migrateTidy(migrateClarity(migrateNotes5(migrateNotes4(migrateNotes3(migrateNotes2(migrateNotes(migrateEmpties2(migrateEmpties(migrateLaunch(normaliseData(JSON.parse(json))))))))))))));
   const applyData = (data, remote) => {
     if (!data) return;
     if (remote) skipBump.current = true;
@@ -1492,10 +1545,8 @@ function TheCurfewCellarApp() {
           if (!items.length) return;
           subHead(label);
           if (dt === "cask") {
-            CATEGORIES.forEach((cat) => {
-              const sub = items.filter((l) => (beerById[l.beerId] && beerById[l.beerId].category || "Misc") === cat).sort(cmpBB);
-              if (!sub.length) return;
-              catHead(cat); sub.forEach((l) => beerLine(l, CAT_ACCENT[cat] || "#96A19B", {}));
+            caskCategoryGroups(items, (l) => (beerById[l.beerId] && beerById[l.beerId].category) || "Misc").forEach(({ cat, items: sub }) => {
+              catHead(cat); sub.slice().sort(cmpBB).forEach((l) => beerLine(l, CAT_ACCENT[cat] || "#96A19B", {}));
             });
           } else {
             items.slice().sort(cmpBB).forEach((l) => beerLine(l, TYPE_ACCENT[dt] || "#B8862B", {}));
@@ -1606,9 +1657,7 @@ function TheCurfewCellarApp() {
 
       if (cask.length) {
         sectionHead("Cask ale");
-        CATEGORIES.forEach((cat) => {
-          const items = cask.filter((l) => (beerById[l.beerId] && beerById[l.beerId].category || "Misc") === cat);
-          if (!items.length) return;
+        caskCategoryGroups(cask, (l) => (beerById[l.beerId] && beerById[l.beerId].category) || "Misc").forEach(({ cat, items }) => {
           catHead(cat); items.forEach((l) => beerLine(l, hex(CAT_ACCENT[cat] || "#96A19B")));
         });
         y += 1;
@@ -1901,7 +1950,8 @@ function TheCurfewCellarApp() {
   };
   const confirmImport = () => {
     if (!pendingImport) return;
-    setLibrary(pendingImport.library); setLines(pendingImport.lines);
+    const cleaned = normaliseData({ library: pendingImport.library, lines: pendingImport.lines });
+    setLibrary(cleaned.library); setLines(assignPumps(cleaned.lines, catFromLib(cleaned.library)));
     setPendingImport(null); setImportText(""); setOpenId(null); setHistoryOpen({}); setView("cellar");
     setBackupMsg({ type: "ok", text: "Backup imported." });
   };
@@ -1915,7 +1965,7 @@ function TheCurfewCellarApp() {
     let stage = "network";
     try {
       const res = await fetch("/api/anthropic", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST", headers: await authedFetchHeaders(),
         body: JSON.stringify({ model: MODEL, max_tokens: 1000, messages: [{ role: "user", content: prompt }] }),
       });
       if (!res.ok) throw new Error("status " + res.status);
@@ -1952,7 +2002,18 @@ function TheCurfewCellarApp() {
       setFillNote(withContradictionCheck(autofillNote(p), { ...merged, drinkType: form.drinkType }));
     } catch (err) {
       const d = aiDraft(form.name);
-      setF({ ...d, category: deriveCategory(form.drinkType, d.style, d.abv), sweetness: form.sweetness ? form.sweetness : (d.sweetness || form.sweetness) });
+      const fbStyle = form.style.trim() ? form.style : d.style;
+      const fbAbv = form.abv.trim() ? form.abv : d.abv;
+      setF({
+        style: fbStyle,
+        abv: fbAbv,
+        clarity: form.clarity ? form.clarity : d.clarity,
+        glutenStatus: (form.glutenStatus && form.glutenStatus !== "Standard") ? form.glutenStatus : d.glutenStatus,
+        allergens: form.allergens.length ? form.allergens : d.allergens,
+        notes: form.notes.trim() ? form.notes : d.notes,
+        category: deriveCategory(form.drinkType, fbStyle, fbAbv),
+        sweetness: form.sweetness ? form.sweetness : (d.sweetness || form.sweetness),
+      });
       const msg = stage === "parse"
         ? "The draft came back in an odd format, so a quick local one was used instead. Try again, or just check the details."
         : "Couldn't reach the lookup service just now. A quick local draft was used, so double-check the details.";
@@ -2094,7 +2155,7 @@ function TheCurfewCellarApp() {
     const prompt = buildAutofillPrompt(beer.brewery, beer.name, isCider);
     try {
       const res = await fetch("/api/anthropic", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST", headers: await authedFetchHeaders(),
         body: JSON.stringify({ model: MODEL, max_tokens: 1000, messages: [{ role: "user", content: prompt }] }),
       });
       if (!res.ok) throw new Error("status " + res.status);
@@ -2193,7 +2254,7 @@ function TheCurfewCellarApp() {
     const body = { model: MODEL, max_tokens: 2048, messages: [{ role: "user", content: [{ type: isPdf ? "document" : "image", source }, { type: "text", text: promptText }] }] };
     if (useSearch) body.tools = [{ type: "web_search_20250305", name: "web_search" }];
     const res = await fetch("/api/anthropic", {
-      method: "POST", headers: { "Content-Type": "application/json" },
+      method: "POST", headers: await authedFetchHeaders(),
       body: JSON.stringify(body),
     });
     if (!res.ok) throw new Error("status " + res.status);
@@ -2417,10 +2478,9 @@ function TheCurfewCellarApp() {
     const rackedOverflow = rackedCask.filter((l) => !placed.has(l.id)).sort(byBB);
 
     const store = lines.filter((l) => l.status === "in_cellar");
-    const STYLE_ORDER = ["IPA", "Pale", "Bitter", "Stout/Porter", "Misc"];
     const storeCask = store.filter((l) => l.drinkType === "cask");
     const storeGroups = [
-      ...STYLE_ORDER.map((cat) => ({ label: cat === "Stout/Porter" ? "Stout & Porter" : cat, items: storeCask.filter((l) => (beerById[l.beerId]?.category || "Misc") === cat).sort(byBB) })),
+      ...caskCategoryGroups(storeCask, (l) => beerById[l.beerId]?.category || "Misc").map(({ cat, items }) => ({ label: cat === "Stout/Porter" ? "Stout & Porter" : cat, items: items.slice().sort(byBB) })),
       { label: "Keg", items: store.filter((l) => PUMP_DRINK(l.drinkType) === "keg").sort(byBB) },
       { label: "Cider", items: store.filter((l) => l.drinkType === "cider").sort(byBB) },
     ].filter((g) => g.items.length);
@@ -3167,7 +3227,7 @@ function TheCurfewCellarApp() {
     const on = lines.filter((l) => l.status === "on");
     const groups = [
       { title: "Cask ale", items: on.filter((l) => l.drinkType === "cask") },
-      { title: "Keg", items: on.filter((l) => l.drinkType === "keg") },
+      { title: "Keg", items: on.filter((l) => PUMP_DRINK(l.drinkType) === "keg") },
       { title: "Draught cider", items: on.filter((l) => l.drinkType === "cider") },
     ].filter((g) => g.items.length);
     return (
@@ -3249,16 +3309,15 @@ function TheCurfewCellarApp() {
     // Same style order and grouping the Cellar screen uses, so this reads exactly like it: cask
     // styles in priority order, stage shown per row since Racked lumps together three different
     // stages (tapped/vented/racked), then best before within each style.
-    const STYLE_ORDER = ["IPA", "Pale", "Bitter", "Stout/Porter", "Misc"];
-    const prepGroups = STYLE_ORDER.map((cat) => ({
+    const prepGroups = caskCategoryGroups(prep, (l) => beerById[l.beerId]?.category || "Misc").map(({ cat, items }) => ({
       label: cat === "Stout/Porter" ? "Stout & Porter" : cat,
-      items: prep.filter((l) => (beerById[l.beerId]?.category || "Misc") === cat).sort((a, b) => prepOrder[a.status] - prepOrder[b.status] || byBB(a, b)),
-    })).filter((g) => g.items.length);
-    // Cellar's own In Store order: cask styles first (same STYLE_ORDER), then Keg, then Cider,
-    // flowing as one continuous list rather than separate Cask/Keg/Cider top-level sections.
+      items: items.slice().sort((a, b) => prepOrder[a.status] - prepOrder[b.status] || byBB(a, b)),
+    }));
+    // Cellar's own In Store order: cask styles first, then Keg, then Cider, flowing as one
+    // continuous list rather than separate Cask/Keg/Cider top-level sections.
     const storeCask = storeL.filter((l) => l.drinkType === "cask");
     const storeGroups = [
-      ...STYLE_ORDER.map((cat) => ({ label: cat === "Stout/Porter" ? "Stout & Porter" : cat, items: storeCask.filter((l) => (beerById[l.beerId]?.category || "Misc") === cat).sort(byBB) })),
+      ...caskCategoryGroups(storeCask, (l) => beerById[l.beerId]?.category || "Misc").map(({ cat, items }) => ({ label: cat === "Stout/Porter" ? "Stout & Porter" : cat, items: items.slice().sort(byBB) })),
       { label: "Keg", items: storeL.filter((l) => PUMP_DRINK(l.drinkType) === "keg").sort(byBB) },
       { label: "Cider", items: storeL.filter((l) => l.drinkType === "cider").sort(byBB) },
     ].filter((g) => g.items.length);
@@ -3304,7 +3363,7 @@ function TheCurfewCellarApp() {
     const cask = on.filter((l) => l.drinkType === "cask");
     const keg = on.filter((l) => PUMP_DRINK(l.drinkType) === "keg").sort(byBB);
     const cider = on.filter((l) => l.drinkType === "cider").sort(byBB);
-    const caskByCat = CATEGORIES.map((cat) => ({ cat, items: cask.filter((l) => (beerById[l.beerId]?.category || "Misc") === cat).sort(byBB) })).filter((g) => g.items.length);
+    const caskByCat = caskCategoryGroups(cask, (l) => beerById[l.beerId]?.category || "Misc").map(({ cat, items }) => ({ cat, items: items.slice().sort(byBB) }));
     const faint = "rgba(243,239,230,0.68)";
 
     const Item = ({ line }) => {
