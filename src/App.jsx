@@ -923,6 +923,95 @@ const Item = ({ line, beerById }) => {
   );
 };
 
+const EditBeer = ({
+  editBeerId, editBeerLineId, beerById, lines,
+  updateBeer, updateBeerPrice, setCaskOwner, setBestBefore, toggleBeerAllergen,
+  autoFillBeer, editBusy, editNote, latestPrice,
+  setEditBeerId, setEditBeerLineId, setEditNote,
+}) => {
+  const beer = editBeerId ? beerById[editBeerId] : null;
+  const editLine = editBeerLineId ? lines.find((l) => l.id === editBeerLineId) : null;
+  // Local drafts for price and "Delivered by": typing writes to a purely local value first,
+  // committing to updateBeerPrice/setCaskOwner (both of which remap the whole lines and/or
+  // library array) a short pause after the last keystroke rather than on every character. This
+  // is the flagged cause of the price-field typing lag. Resyncs from the real value whenever a
+  // different beer or line is opened, but not on every render, so it doesn't fight typing.
+  const [priceDraft, setPriceDraft] = useState("");
+  const [ownerDraft, setOwnerDraft] = useState("");
+  const priceTimer = useRef(null);
+  const ownerTimer = useRef(null);
+  const draftKey = useRef(null);
+  const key = beer ? `${beer.id}:${editLine ? editLine.id : ""}` : null;
+  if (key && draftKey.current !== key) {
+    draftKey.current = key;
+    const liveLine0 = lines.find((l) => l.beerId === beer.id && l.status !== "off");
+    setPriceDraft(liveLine0 ? (liveLine0.price || "") : (beer.price !== undefined && beer.price !== null ? beer.price : (latestPrice(beer) || "")));
+    setOwnerDraft(editLine ? (editLine.caskOwner || "") : "");
+  }
+  if (!beer) return null;
+  const close = () => {
+    if (priceTimer.current) { clearTimeout(priceTimer.current); priceTimer.current = null; updateBeerPrice(beer.id, priceDraft); }
+    if (ownerTimer.current && editLine) { clearTimeout(ownerTimer.current); ownerTimer.current = null; setCaskOwner(editLine.id, ownerDraft); }
+    setEditBeerId(null); setEditBeerLineId(null); setEditNote(null);
+  };
+  const bb = editLine ? bbStatus(editLine) : null;
+  // Price lives on the LINE (each delivery can come in at a different price), and that is what
+  // the Cellar card, tap list and PDFs all display. The library's own `price` field is only a
+  // cache, written when someone types here, so it goes stale the moment a new delivery of the
+  // same beer arrives at a different price. So: if the beer has a live line, that line is the
+  // source of truth and Edit must agree with it. Only fall back to the library value (then the
+  // last recorded price) when there is no live line at all, i.e. archived or never stocked.
+  // updateBeerPrice writes to both, so committing here keeps the two in step.
+  const commitPrice = (v) => {
+    setPriceDraft(v);
+    if (priceTimer.current) clearTimeout(priceTimer.current);
+    priceTimer.current = setTimeout(() => { priceTimer.current = null; updateBeerPrice(beer.id, v); }, 500);
+  };
+  const commitOwner = (v) => {
+    setOwnerDraft(v);
+    if (!editLine) return;
+    if (ownerTimer.current) clearTimeout(ownerTimer.current);
+    ownerTimer.current = setTimeout(() => { ownerTimer.current = null; setCaskOwner(editLine.id, v); }, 500);
+  };
+  const detailValues = {
+    name: beer.name, brewery: beer.brewery, location: beer.location || "", style: beer.style || "", abv: beer.abv || "",
+    category: beer.category || "Misc", sweetness: beer.sweetness || "", clarity: beer.clarity || "Clear", glutenStatus: beer.glutenStatus || "Standard",
+    vegan: !!beer.vegan, allergens: beer.allergens, allergensVerified: !!beer.allergensVerified, notes: beer.notes || "",
+  };
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(28,54,54,0.45)" }} onClick={close}>
+      <div className="w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white sm:rounded-2xl cc-pop" style={{ maxHeight: "92vh", overscrollBehaviorY: "none", WebkitOverflowScrolling: "touch", touchAction: "manipulation" }} onClick={(e) => e.stopPropagation()}>
+        <div className="sticky top-0 flex items-center justify-between gap-2 border-b bg-white p-4" style={{ borderColor: C.line }}>
+          <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Edit beer details</h2>
+          <button onClick={close} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400"><X size={18} /></button>
+        </div>
+        <div className="space-y-3 p-4">
+          <BeerDetailsFields values={detailValues} onChange={(patch) => updateBeer(beer.id, patch)} onAutoFill={() => autoFillBeer(beer)} busy={editBusy} note={editNote} toggleAllergen={(a) => toggleBeerAllergen(beer.id, a)} />
+          <Field label="Price (£ per pint)"><input className={inputCls} inputMode="decimal" value={priceDraft} onChange={(e) => commitPrice(e.target.value)} placeholder="e.g. 4.40" /></Field>
+          {editLine && (
+            <>
+              <Field label="Best before">
+                <span className="relative block">
+                  <input type="date" value={editLine.bestBefore || ""} onChange={(e) => setBestBefore(editLine.id, e.target.value)} className={inputCls} style={{ WebkitAppearance: "none", appearance: "none", colorScheme: "light", textAlign: "left", ...(bb && bb.level === "past" ? { borderColor: C.alert, color: C.alert } : {}) }} />
+                  {!editLine.bestBefore && <span className="pointer-events-none absolute inset-0 flex items-center px-3 text-sm text-slate-400">Tap to set</span>}
+                </span>
+              </Field>
+              {editLine.drinkType !== "cider" && editLine.drinkType !== "keykeg" && (
+                <Field label="Delivered by"><input className={inputCls} value={ownerDraft} onChange={(e) => commitOwner(e.target.value)} placeholder="Brewery / distributor" /></Field>
+              )}
+            </>
+          )}
+          <button onClick={() => { updateBeer(beer.id, { archived: !beer.archived }); close(); }} className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium text-slate-500 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>
+            <Package size={15} /> {beer.archived ? "Restore from archive" : "Archive this beer"}
+          </button>
+          {!beer.archived && <p className="text-xs text-slate-400">Archiving hides it from your library and search without deleting its history. You can restore it any time.</p>}
+          <button onClick={close} className="mt-1 inline-flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}>Done</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 function TheCurfewCellarApp() {
   const [library, setLibrary] = useState(seedLibrary);
   const [lines, setLines] = useState(() => assignPumps(seedLines, catFromLib(seedLibrary)));
@@ -3556,84 +3645,14 @@ function TheCurfewCellarApp() {
     );
   };
 
-  const EditBeer = () => {
-    const beer = editBeerId ? beerById[editBeerId] : null;
-    const editLine = editBeerLineId ? lines.find((l) => l.id === editBeerLineId) : null;
-    const [priceDraft, setPriceDraft] = useState("");
-    const [ownerDraft, setOwnerDraft] = useState("");
-    const priceTimer = useRef(null);
-    const ownerTimer = useRef(null);
-    const draftKey = useRef(null);
-    const key = beer ? `${beer.id}:${editLine ? editLine.id : ""}` : null;
-    if (key && draftKey.current !== key) {
-      draftKey.current = key;
-      const liveLine0 = lines.find((l) => l.beerId === beer.id && l.status !== "off");
-      setPriceDraft(liveLine0 ? (liveLine0.price || "") : (beer.price !== undefined && beer.price !== null ? beer.price : (latestPrice(beer) || "")));
-      setOwnerDraft(editLine ? (editLine.caskOwner || "") : "");
-    }
-    if (!beer) return null;
-    const close = () => {
-      if (priceTimer.current) { clearTimeout(priceTimer.current); priceTimer.current = null; updateBeerPrice(beer.id, priceDraft); }
-      if (ownerTimer.current && editLine) { clearTimeout(ownerTimer.current); ownerTimer.current = null; setCaskOwner(editLine.id, ownerDraft); }
-      setEditBeerId(null); setEditBeerLineId(null); setEditNote(null);
-    };
-    const bb = editLine ? bbStatus(editLine) : null;
-    // Price lives on the LINE (each delivery can come in at a different price), and that is what
-    // the Cellar card, tap list and PDFs all display. The library's own `price` field is only a
-    // cache, written when someone types here, so it goes stale the moment a new delivery of the
-    // same beer arrives at a different price. So: if the beer has a live line, that line is the
-    // source of truth and Edit must agree with it. Only fall back to the library value (then the
-    // last recorded price) when there is no live line at all, i.e. archived or never stocked.
-    // updateBeerPrice writes to both, so committing here keeps the two in step.
-    const commitPrice = (v) => {
-      setPriceDraft(v);
-      if (priceTimer.current) clearTimeout(priceTimer.current);
-      priceTimer.current = setTimeout(() => { priceTimer.current = null; updateBeerPrice(beer.id, v); }, 500);
-    };
-    const commitOwner = (v) => {
-      setOwnerDraft(v);
-      if (!editLine) return;
-      if (ownerTimer.current) clearTimeout(ownerTimer.current);
-      ownerTimer.current = setTimeout(() => { ownerTimer.current = null; setCaskOwner(editLine.id, v); }, 500);
-    };
-    const detailValues = {
-      name: beer.name, brewery: beer.brewery, location: beer.location || "", style: beer.style || "", abv: beer.abv || "",
-      category: beer.category || "Misc", sweetness: beer.sweetness || "", clarity: beer.clarity || "Clear", glutenStatus: beer.glutenStatus || "Standard",
-      vegan: !!beer.vegan, allergens: beer.allergens, allergensVerified: !!beer.allergensVerified, notes: beer.notes || "",
-    };
-    return (
-      <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(28,54,54,0.45)" }} onClick={close}>
-        <div className="w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white sm:rounded-2xl cc-pop" style={{ maxHeight: "92vh", overscrollBehaviorY: "none", WebkitOverflowScrolling: "touch", touchAction: "manipulation" }} onClick={(e) => e.stopPropagation()}>
-          <div className="sticky top-0 flex items-center justify-between gap-2 border-b bg-white p-4" style={{ borderColor: C.line }}>
-            <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Edit beer details</h2>
-            <button onClick={close} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400"><X size={18} /></button>
-          </div>
-          <div className="space-y-3 p-4">
-            <BeerDetailsFields values={detailValues} onChange={(patch) => updateBeer(beer.id, patch)} onAutoFill={() => autoFillBeer(beer)} busy={editBusy} note={editNote} toggleAllergen={(a) => toggleBeerAllergen(beer.id, a)} />
-            <Field label="Price (£ per pint)"><input className={inputCls} inputMode="decimal" value={priceDraft} onChange={(e) => commitPrice(e.target.value)} placeholder="e.g. 4.40" /></Field>
-            {editLine && (
-              <>
-                <Field label="Best before">
-                  <span className="relative block">
-                    <input type="date" value={editLine.bestBefore || ""} onChange={(e) => setBestBefore(editLine.id, e.target.value)} className={inputCls} style={{ WebkitAppearance: "none", appearance: "none", colorScheme: "light", textAlign: "left", ...(bb && bb.level === "past" ? { borderColor: C.alert, color: C.alert } : {}) }} />
-                    {!editLine.bestBefore && <span className="pointer-events-none absolute inset-0 flex items-center px-3 text-sm text-slate-400">Tap to set</span>}
-                  </span>
-                </Field>
-                {editLine.drinkType !== "cider" && editLine.drinkType !== "keykeg" && (
-                  <Field label="Delivered by"><input className={inputCls} value={ownerDraft} onChange={(e) => commitOwner(e.target.value)} placeholder="Brewery / distributor" /></Field>
-                )}
-              </>
-            )}
-            <button onClick={() => { updateBeer(beer.id, { archived: !beer.archived }); close(); }} className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium text-slate-500 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>
-              <Package size={15} /> {beer.archived ? "Restore from archive" : "Archive this beer"}
-            </button>
-            {!beer.archived && <p className="text-xs text-slate-400">Archiving hides it from your library and search without deleting its history. You can restore it any time.</p>}
-            <button onClick={close} className="mt-1 inline-flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}>Done</button>
-          </div>
-        </div>
-      </div>
-    );
-  };
+  const EditBeerScreen = () => (
+    <EditBeer
+      editBeerId={editBeerId} editBeerLineId={editBeerLineId} beerById={beerById} lines={lines}
+      updateBeer={updateBeer} updateBeerPrice={updateBeerPrice} setCaskOwner={setCaskOwner} setBestBefore={setBestBefore} toggleBeerAllergen={toggleBeerAllergen}
+      autoFillBeer={autoFillBeer} editBusy={editBusy} editNote={editNote} latestPrice={latestPrice}
+      setEditBeerId={setEditBeerId} setEditBeerLineId={setEditBeerLineId} setEditNote={setEditNote}
+    />
+  );
 
   const CardModal = () => {
     if (!openLine && !libraryOpenId) return null;
@@ -3976,7 +3995,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
         </div>
       )}
       {CardModal()}
-      {EditBeer()}
+      {EditBeerScreen()}
       {SwapChooser()}
     </div>
   );
