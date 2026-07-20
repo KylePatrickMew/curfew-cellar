@@ -144,39 +144,34 @@ const CASK_FLOW = ["in_cellar", "racked", "vented", "tapped", "on", "off"];
 const SHORT_FLOW = ["in_cellar", "on", "off"];
 const flowFor = (drinkType) => (drinkType === "cask" ? CASK_FLOW : SHORT_FLOW);
 
-const PUMPS = { cask: ["cask0", "cask1", "cask2", "cask3"], keg: ["keg0", "keg1", "keg2"], cider: ["cider0", "cider1", "cider2"] };
-const PUMP_LABELS = { cask0: "IPA", cask1: "Pale", cask2: "Bitter", cask3: "Stout", keg0: "Keg 1", keg1: "Keg 2", keg2: "Keg 3", cider0: "Cider 1", cider1: "Cider 2", cider2: "Cider 3" };
-const PUMP_NUMBER = { cask0: 1, cask1: 2, cask2: 3, cask3: 4, keg0: 5, keg1: 6, keg2: 7, cider0: 8, cider1: 9, cider2: 10 };
-const LAUNCH_PRICES = { b1: "4.50", b2: "4.50", b3: "4.90", b5: "4.70", b7: "4.90", b9: "4.70", b11: "4.90", b12: "4.50", b14: "4.30", b16: "4.70", b17: "4.90", b20: "4.30", b23: "4.70", b25: "4.70", b33: "5.70", b40: "6.20" };
-const EMPTIES_NEW_BEERS = [
-  { id: "b57", brewery: "Campervan", location: "Leith, Edinburgh", name: "Mango Mimosa", style: "Fruit Sour", abv: "4.7", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Wheat (gluten)"], notes: "Mango, lime, tart Berliner Weisse.", allergensVerified: false, category: "Misc" },
-  { id: "b49", brewery: "Hop Back", location: "Salisbury, Wiltshire", name: "GFB", style: "Session Bitter", abv: "3.4", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)"], notes: "Hoppy, dry, session bitter. GFB stands for Gilbert's First Brew.", allergensVerified: false, category: "Bitter" },
-  { id: "b50", brewery: "Hop Back", location: "Salisbury, Wiltshire", name: "Entire Stout", style: "Stout", abv: "4.5", clarity: "Clear", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Wheat (gluten)", "Oats (gluten)"], notes: "Roasted malt, coffee, chocolate.", allergensVerified: false, category: "Stout/Porter" },
-  { id: "b51", brewery: "Phoenix", location: "Heywood, Greater Manchester", name: "Arizona", style: "Pale Ale", abv: "4.1", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)", "Wheat (gluten)"], notes: "Floral, honeyed, session pale.", allergensVerified: false, category: "Pale" },
-  { id: "b52", brewery: "Potting Shed Brew", location: "", name: "Unknown", style: "", abv: "", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)"], notes: "Unidentified old cask.", allergensVerified: false, category: "Misc" },
-  { id: "b53", brewery: "Two by Two", location: "North Shields", name: "Citra Motueka", style: "New World Pale", abv: "4.6", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Oats (gluten)"], notes: "Tropical, oats, hop-forward. ABV estimated.", allergensVerified: false, category: "Misc" },
-  { id: "b54", brewery: "Two by Two", location: "North Shields", name: "Azacca Mosaic", style: "Pale Ale", abv: "4.4", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Tropical, citrus, dank. ABV estimated.", allergensVerified: false, category: "Misc" },
-  { id: "b55", brewery: "Two by Two", location: "North Shields", name: "Razorbill", style: "Pale Ale", abv: "4.5", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)"], notes: "Hop-forward, pale ale. Unconfirmed, check with Kyle.", allergensVerified: false, category: "Misc" },
-  { id: "b56", brewery: "Tempest", location: "Tweedbank, Scottish Borders", name: "Hawaiian Shirt", style: "Fruit Sour", abv: "4.5", clarity: "Hazy", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)", "Wheat (gluten)", "Oats (gluten)"], notes: "Guava, mango, passionfruit.", allergensVerified: false, category: "Misc" },
-];
-const EMPTIES_NEW_LINES = [
-  { beerId: "b24", drinkType: "cask", caskOwner: "LWC" },
-  { beerId: "b4", drinkType: "cask", caskOwner: "LWC" },
-  { beerId: "b49", drinkType: "cask", caskOwner: "LWC" },
-  { beerId: "b50", drinkType: "cask", caskOwner: "LWC" },
-  { beerId: "b17", drinkType: "cask", caskOwner: "LWC" },
-  { beerId: "b28", drinkType: "cask", caskOwner: "LWC" },
-  { beerId: "b51", drinkType: "cask", caskOwner: "HB Clark" },
-  { beerId: "b52", drinkType: "cask", caskOwner: "" },
-  { beerId: "b53", drinkType: "keg", caskOwner: "Two by Two" },
-  { beerId: "b54", drinkType: "keg", caskOwner: "Two by Two" },
-  { beerId: "b53", drinkType: "keg", caskOwner: "Two by Two" },
-  { beerId: "b55", drinkType: "keg", caskOwner: "Two by Two" },
-  { beerId: "b54", drinkType: "keg", caskOwner: "Two by Two" },
-  { beerId: "b56", drinkType: "keg", caskOwner: "Tempest" },
-  { beerId: "b36", drinkType: "keg", caskOwner: "James Clay" },
-];
-const caskPrefPumps = (cat) => (cat === "IPA" || cat === "Pale") ? ["cask0", "cask1"] : cat === "Bitter" ? ["cask2"] : cat === "Stout/Porter" ? ["cask3"] : [];
+// Everything specific to THIS pub's actual bar and branding, gathered in one place. A
+// different pub would swap this whole object out; nothing else in the file should need to
+// change to support that. PUMPS/PUMP_LABELS/PUMP_NUMBER/caskPrefPumps below are kept as their
+// own top-level names, aliased from here, so none of their many existing call sites throughout
+// the file needed to change, this is a pure consolidation, not a behaviour change.
+// Deliberately NOT included here: STORE_KEY, the push notification tag, and exportData's "app"
+// id. Those are internal storage/sync identifiers rather than display branding; changing their
+// derivation risks silently orphaning a device's local storage or breaking push de-duplication,
+// so they stay as their own literals, untouched.
+// Also NOT included: the racked-preview six-slot mix (2 IPA, 2 Pale, 1 Bitter, 1 Stout). It's
+// tightly interleaved with which of two shared IPA/Pale candidates lands in which slot, not a
+// simple lookup, so folding it in here risked an off-by-one for no real benefit this session.
+const PUB_CONFIG = {
+  name: "The Curfew",             // short display name: header, tap list, allergen sheet, PDF titles
+  fullName: "The Curfew Micropub", // long form: PDF subtitle taglines, rendered upper-case there
+  typeLabel: "Micropub",           // bare descriptor, no name: used where the title above already says the pub name
+  shortName: "Curfew",             // share-sheet titles, backup validation message
+  slug: "curfew",                  // filenames and the backup download name
+  pumps: { cask: ["cask0", "cask1", "cask2", "cask3"], keg: ["keg0", "keg1", "keg2"], cider: ["cider0", "cider1", "cider2"] },
+  pumpLabels: { cask0: "IPA", cask1: "Pale", cask2: "Bitter", cask3: "Stout", keg0: "Keg 1", keg1: "Keg 2", keg2: "Keg 3", cider0: "Cider 1", cider1: "Cider 2", cider2: "Cider 3" },
+  pumpNumber: { cask0: 1, cask1: 2, cask2: 3, cask3: 4, keg0: 5, keg1: 6, keg2: 7, cider0: 8, cider1: 9, cider2: 10 },
+  // Racked IPA/Pale slots fill by ABV, strongest two go to IPA. Standing decision.
+  caskPrefPumps: (cat) => (cat === "IPA" || cat === "Pale") ? ["cask0", "cask1"] : cat === "Bitter" ? ["cask2"] : cat === "Stout/Porter" ? ["cask3"] : [],
+};
+const PUMPS = PUB_CONFIG.pumps;
+const PUMP_LABELS = PUB_CONFIG.pumpLabels;
+const PUMP_NUMBER = PUB_CONFIG.pumpNumber;
+const caskPrefPumps = PUB_CONFIG.caskPrefPumps;
 const bbCmp = (a, b) => (a.bestBefore || "9999-12-31").localeCompare(b.bestBefore || "9999-12-31");
 // Pin each "on" line to a physical pump so beers never jump between pumps.
 const assignPumps = (ls, catOf) => {
@@ -1196,343 +1191,13 @@ function TheCurfewCellarApp() {
 
   // Apply a saved data blob to state. remote=true means it came from another device,
   // so don't re-stamp "last updated" and don't echo it back to the cloud.
-  // One-time, non-destructive launch tidy: fill blank prices from the launch list and set every
-  // cider to GBP 4.10. Guarded by prefs.pricesV1 so it runs once on the next load, then syncs out.
-  const migrateLaunch = (data) => {
-    if (!data || (data.prefs && data.prefs.pricesV1)) return data;
-    const lines = (data.lines || []).map((l) => {
-      let price = l.price;
-      if (l.drinkType === "cider") price = "4.10";
-      else if ((!price || price === "") && LAUNCH_PRICES[l.beerId]) price = LAUNCH_PRICES[l.beerId];
-      return price === l.price ? l : { ...l, price };
-    });
-    return { ...data, lines, prefs: { ...(data.prefs || {}), pricesV1: true }, lastUpdated: new Date().toISOString() };
-  };
-  // One-time, non-destructive batch: add the supplied empties list (new library beers if not
-  // already present, plus a finished, uncollected line for each cask/keg) so they appear under
-  // Empties for collection. Guarded by prefs.emptiesV1 so it only ever runs once.
-  const migrateEmpties = (data) => {
-    if (!data || (data.prefs && data.prefs.emptiesV1)) return data;
-    const lib = [...(data.library || [])];
-    EMPTIES_NEW_BEERS.forEach((b) => { if (!lib.find((x) => x.id === b.id)) lib.push(b); });
-    const nowIso = new Date().toISOString();
-    const newLines = EMPTIES_NEW_LINES.map((e) => ({
-      id: uid(), beerId: e.beerId, drinkType: e.drinkType, size: "", price: "", status: "off",
-      caskOwner: e.caskOwner, collected: false, bestBefore: "",
-      dates: { ordered: null, delivered: null, racked: null, vented: null, tapped: null, on: null, off: nowIso },
-    }));
-    return { ...data, library: lib, lines: [...(data.lines || []), ...newLines], prefs: { ...(data.prefs || {}), emptiesV1: true }, lastUpdated: nowIso };
-  };
-  // Follow-up, non-destructive batch: adds the Campervan keg (supplier George) and clarifies the
-  // Potting Shed cask is genuinely unnamed. Guarded by prefs.emptiesV2, separate from emptiesV1 so
-  // it still applies even on devices that already ran the first batch.
-  const migrateEmpties2 = (data) => {
-    if (!data || (data.prefs && data.prefs.emptiesV2)) return data;
-    const lib = (data.library || []).map((b) => (b.id === "b52" ? { ...b, notes: "Old cask, the beer name is genuinely not known." } : b));
-    if (!lib.find((x) => x.id === "b57")) lib.push({ id: "b57", brewery: "Campervan", location: "Leith, Edinburgh", name: "Mango Mimosa", style: "Fruit Sour", abv: "4.7", clarity: "Hazy", glutenStatus: "Standard", vegan: true, allergens: ["Barley (gluten)", "Wheat (gluten)"], notes: "Mango, lime, tart Berliner Weisse.", allergensVerified: false, category: "Misc" });
-    const nowIso = new Date().toISOString();
-    const newLine = { id: uid(), beerId: "b57", drinkType: "keg", size: "", price: "", status: "off", caskOwner: "George", collected: false, bestBefore: "", dates: { ordered: null, delivered: null, racked: null, vented: null, tapped: null, on: null, off: nowIso } };
-    return { ...data, library: lib, lines: [...(data.lines || []), newLine], prefs: { ...(data.prefs || {}), emptiesV2: true }, lastUpdated: nowIso };
-  };
-
-  // One-time, non-destructive note rewrite: shortens tasting notes to a quick taste descriptor
-  // plus an optional genuine fun fact. Only touches a beer's notes if they still exactly match
-  // the original text, so anything Kyle has already edited by hand is left untouched. Also
-  // corrects the Old Rosie ABV (Weston's reduced it from 7.3% to 6.8% in 2019). Guarded by
-  // prefs.notesV1 so it only ever runs once.
-  const NOTE_REWRITES = {
-    "b1": ["Light, crisp extra pale ale with gentle citrus hops.", "Light and crisp, gentle citrus hops."],
-    "b2": ["Pale ale showcasing the Harlequin hop, soft tropical fruit.", "Soft tropical fruit, easy drinking pale."],
-    "b3": ["Classic award-winning pale ale, citrus and biscuit malt.", "Citrus and biscuit malt. Reportedly Madonna's favourite beer."],
-    "b4": ["Dark, roasty stout.", "Dark, roasty stout, coffee and liquorice."],
-    "b6": ["Well-balanced blonde, Cascade and Amarillo, citrus over biscuit malt.", "Biscuity blonde, citrus and pear. Named after the legendary sailor in Neil Munro's Para Handy stories."],
-    "b7": ["Intensely hoppy pale, resinous grapefruit and citrus.", "Intensely hoppy pale, grapefruit and citrus."],
-    "b8": ["Traditional Northumbrian bitter, malty and balanced.", "Malty, balanced Northumbrian bitter."],
-    "b9": ["Dark, roasty stout.", "Dark, roasty stout, coffee and chocolate. Marble is named after Manchester's Marble Arch pub, where it began life."],
-    "b11": ["Hugely aromatic single-hop Citra pale, lime and lychee.", "Zesty Citra pale, lime and lychee. The first UK beer brewed with 100% Citra hops, in 2009."],
-    "b12": ["Amber best bitter, malt backbone with citrus hops.", "Malty amber bitter, citrus hop edge. Castle Rock was founded by a former CAMRA chairman."],
-    "b13": ["Organic porter, roast coffee and dark chocolate.", "Roast coffee and dark chocolate. Organic, brewed on the Black Isle in the Highlands."],
-    "b14": ["Pale Pennine light mild, delicate and refreshing.", "Pale, delicate light mild."],
-    "b15": ["NZ-hopped pale, tropical fruit and a juicy body.", "NZ-hopped pale, tropical fruit."],
-    "b17": ["Straw-coloured golden ale, clean bitterness and a long dry finish.", "Straw-coloured, dry hoppy finish. Widely credited with starting Britain's golden ale craze in 1989."],
-    "b18": ["Easy-drinking golden pale ale.", "Easy-drinking golden pale ale. Brewed in Burton upon Trent, home of British brewing."],
-    "b19": ["Smooth dry stout, roast and dark chocolate.", "Smooth dry stout, roast and chocolate."],
-    "b20": ["Light, hoppy table pale, citrus and stone fruit.", "Light, hoppy table pale."],
-    "b21": ["Refreshing pale, Cascade hops, lemon and grapefruit.", "Refreshing pale, lemon and grapefruit."],
-    "b22": ["Hop-forward pale ale, soft and juicy.", "Hop-forward pale, soft and juicy. The Kernel started out under railway arches in Bermondsey, London."],
-    "b23": ["Single-hop Citra pale, zesty grapefruit.", "Zesty grapefruit, single-hop pale."],
-    "b24": ["Citra session blonde, waves of citrus and a clean finish.", "Citrus session blonde, clean finish. Jarl means Earl in Old Norse, a nod to Argyll's Viking past."],
-    "b26": ["Robust oatmeal stout, roast coffee and chocolate, smooth finish.", "Oatmeal stout, coffee and chocolate."],
-    "b27": ["Hazy New World IPA, pineapple, citrus and melon.", "Hazy New World IPA, pineapple and melon."],
-    "b31": ["Hazy pale hopped with Strata, tropical and dank.", "Hazy, tropical and dank. Named after the animals boarding Noah's Ark, two by two."],
-    "b32": ["Refreshing Flanders red blended with cherry, sweet and sour.", "Sweet and sour, cherry-forward Flanders red."],
-    "b33": ["Juicy, hazy pale ale.", "Juicy, hazy pale ale. Wylam takes its name from the Tyneside village that gave the world railway pioneer George Stephenson."],
-    "b34": ["Dark, malty session ale.", "Dark, malty session mild."],
-    "b35": ["Hop-forward Citra pale, grapefruit and tropical fruit.", "Grapefruit and tropical fruit, hop-forward."],
-    "b36": ["Iconic hazy pale, soft and juicy with tropical hops.", "Soft, juicy tropical hops. Named after the old blues standard made famous by Robert Johnson."],
-    "b38": ["Crisp German-style pilsner, clean and floral.", "Crisp, clean German-style pilsner."],
-    "b41": ["Classic Bavarian wheat beer, banana and clove.", "Banana and clove, classic Bavarian wheat beer. Schneider was among the first breweries allowed to brew wheat beer after Bavaria's royal brewing monopoly ended in 1872."],
-    "b42": ["Cloudy traditional scrumpy, full-bodied and dry.", "Cloudy, dry traditional scrumpy. Named after a 1921 steam roller at the cidery, itself named after Laurie Lee's Cider with Rosie."],
-    "b44": ["Medium, semi-cloudy Kentish cider, smooth and juicy.", "Smooth, semi-cloudy Kentish cider. Dudda's Tun is the old Anglo-Saxon name for Doddington, meaning Dudda's farm."],
-    "b45": ["Cloudy Scottish cider, fresh pressed apple.", "Cloudy, fresh pressed apple."],
-    "b49": ["Golden session bitter, hoppy aroma with East Kent Goldings and a dry finish.", "Hoppy, dry session bitter. GFB stands for Gilbert's First Brew, named after founder John Gilbert."],
-    "b50": ["Rich dark stout, strong roasted malt flavour with coffee and dark chocolate.", "Roasted malt, coffee and chocolate."],
-    "b51": ["Best-selling session pale brewed with Goldings hops, floral and honey notes.", "Floral, honeyed session pale."],
-    "b53": ["Tropical hop character from Citra, Motueka and Sabro, oats and wheat for mouthfeel. ABV estimated.", "Tropical hop character, oats for body. ABV estimated."],
-    "b54": ["Tropical, citrus and dank pale ale. ABV estimated.", "Tropical, citrus and dank. ABV estimated."],
-    "b55": ["Hop-forward pale ale. Not confirmed online, check ABV and style with Kyle.", "Hop-forward pale ale. Not confirmed online, check with Kyle."],
-    "b56": ["Tropical fruited sour with guava, mango and passionfruit.", "Guava, mango and passionfruit sour."],
-  };
-  const migrateNotes = (data) => {
-    if (!data || (data.prefs && data.prefs.notesV1)) return data;
-    const lib = (data.library || []).map((b) => {
-      let next = b;
-      const pair = NOTE_REWRITES[b.id];
-      if (pair && b.notes === pair[0]) next = { ...next, notes: pair[1] };
-      if (b.id === "b42" && b.abv === "7.3") next = { ...next, abv: "6.8" };
-      return next;
-    });
-    return { ...data, library: lib, prefs: { ...(data.prefs || {}), notesV1: true }, lastUpdated: new Date().toISOString() };
-  };
-  // Follow-up, non-destructive fix: Hurricane Jack got re-autofilled under the old, looser
-  // notes prompt and came back as a long paragraph. Reverts it to the short style, but only
-  // if it still exactly matches that specific long text, so a deliberate edit since is safe.
-  const migrateNotes2 = (data) => {
-    if (!data || (data.prefs && data.prefs.notesV2)) return data;
-    const longText = "A light and refreshing session pale ale from the Scottish Highlands, with gentle citrus and floral hop character. Easy-drinking and well-balanced, named after a character from the classic Scottish TV series 'Para Handy'.";
-    const shortText = "Biscuity blonde, citrus and pear. Named after the legendary sailor in Neil Munro's Para Handy stories.";
-    const lib = (data.library || []).map((b) => (b.id === "b6" && b.notes === longText ? { ...b, notes: shortText } : b));
-    return { ...data, library: lib, prefs: { ...(data.prefs || {}), notesV2: true }, lastUpdated: new Date().toISOString() };
-  };
-
-  // One-time, non-destructive note rewrite: switches tasting notes from sentence style to
-  // short, comma-separated keywords (flashcard style), e.g. "Biscuity, citrus, pear." Only
-  // touches a beer's notes if they still exactly match the prior sentence-style text, so any
-  // hand edit since is left alone. Guarded by prefs.notesV3 so it only ever runs once.
-  const NOTE_KEYWORD_REWRITES = {
-    "b1": ["Light and crisp, gentle citrus hops.", "Light, crisp, citrus."],
-    "b2": ["Soft tropical fruit, easy drinking pale.", "Soft, tropical, easy-drinking."],
-    "b3": ["Citrus and biscuit malt. Reportedly Madonna's favourite beer.", "Citrus, biscuit, malty. Madonna's reported favourite beer."],
-    "b4": ["Dark, roasty stout, coffee and liquorice.", "Dark, roasty, coffee, liquorice."],
-    "b5": ["Hoppy, easy-drinking pale ale.", "Hoppy, easy-drinking."],
-    "b6": ["Biscuity blonde, citrus and pear. Named after the legendary sailor in Neil Munro's Para Handy stories.", "Biscuity, citrus, pear. Named after a Para Handy character."],
-    "b7": ["Intensely hoppy pale, grapefruit and citrus.", "Hoppy, grapefruit, citrus."],
-    "b8": ["Malty, balanced Northumbrian bitter.", "Malty, balanced, traditional."],
-    "b9": ["Dark, roasty stout, coffee and chocolate. Marble is named after Manchester's Marble Arch pub, where it began life.", "Dark, roasty, coffee, chocolate. Named after Manchester's Marble Arch pub."],
-    "b10": ["Light, refreshing session pale.", "Light, refreshing, session."],
-    "b11": ["Zesty Citra pale, lime and lychee. The first UK beer brewed with 100% Citra hops, in 2009.", "Zesty, lime, lychee. First UK beer brewed with Citra hops."],
-    "b12": ["Malty amber bitter, citrus hop edge. Castle Rock was founded by a former CAMRA chairman.", "Malty, amber, citrus. Founded by an ex-CAMRA chairman."],
-    "b13": ["Roast coffee and dark chocolate. Organic, brewed on the Black Isle in the Highlands.", "Roast coffee, dark chocolate. Organic, brewed on the Black Isle."],
-    "b14": ["Pale, delicate light mild.", "Pale, delicate, light mild."],
-    "b15": ["NZ-hopped pale, tropical fruit.", "NZ hops, tropical fruit."],
-    "b16": ["Pale, hoppy summer ale, floral and citrus.", "Pale, hoppy, floral, citrus."],
-    "b17": ["Straw-coloured, dry hoppy finish. Widely credited with starting Britain's golden ale craze in 1989.", "Straw, dry, hoppy. Sparked Britain's golden ale craze."],
-    "b18": ["Easy-drinking golden pale ale. Brewed in Burton upon Trent, home of British brewing.", "Easy-drinking, golden, pale. Brewed in Burton upon Trent."],
-    "b19": ["Smooth dry stout, roast and chocolate.", "Smooth, dry, roasty, chocolate."],
-    "b20": ["Light, hoppy table pale.", "Light, hoppy, table beer."],
-    "b21": ["Refreshing pale, lemon and grapefruit.", "Refreshing, lemon, grapefruit."],
-    "b22": ["Hop-forward pale, soft and juicy. The Kernel started out under railway arches in Bermondsey, London.", "Hop-forward, soft, juicy. Started under railway arches in Bermondsey."],
-    "b23": ["Zesty grapefruit, single-hop pale.", "Zesty, grapefruit, single-hop."],
-    "b24": ["Citrus session blonde, clean finish. Jarl means Earl in Old Norse, a nod to Argyll's Viking past.", "Citrus, clean, session. Jarl means Earl in Old Norse."],
-    "b25": ["Rich, dark stout.", "Rich, dark, stout."],
-    "b26": ["Oatmeal stout, coffee and chocolate.", "Oatmeal, coffee, chocolate."],
-    "b27": ["Hazy New World IPA, pineapple and melon.", "Hazy, pineapple, melon."],
-    "b28": ["Roasty session stout.", "Roasty, session stout."],
-    "b29": ["Dark, roasty porter.", "Dark, roasty, porter."],
-    "b30": ["Hop-forward pale ale.", "Hop-forward, pale ale."],
-    "b31": ["Hazy, tropical and dank. Named after the animals boarding Noah's Ark, two by two.", "Hazy, tropical, dank. Named after Noah's Ark."],
-    "b32": ["Sweet and sour, cherry-forward Flanders red.", "Sweet, sour, cherry."],
-    "b33": ["Juicy, hazy pale ale. Wylam takes its name from the Tyneside village that gave the world railway pioneer George Stephenson.", "Juicy, hazy, pale. Named after railway pioneer George Stephenson's village."],
-    "b34": ["Dark, malty session mild.", "Dark, malty, session mild."],
-    "b35": ["Grapefruit and tropical fruit, hop-forward.", "Grapefruit, tropical, hop-forward."],
-    "b36": ["Soft, juicy tropical hops. Named after the old blues standard made famous by Robert Johnson.", "Soft, juicy, tropical. Named after a Robert Johnson blues song."],
-    "b38": ["Crisp, clean German-style pilsner.", "Crisp, clean, pilsner."],
-    "b40": ["Barrel-aged raspberry sour.", "Barrel-aged, raspberry, sour."],
-    "b41": ["Banana and clove, classic Bavarian wheat beer. Schneider was among the first breweries allowed to brew wheat beer after Bavaria's royal brewing monopoly ended in 1872.", "Banana, clove, wheat. Among the first wheat beers after Bavaria's brewing monopoly ended."],
-    "b42": ["Cloudy, dry traditional scrumpy. Named after a 1921 steam roller at the cidery, itself named after Laurie Lee's Cider with Rosie.", "Cloudy, dry, scrumpy. Named after a 1921 steam roller."],
-    "b43": ["Sweet, fruity rhubarb cider.", "Sweet, fruity, rhubarb."],
-    "b44": ["Smooth, semi-cloudy Kentish cider. Dudda's Tun is the old Anglo-Saxon name for Doddington, meaning Dudda's farm.", "Smooth, semi-cloudy, Kentish. Old Anglo-Saxon name for Doddington."],
-    "b45": ["Cloudy, fresh pressed apple.", "Cloudy, fresh, apple."],
-    "b46": ["Devon cider with blackberry.", "Devon, blackberry, cider."],
-    "b47": ["Mixed berry fruit cider.", "Mixed berry, fruit cider."],
-    "b48": ["Kentish craft cider.", "Kentish, craft cider."],
-    "b49": ["Hoppy, dry session bitter. GFB stands for Gilbert's First Brew, named after founder John Gilbert.", "Hoppy, dry, session bitter. GFB stands for Gilbert's First Brew."],
-    "b50": ["Roasted malt, coffee and chocolate.", "Roasted malt, coffee, chocolate."],
-    "b51": ["Floral, honeyed session pale.", "Floral, honeyed, session pale."],
-    "b52": ["Old cask, the beer name is genuinely not known.", "Unidentified old cask."],
-    "b53": ["Tropical hop character, oats for body. ABV estimated.", "Tropical, oats, hop-forward. ABV estimated."],
-    "b54": ["Tropical, citrus and dank. ABV estimated.", "Tropical, citrus, dank. ABV estimated."],
-    "b55": ["Hop-forward pale ale. Not confirmed online, check with Kyle.", "Hop-forward, pale ale. Unconfirmed, check with Kyle."],
-    "b56": ["Guava, mango and passionfruit sour.", "Guava, mango, passionfruit."],
-    "b57": ["Mango and lime, fruity and tart Berliner Weisse.", "Mango, lime, tart Berliner Weisse."],
-  };
-  const migrateNotes3 = (data) => {
-    if (!data || (data.prefs && data.prefs.notesV3)) return data;
-    const lib = (data.library || []).map((b) => {
-      const pair = NOTE_KEYWORD_REWRITES[b.id];
-      return (pair && b.notes === pair[0]) ? { ...b, notes: pair[1] } : b;
-    });
-    return { ...data, library: lib, prefs: { ...(data.prefs || {}), notesV3: true }, lastUpdated: new Date().toISOString() };
-  };
-  // Catch-all: any note longer than 70 characters is sentence-style, not keyword-style.
-  // Wipe it to blank so staff re-autofill it and get the correct flashcard format.
-  // Our correct keyword notes top out around 55 chars, so 70 is a safe threshold.
-  // Not guarded by a pref -- runs on every load but only changes notes that are still too long.
-  // RETIRED. This used to delete the notes of any beer with over 70 characters, and it was
-  // never gated, so it re-ran on every load and kept wiping perfectly good autofilled notes
-  // (keywords plus a fun fact easily exceed 70 characters). Its original one-off cleanup of
-  // old sentence-style notes is long done, and the 70-character rule is simply wrong now, so
-  // it no longer deletes anything. It only marks itself complete, which permanently disarms
-  // it without destroying data. Do not reintroduce a length-based notes purge.
-  const migrateNotes4 = (data) => {
-    if (!data || (data.prefs && data.prefs.notesV4)) return data;
-    return { ...data, prefs: { ...(data.prefs || {}), notesV4: true } };
-  };
-
-  // Force-rewrite every beer's tasting notes to the correct keyword/flashcard style.
-  // Unlike previous migrations, this is unconditional -- it overwrites whatever is currently
-  // stored, so stale sentence-style notes from re-autofills can't survive. Only runs once,
-  // guarded by prefs.notesV5.
-  const NOTE_FORCED = {
-    "b1": "Light, crisp, citrus.",
-    "b2": "Soft, tropical, easy-drinking.",
-    "b3": "Citrus, biscuit, malty. Madonna's reported favourite beer.",
-    "b4": "Dark, roasty, coffee, liquorice.",
-    "b5": "Hoppy, easy-drinking.",
-    "b6": "Biscuity, citrus, pear. Named after a Para Handy character.",
-    "b7": "Hoppy, grapefruit, citrus.",
-    "b8": "Malty, balanced, traditional.",
-    "b9": "Dark, roasty, coffee, chocolate. Named after Manchester's Marble Arch pub.",
-    "b10": "Light, refreshing, session.",
-    "b11": "Zesty, lime, lychee. First UK beer brewed with Citra hops.",
-    "b12": "Malty, amber, citrus. Founded by an ex-CAMRA chairman.",
-    "b13": "Roast coffee, dark chocolate. Organic, brewed on the Black Isle.",
-    "b14": "Pale, delicate, light mild.",
-    "b15": "NZ hops, tropical fruit.",
-    "b16": "Pale, hoppy, floral, citrus.",
-    "b17": "Straw, dry, hoppy. Sparked Britain's golden ale craze.",
-    "b18": "Easy-drinking, golden, pale. Brewed in Burton upon Trent.",
-    "b19": "Smooth, dry, roasty, chocolate.",
-    "b20": "Light, hoppy, table beer.",
-    "b21": "Refreshing, lemon, grapefruit.",
-    "b22": "Hop-forward, soft, juicy. Started under railway arches in Bermondsey.",
-    "b23": "Zesty, grapefruit, single-hop.",
-    "b24": "Citrus, clean, session. Jarl means Earl in Old Norse.",
-    "b25": "Rich, dark, stout.",
-    "b26": "Oatmeal, coffee, chocolate.",
-    "b27": "Hazy, pineapple, melon.",
-    "b28": "Roasty, session stout.",
-    "b29": "Dark, roasty, porter.",
-    "b30": "Hop-forward, pale ale.",
-    "b31": "Hazy, tropical, dank. Named after Noah's Ark.",
-    "b32": "Sweet, sour, cherry.",
-    "b33": "Juicy, hazy, pale. Named after George Stephenson's village.",
-    "b34": "Dark, malty, session mild.",
-    "b35": "Grapefruit, tropical, hop-forward.",
-    "b36": "Soft, juicy, tropical. Named after a Robert Johnson blues song.",
-    "b37": "Juicy, hazy IPA.",
-    "b38": "Crisp, clean, pilsner.",
-    "b39": "Hazy, juicy IPA.",
-    "b40": "Barrel-aged, raspberry, sour.",
-    "b41": "Banana, clove, wheat. Among the first wheat beers after Bavaria's brewing monopoly ended.",
-    "b42": "Cloudy, dry, scrumpy. Named after a 1921 steam roller.",
-    "b43": "Sweet, fruity, rhubarb.",
-    "b44": "Smooth, semi-cloudy, Kentish. Old Anglo-Saxon name for Doddington.",
-    "b45": "Cloudy, fresh, apple.",
-    "b46": "Devon, blackberry, cider.",
-    "b47": "Mixed berry, fruit cider.",
-    "b48": "Kentish, craft cider.",
-    "b49": "Hoppy, dry, session bitter. GFB stands for Gilbert's First Brew.",
-    "b50": "Roasted malt, coffee, chocolate.",
-    "b51": "Floral, honeyed, session pale.",
-    "b52": "Unidentified old cask.",
-    "b53": "Tropical, oats, hop-forward. ABV estimated.",
-    "b54": "Tropical, citrus, dank. ABV estimated.",
-    "b55": "Hop-forward, pale ale. Unconfirmed, check with Kyle.",
-    "b56": "Guava, mango, passionfruit.",
-    "b57": "Mango, lime, tart Berliner Weisse."
-  };
-  const migrateNotes5 = (data) => {
-    if (!data || (data.prefs && data.prefs.notesV5)) return data;
-    const lib = (data.library || []).map((b) => (NOTE_FORCED[b.id] !== undefined ? { ...b, notes: NOTE_FORCED[b.id] } : b));
-    return { ...data, library: lib, prefs: { ...(data.prefs || {}), notesV5: true }, lastUpdated: new Date().toISOString() };
-  };
-  // Cloudy was folded into Hazy as a clarity option; anything saved as Cloudy before this
-  // change needs to move over so it still matches CLARITY_OPTIONS and shows the new badge.
-  const migrateClarity = (data) => {
-    if (!data || (data.prefs && data.prefs.clarityV1)) return data;
-    const lib = (data.library || []).map((b) => (b.clarity === "Cloudy" ? { ...b, clarity: "Hazy" } : b));
-    return { ...data, library: lib, prefs: { ...(data.prefs || {}), clarityV1: true }, lastUpdated: new Date().toISOString() };
-  };
-  // One-off tidy of existing data, gated by prefs.tidyV1 so it can only ever run once.
-  // 1. Strips company suffixes from brewery names already in the library, so old entries match
-  //    what autofill now produces ("Ossett Brewing Company Limited" becomes "Ossett").
-  // 2. Backfills the library's price from the beer's live line, or failing that its last
-  //    recorded price, so the Edit beer details price field is no longer blank for anything
-  //    that arrived via a delivery.
-  // Deliberately does NOT touch tasting notes: the ones migrateNotes4 deleted are simply gone
-  // and cannot be recovered, so it would be dishonest to pretend otherwise. Re-autofill those.
-  // Deliberately does NOT touch caskOwner ("Delivered by"), because that is who collects the
-  // empties (LWC, HB Clark), not the brewery, and renaming it would break empties grouping.
-  const migrateTidy = (data) => {
-    if (!data || (data.prefs && data.prefs.tidyV1)) return data;
-    const lines = Array.isArray(data.lines) ? data.lines : [];
-    const lib = (data.library || []).map((b) => {
-      const next = { ...b };
-      if (b.brewery) next.brewery = cleanBrewery(b.brewery);
-      if (next.price === undefined || next.price === null || next.price === "") {
-        const live = lines.find((l) => l.beerId === b.id && l.status !== "off" && l.price);
-        const hist = (b.history || []).slice().reverse().find((h) => h && h.price);
-        const p = (live && live.price) || (hist && hist.price) || "";
-        if (p) next.price = String(p);
-      }
-      return next;
-    });
-    return { ...data, library: lib, prefs: { ...(data.prefs || {}), tidyV1: true }, lastUpdated: new Date().toISOString() };
-  };
-  // The one migration chain. Every load path MUST parse through this, and any new
-  // migration is added here only, so no call site can ever miss one.
-  // One-off backfill for the "kegs and ciders are all grey" bug: category was never actually
-  // derived for anything except cask, every other drink type silently defaulted to "Misc" at
-  // every write site (label scans, invoice imports, form defaults). Fixing those write sites
-  // only helps beers added from now on; this migration corrects what's already sat in the
-  // library. The library beer record itself doesn't reliably store its own drink type, so this
-  // infers it from the beer's actual lines (current or historical). Only touches beers
-  // currently at "Misc", so any category picked by hand on purpose is left alone.
-  const migrateCategoryV1 = (data) => {
-    if (!data || (data.prefs && data.prefs.categoryV1)) return data;
-    const lines = Array.isArray(data.lines) ? data.lines : [];
-    const drinkTypeFor = (beerId) => {
-      const l = lines.find((x) => x.beerId === beerId);
-      return l ? l.drinkType : null;
-    };
-    const lib = (data.library || []).map((b) => {
-      if (b.category !== "Misc") return b;
-      const dt = drinkTypeFor(b.id);
-      if (!dt || dt === "cask") return b;
-      return { ...b, category: deriveCategory(dt, b.style, b.abv) };
-    });
-    return { ...data, library: lib, prefs: { ...(data.prefs || {}), categoryV1: true }, lastUpdated: new Date().toISOString() };
-  };
-  // One-off, per Kyle's explicit request: history data was proven untrustworthy (invoice-
-  // imported deliveries never recorded a supplier, and the display never actually aligned into
-  // columns, making it hard to verify what was there in the first place), both now fixed. Wipes
-  // every beer's history and reseeds one fresh entry from its current line (the most recently
-  // delivered one, if several), so tracking starts clean from what's genuinely in the cellar
-  // today rather than carrying forward data that couldn't be trusted. A beer with no current
-  // line gets empty history, there's nothing current to seed it from.
-  const migrateHistoryResetV1 = (data) => {
-    if (!data || (data.prefs && data.prefs.historyResetV1)) return data;
-    const lines = Array.isArray(data.lines) ? data.lines : [];
-    const lib = (data.library || []).map((b) => {
-      const current = lines.filter((l) => l.beerId === b.id).sort((x, y) => new Date((y.dates && y.dates.delivered) || 0) - new Date((x.dates && x.dates.delivered) || 0))[0];
-      if (!current) return { ...b, history: [] };
-      const entry = { date: (current.dates && current.dates.delivered) || new Date().toISOString(), abv: b.abv || "", price: current.price || b.price || "", caskOwner: current.caskOwner || "" };
-      return { ...b, history: [entry] };
-    });
-    return { ...data, library: lib, prefs: { ...(data.prefs || {}), historyResetV1: true }, lastUpdated: new Date().toISOString() };
-  };
-  const migrate = (json) => migrateHistoryResetV1(migrateCategoryV1(migrateTidy(migrateClarity(migrateNotes5(migrateNotes4(migrateNotes3(migrateNotes2(migrateNotes(migrateEmpties2(migrateEmpties(migrateLaunch(normaliseData(JSON.parse(json))))))))))))));
+  // Every migration's prefs gate flag was verified true against a live backup on 2026-07-19
+  // (see HANDOFF.md), so the historical migration chain (twelve one-off functions and ~150
+  // lines of retired seed data: launch prices, two empties batches, three generations of note
+  // rewrites) can never fire again on this data and has been removed. normaliseData still runs
+  // on every load, so a genuinely malformed line still gets a shape guard; this only removes
+  // the one-off content migrations, which have already done their job.
+  const migrate = (json) => normaliseData(JSON.parse(json));
   const applyData = (data, remote) => {
     if (!data) return;
     if (remote) skipBump.current = true;
@@ -1677,9 +1342,9 @@ function TheCurfewCellarApp() {
       // Header band
       doc.setFillColor(ink[0], ink[1], ink[2]); doc.rect(0, 0, W, 28, "F");
       doc.setFont("helvetica", "bold"); doc.setFontSize(19); doc.setTextColor(243, 239, 230);
-      doc.text("The Curfew", M, 14);
+      doc.text(PUB_CONFIG.name, M, 14);
       doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(brassSoft[0], brassSoft[1], brassSoft[2]);
-      doc.text("MICROPUB · STOCK LIST", M, 20.5);
+      doc.text(`${PUB_CONFIG.typeLabel.toUpperCase()} · STOCK LIST`, M, 20.5);
       doc.setFontSize(8.5); doc.setTextColor(200, 196, 186);
       doc.text(new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }), W - M, 14, { align: "right" });
       const counts = `${lines.filter((l) => l.status === "on").length} on  ·  ${lines.filter((l) => ["tapped", "vented", "racked"].includes(l.status)).length} in cellar  ·  ${lines.filter((l) => l.status === "in_cellar").length} in store`;
@@ -1782,12 +1447,12 @@ function TheCurfewCellarApp() {
         doc.text(`Page ${p} of ${pageCount}`, W - M, H - 6, { align: "right" });
       }
 
-      const fname = "curfew-stock-list.pdf";
+      const fname = `${PUB_CONFIG.slug}-stock-list.pdf`;
       const blob = doc.output("blob");
       try {
         const file = new File([blob], fname, { type: "application/pdf" });
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({ files: [file], title: "Curfew stock list" });
+          await navigator.share({ files: [file], title: `${PUB_CONFIG.shortName} stock list` });
         } else {
           doc.save(fname);
         }
@@ -1816,9 +1481,9 @@ function TheCurfewCellarApp() {
 
       doc.setFillColor(ink[0], ink[1], ink[2]); doc.rect(0, 0, W, 28, "F");
       doc.setFont("helvetica", "bold"); doc.setFontSize(19); doc.setTextColor(243, 239, 230);
-      doc.text("The Curfew", M, 14);
+      doc.text(PUB_CONFIG.name, M, 14);
       doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(brassSoft[0], brassSoft[1], brassSoft[2]);
-      doc.text("MICROPUB · WHAT'S ON TODAY", M, 20.5);
+      doc.text(`${PUB_CONFIG.typeLabel.toUpperCase()} · WHAT'S ON TODAY`, M, 20.5);
       doc.setFontSize(8.5); doc.setTextColor(200, 196, 186);
       doc.text(new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }), W - M, 14, { align: "right" });
       y = 36;
@@ -1892,7 +1557,7 @@ function TheCurfewCellarApp() {
         doc.text("Please confirm allergens with staff before ordering.", M, H - 6);
         doc.setFont("helvetica", "normal"); doc.text(`Page ${p} of ${pageCount}`, W - M, H - 6, { align: "right" });
       }
-      await sharePdfDoc(doc, "curfew-tap-list.pdf", "Curfew tap list");
+      await sharePdfDoc(doc, `${PUB_CONFIG.slug}-tap-list.pdf`, `${PUB_CONFIG.shortName} tap list`);
     } catch (e) {
       showToast("Could not make the PDF just now. Check your connection and try again.");
     } finally {
@@ -1916,7 +1581,7 @@ function TheCurfewCellarApp() {
       doc.setFont("helvetica", "bold"); doc.setFontSize(17); doc.setTextColor(243, 239, 230);
       doc.text("How to use The Curfew Cellar", M, 13);
       doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(brassSoft[0], brassSoft[1], brassSoft[2]);
-      doc.text("THE CURFEW MICROPUB · STAFF GUIDE", M, 20.5);
+      doc.text(`${PUB_CONFIG.fullName.toUpperCase()} · STAFF GUIDE`, M, 20.5);
       doc.setFontSize(8.5); doc.setTextColor(200, 196, 186);
       doc.text(new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }), W - M, 13, { align: "right" });
       y = 36;
@@ -1960,7 +1625,7 @@ function TheCurfewCellarApp() {
       doc.setFont("helvetica", "bold"); doc.setFontSize(17); doc.setTextColor(243, 239, 230);
       doc.text("Allergen and Dietary Guide", M, 13);
       doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(brassSoft[0], brassSoft[1], brassSoft[2]);
-      doc.text("THE CURFEW MICROPUB · PLEASE CONFIRM WITH STAFF BEFORE ORDERING", M, 20.5);
+      doc.text(`${PUB_CONFIG.fullName.toUpperCase()} · PLEASE CONFIRM WITH STAFF BEFORE ORDERING`, M, 20.5);
       doc.setFontSize(8.5); doc.setTextColor(200, 196, 186);
       doc.text(new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }), W - M, 13, { align: "right" });
       y = 36;
@@ -2017,7 +1682,7 @@ function TheCurfewCellarApp() {
         doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(gray[0], gray[1], gray[2]);
         doc.text(`Page ${p} of ${pageCount}`, W - M, H - 6, { align: "right" });
       }
-      await sharePdfDoc(doc, "curfew-allergen-guide.pdf", "Curfew allergen guide");
+      await sharePdfDoc(doc, `${PUB_CONFIG.slug}-allergen-guide.pdf`, `${PUB_CONFIG.shortName} allergen guide`);
     } catch (e) {
       showToast("Could not make the PDF just now. Check your connection and try again.");
     } finally {
@@ -2100,12 +1765,57 @@ function TheCurfewCellarApp() {
     setLastUpdated(now);
   }, [lines, library, hydrated]);
 
+  // Which overlay is topmost, in the order they actually nest in this app (opening one always
+  // closes whatever was open before it, verified: Edit details closes CardModal in the same
+  // click handler that opens EditBeer). Shared by Escape and the Android back button below, so
+  // both close exactly the one thing that's actually on top, not everything at once.
+  const topModal = () => {
+    if (editBeerId) return "editBeer";
+    if (openId || libraryOpenId) return "cardModal";
+    if (swap) return "swap";
+    if (showAlerts) return "alerts";
+    if (menuOpen) return "menu";
+    return null;
+  };
+  const closeTopModal = () => {
+    const top = topModal();
+    if (top === "editBeer") { setEditBeerId(null); setEditBeerLineId(null); setEditNote(null); }
+    else if (top === "cardModal") { setOpenId(null); setLibraryOpenId(null); }
+    else if (top === "swap") { setSwap(null); setSwapPreviewId(null); }
+    else if (top === "alerts") setShowAlerts(false);
+    else if (top === "menu") setMenuOpen(false);
+  };
   useEffect(() => {
-    if (!(openId || libraryOpenId || editBeerId || swap || showAlerts || menuOpen) || typeof document === "undefined") return;
-    const onKey = (e) => { if (e.key === "Escape") { setEditBeerId(null); setOpenId(null); setLibraryOpenId(null); setSwap(null); setShowAlerts(false); setMenuOpen(false); } };
+    if (!topModal() || typeof document === "undefined") return;
+    const onKey = (e) => { if (e.key === "Escape") closeTopModal(); };
     document.addEventListener("keydown", onKey);
     return () => { document.removeEventListener("keydown", onKey); };
   }, [openId, libraryOpenId, editBeerId, swap, showAlerts, menuOpen]);
+
+  // Android's back gesture/button navigates browser history by default, which for a PWA with
+  // no other history entries just exits the app. modalHistoryRef tracks whether WE pushed the
+  // current history entry (for an open modal), so we never pop or react to entries we didn't
+  // push ourselves.
+  const modalHistoryRef = useRef(false);
+  useEffect(() => {
+    const isOpen = !!topModal();
+    if (isOpen && !modalHistoryRef.current) {
+      window.history.pushState({ ccModal: true }, "");
+      modalHistoryRef.current = true;
+    } else if (!isOpen && modalHistoryRef.current) {
+      modalHistoryRef.current = false;
+      // Closed by something other than the back button (X, tap outside, Escape): pop the
+      // entry we pushed for it, so history depth stays in sync and back still works normally.
+      window.history.back();
+    }
+  }, [openId, libraryOpenId, editBeerId, swap, showAlerts, menuOpen]);
+  useEffect(() => {
+    const onPopState = () => {
+      if (modalHistoryRef.current) { modalHistoryRef.current = false; closeTopModal(); }
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
 
 
   useEffect(() => {
@@ -3311,7 +3021,7 @@ function TheCurfewCellarApp() {
       doc.setFont("helvetica", "bold"); doc.setFontSize(17); doc.setTextColor(243, 239, 230);
       doc.text("Empties to Return", M, 13);
       doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(brassSoft[0], brassSoft[1], brassSoft[2]);
-      doc.text("THE CURFEW MICROPUB · COLLECTION LIST", M, 20.5);
+      doc.text(`${PUB_CONFIG.fullName.toUpperCase()} · COLLECTION LIST`, M, 20.5);
       doc.setFontSize(8.5); doc.setTextColor(200, 196, 186);
       doc.text(new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }), W - M, 13, { align: "right" });
       y = 36;
@@ -3357,7 +3067,7 @@ function TheCurfewCellarApp() {
         doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(gray[0], gray[1], gray[2]);
         doc.text(`Page ${p} of ${pageCount}`, W - M, H - 6, { align: "right" });
       }
-      await sharePdfDoc(doc, "curfew-empties.pdf", "Curfew empties to return");
+      await sharePdfDoc(doc, `${PUB_CONFIG.slug}-empties.pdf`, `${PUB_CONFIG.shortName} empties to return`);
     } catch (e) {
       showToast("Could not make the PDF just now. Check your connection and try again.");
     } finally { setPdfBusy(false); }
@@ -3536,7 +3246,7 @@ function TheCurfewCellarApp() {
           <div style={{ border: "1.5px solid rgba(184,134,43,0.4)", borderBottom: "none", borderTopLeftRadius: 130, borderTopRightRadius: 130, padding: "28px 22px 4px" }}>
             <div className="flex flex-col items-center text-center">
               <div className="grid h-11 w-11 place-items-center rounded-full" style={{ background: C.brass, color: C.ink }}><Bell size={22} /></div>
-              <p className="mt-2.5 text-2xl font-semibold leading-tight" style={{ color: C.cream, fontFamily: "var(--font-display)", letterSpacing: "0.03em" }}>The Curfew</p>
+              <p className="mt-2.5 text-2xl font-semibold leading-tight" style={{ color: C.cream, fontFamily: "var(--font-display)", letterSpacing: "0.03em" }}>{PUB_CONFIG.name}</p>
               <p className="mt-0.5 text-xs uppercase tracking-widest" style={{ color: C.brassSoft }}>What's on today</p>
               {fmtUpdated(lastUpdated) && <p className="mt-2 text-xs" style={{ color: "rgba(243,239,230,0.5)" }}>Last updated: {fmtUpdated(lastUpdated)}</p>}
               <div className="mt-1 flex items-center gap-4">
@@ -3812,7 +3522,7 @@ function TheCurfewCellarApp() {
         <div className="w-full max-w-xs">
           <div className="mb-6 text-center">
             <Bell size={26} className="mx-auto mb-2.5" style={{ color: C.brassSoft }} aria-hidden="true" />
-            <p className="text-2xl font-bold" style={{ color: C.cream, fontFamily: "var(--font-display)", letterSpacing: "0.03em" }}>The Curfew</p>
+            <p className="text-2xl font-bold" style={{ color: C.cream, fontFamily: "var(--font-display)", letterSpacing: "0.03em" }}>{PUB_CONFIG.name}</p>
             <p className="mt-1 text-xs uppercase tracking-widest" style={{ color: C.brassSoft }}>Cellar Management</p>
           </div>
           {authChecking ? (
@@ -3929,7 +3639,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
                 </>
               )}
             </div>
-            <p className="text-base font-semibold leading-none" style={{ color: C.cream, fontFamily: "var(--font-display)", letterSpacing: "0.025em" }}>The Curfew</p>
+            <p className="text-base font-semibold leading-none" style={{ color: C.cream, fontFamily: "var(--font-display)", letterSpacing: "0.025em" }}>{PUB_CONFIG.name}</p>
             <p className="hidden sm:inline" style={{ color: C.brassSoft, fontFamily: "var(--font-data)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.14em", lineHeight: 1 }}>Cellar</p>
           </div>
           <nav className="relative hidden items-center gap-1 sm:flex">
