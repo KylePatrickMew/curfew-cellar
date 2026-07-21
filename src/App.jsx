@@ -407,6 +407,33 @@ const cleanBrewery = (name) => {
   }
   return out || String(name).trim();
 };
+// Duplicate detection for the library: the same real beer entered more than once, usually with
+// slightly different brewery text ("Weston's" vs "Weston's Cider", or a stray apostrophe). Only
+// flags a pair if BOTH the name matches (after normalising case, punctuation and whitespace) AND
+// the brewery matches after the same suffix-stripping cleanBrewery already does for autofill.
+// Matching on name alone would flag two different breweries that both happen to make a beer
+// called "IPA"; requiring both checks avoids that.
+const normalizeForMatch = (s) => (s || "").toLowerCase().replace(/['".,]/g, "").replace(/\s+/g, " ").trim();
+const breweryCore = (s) => normalizeForMatch(cleanBrewery(s));
+const findDuplicateCandidates = (library) => {
+  const groups = {};
+  library.forEach((b) => {
+    const key = normalizeForMatch(b.name);
+    if (!key) return;
+    (groups[key] = groups[key] || []).push(b);
+  });
+  const pairs = [];
+  Object.values(groups).forEach((group) => {
+    if (group.length < 2) return;
+    for (let i = 0; i < group.length; i++) {
+      for (let j = i + 1; j < group.length; j++) {
+        const c1 = breweryCore(group[i].brewery), c2 = breweryCore(group[j].brewery);
+        if (c1 && c2 && (c1 === c2 || c1.includes(c2) || c2.includes(c1))) pairs.push([group[i], group[j]]);
+      }
+    }
+  });
+  return pairs;
+};
 // Both autofill paths (Add Stock and Edit beer details) share this. Kept in one place so the
 // two can never drift apart. Wrong details cost real time behind the bar, so the model is told
 // to actually look things up and cross-check rather than answer from memory, and to admit when
@@ -935,7 +962,7 @@ const EditBeer = ({
   updateBeer, updateBeerPrice, setCaskOwner, setBestBefore, toggleBeerAllergen,
   autoFillBeer, editBusy, editNote, latestPrice,
   setEditBeerId, setEditBeerLineId, setEditNote,
-  deleteBeer, beerIsDeletable,
+  deleteBeer, beerIsDeletable, beerArchiveDeletable,
 }) => {
   const beer = editBeerId ? beerById[editBeerId] : null;
   const editLine = editBeerLineId ? lines.find((l) => l.id === editBeerLineId) : null;
@@ -946,7 +973,9 @@ const EditBeer = ({
   // different beer or line is opened, but not on every render, so it doesn't fight typing.
   const [priceDraft, setPriceDraft] = useState("");
   const [ownerDraft, setOwnerDraft] = useState("");
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  // 0 = no confirm shown, 1 = first confirm, 2 = final confirm (archive-delete only, since
+  // that path can also erase real stocking history and deserves an extra deliberate step).
+  const [deleteStage, setDeleteStage] = useState(0);
   const priceTimer = useRef(null);
   const ownerTimer = useRef(null);
   const draftKey = useRef(null);
@@ -956,7 +985,7 @@ const EditBeer = ({
     const liveLine0 = lines.find((l) => l.beerId === beer.id && l.status !== "off");
     setPriceDraft(liveLine0 ? (liveLine0.price || "") : (beer.price !== undefined && beer.price !== null ? beer.price : (latestPrice(beer) || "")));
     setOwnerDraft(editLine ? (editLine.caskOwner || "") : "");
-    setConfirmDelete(false);
+    setDeleteStage(0);
   }
   if (!beer || !canEdit) return null;
   const close = () => {
@@ -1015,21 +1044,43 @@ const EditBeer = ({
             <Package size={15} /> {beer.archived ? "Restore from archive" : "Archive this beer"}
           </button>
           {!beer.archived && <p className="text-xs text-slate-400">Archiving hides it from your library and search without deleting its history. You can restore it any time.</p>}
-          {beerIsDeletable(beer) && (
-            confirmDelete ? (
+          {beerIsDeletable(beer) ? (
+            deleteStage > 0 ? (
               <div className="rounded-lg border border-red-200 bg-red-50 p-2.5">
                 <p className="text-xs text-red-800">This beer has never been stocked, so nothing will be lost. Delete it?</p>
                 <div className="mt-2 flex gap-2">
                   <button onClick={() => deleteBeer(beer.id)} className="rounded-md bg-red-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-800">Delete now</button>
-                  <button onClick={() => setConfirmDelete(false)} className="rounded-md border px-3 py-1.5 text-xs font-medium text-slate-600" style={{ borderColor: C.line }}>Cancel</button>
+                  <button onClick={() => setDeleteStage(0)} className="rounded-md border px-3 py-1.5 text-xs font-medium text-slate-600" style={{ borderColor: C.line }}>Cancel</button>
                 </div>
               </div>
             ) : (
-              <button onClick={() => setConfirmDelete(true)} className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-300">
+              <button onClick={() => setDeleteStage(1)} className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-300">
                 <Trash2 size={15} /> Delete this beer
               </button>
             )
-          )}
+          ) : beer.archived && beerArchiveDeletable(beer) ? (
+            deleteStage === 1 ? (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-2.5">
+                <p className="text-xs text-red-800">This also permanently erases its full price and stocking history. This can't be undone after a few seconds.</p>
+                <div className="mt-2 flex gap-2">
+                  <button onClick={() => setDeleteStage(2)} className="rounded-md bg-red-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-800">Continue</button>
+                  <button onClick={() => setDeleteStage(0)} className="rounded-md border px-3 py-1.5 text-xs font-medium text-slate-600" style={{ borderColor: C.line }}>Cancel</button>
+                </div>
+              </div>
+            ) : deleteStage === 2 ? (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-2.5">
+                <p className="text-xs font-semibold text-red-800">Are you sure? This is permanent.</p>
+                <div className="mt-2 flex gap-2">
+                  <button onClick={() => deleteBeer(beer.id)} className="rounded-md bg-red-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-800">Yes, delete permanently</button>
+                  <button onClick={() => setDeleteStage(0)} className="rounded-md border px-3 py-1.5 text-xs font-medium text-slate-600" style={{ borderColor: C.line }}>Cancel</button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={() => setDeleteStage(1)} className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-300">
+                <Trash2 size={15} /> Delete from archive
+              </button>
+            )
+          ) : null}
           <button onClick={close} className="mt-1 inline-flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}>Done</button>
         </div>
       </div>
@@ -1095,6 +1146,9 @@ function TheCurfewCellarApp() {
   const toggleSection = (k) => setUiPrefs((p) => ({ ...p, [k]: !p[k] }));
   const [loading, setLoading] = useState(false);
   const [librarySearch, setLibrarySearch] = useState("");
+  const [duplicateResults, setDuplicateResults] = useState(null);
+  const [combineCandidate, setCombineCandidate] = useState(null);
+  const [combineKeepId, setCombineKeepId] = useState(null);
   const [historyOpen, setHistoryOpen] = useState({});
   const [showArchived, setShowArchived] = useState(false);
   const [confirmDupe, setConfirmDupe] = useState(false);
@@ -2206,13 +2260,45 @@ function TheCurfewCellarApp() {
     showToast("Duplicated. The copy is In Store.");
   };
   const beerIsDeletable = (beer) => !!beer && (beer.history || []).length === 0 && !lines.some((l) => l.beerId === beer.id);
+  // A beer with real history can only ever be deleted once it's archived (archive first, then
+  // decide later), and only if nothing referencing it is still actually active on the bar or in
+  // the cellar. Off-status (finished) lines are fine, that's the history being deleted along
+  // with it; anything else means it's still physically in play and must be finished first.
+  const beerArchiveDeletable = (beer) => !!beer && !!beer.archived && !lines.some((l) => l.beerId === beer.id && l.status !== "off");
   const deleteBeer = (id) => {
     const beer = library.find((b) => b.id === id);
-    if (!beerIsDeletable(beer)) return;
-    snapshotUndo("Beer deleted");
-    setLibrary((lib) => lib.filter((b) => b.id !== id));
-    setEditBeerId(null); setEditBeerLineId(null); setEditNote(null);
-    showToast("Beer deleted.");
+    if (beerIsDeletable(beer)) {
+      snapshotUndo("Beer deleted");
+      setLibrary((lib) => lib.filter((b) => b.id !== id));
+      setEditBeerId(null); setEditBeerLineId(null); setEditNote(null);
+      showToast("Beer deleted.");
+      return;
+    }
+    if (beerArchiveDeletable(beer)) {
+      // Also remove its (finished, off-status) lines, since leaving them behind would just
+      // orphan them, pointing at a beer that no longer exists and silently vanishing from
+      // every screen and PDF that looks it up, rather than actually being gone.
+      snapshotUndo("Beer deleted");
+      setLibrary((lib) => lib.filter((b) => b.id !== id));
+      setLines((ls) => ls.filter((l) => l.beerId !== id));
+      setEditBeerId(null); setEditBeerLineId(null); setEditNote(null);
+      showToast("Beer and its history deleted.");
+      return;
+    }
+  };
+  const combineBeers = (keepId, dropId) => {
+    if (!keepId || !dropId || keepId === dropId) return;
+    const keep = library.find((b) => b.id === keepId);
+    const drop = library.find((b) => b.id === dropId);
+    if (!keep || !drop) return;
+    snapshotUndo("Beers combined");
+    const mergedHistory = [...(keep.history || []), ...(drop.history || [])].sort((a, b) => new Date(a.date) - new Date(b.date));
+    setLibrary((lib) => lib.map((b) => (b.id === keepId ? { ...b, history: mergedHistory } : b)).filter((b) => b.id !== dropId));
+    setLines((ls) => ls.map((l) => (l.beerId === dropId ? { ...l, beerId: keepId } : l)));
+    setDuplicateResults(null);
+    setCombineCandidate(null);
+    setCombineKeepId(null);
+    showToast("Combined. Stock history moved across.");
   };
   const latestPrice = (beer) => { const h = beer.history || []; return h.length ? h[h.length - 1].price : ""; };
   const latestSupplier = (beer) => { const h = beer.history || []; for (let i = h.length - 1; i >= 0; i--) { if (h[i].caskOwner) return h[i].caskOwner; } return ""; };
@@ -2778,6 +2864,58 @@ function TheCurfewCellarApp() {
           <input value={librarySearch} onChange={(e) => setLibrarySearch(e.target.value)} placeholder="Search ales, breweries, styles…" className="w-full rounded-xl border bg-white py-2.5 pl-10 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
           {librarySearch && <button onClick={() => setLibrarySearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 hover:bg-slate-100"><X size={16} /></button>}
         </div>
+
+        {canEdit && (
+          <div className="cc-elev rounded-xl border p-3.5" style={{ background: C.paper, borderColor: C.line }}>
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <h2 className="text-sm font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Find duplicates</h2>
+                <p className="mt-0.5 text-xs text-slate-500">Looks for the same beer entered more than once, like "Weston's" and "Westons Cider" both being Old Rosie.</p>
+              </div>
+              <button onClick={() => setDuplicateResults(findDuplicateCandidates(library))} className="shrink-0 rounded-lg border px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>Scan</button>
+            </div>
+            {duplicateResults !== null && (
+              duplicateResults.length === 0 ? (
+                <p className="mt-2.5 text-xs text-slate-400">No likely duplicates found.</p>
+              ) : (
+                <div className="mt-2.5 space-y-1.5">
+                  {duplicateResults.map((pair, i) => (
+                    <div key={i} className="rounded-lg border p-2" style={{ borderColor: C.line }}>
+                      <p className="text-xs text-slate-600"><span className="font-semibold" style={{ color: C.ink }}>{pair[0].brewery || "?"} - {pair[0].name}</span> and <span className="font-semibold" style={{ color: C.ink }}>{pair[1].brewery || "?"} - {pair[1].name}</span></p>
+                      <button onClick={() => { setCombineCandidate(pair); setCombineKeepId(pair[0].id); }} className="mt-1.5 rounded-md px-2.5 py-1 text-xs font-semibold text-white hover:opacity-90" style={{ background: C.ink }}>Compare &amp; combine</button>
+                    </div>
+                  ))}
+                </div>
+              )
+            )}
+          </div>
+        )}
+
+        {combineCandidate && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(28,54,54,0.45)" }} onClick={() => { setCombineCandidate(null); setCombineKeepId(null); }}>
+            <div className="w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white sm:rounded-2xl cc-pop p-5" style={{ maxHeight: "92vh" }} onClick={(e) => e.stopPropagation()}>
+              <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Combine these two?</h2>
+              <p className="mt-1 text-sm text-slate-500">Pick which one to keep. All stock history from the other moves across to it, then it's deleted.</p>
+              <div className="mt-3 space-y-2">
+                {combineCandidate.map((b) => (
+                  <button key={b.id} onClick={() => setCombineKeepId(b.id)} className="w-full rounded-lg border p-3 text-left transition" style={{ borderColor: combineKeepId === b.id ? C.brass : C.line, background: combineKeepId === b.id ? "#FBF3E3" : "white" }}>
+                    <div className="flex items-center gap-2">
+                      <input type="radio" checked={combineKeepId === b.id} readOnly className="h-4 w-4" />
+                      <span className="font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{b.brewery || "?"} - {b.name}</span>
+                    </div>
+                    <p className="mt-1 pl-6 text-xs text-slate-500">{[b.style || "", b.abv ? `${b.abv}%` : "", b.location || ""].filter(Boolean).join(" · ")}</p>
+                    <p className="mt-0.5 pl-6 text-xs text-slate-400">{(b.history || []).length} recorded {(b.history || []).length === 1 ? "delivery" : "deliveries"}{b.archived ? " · archived" : ""}</p>
+                  </button>
+                ))}
+              </div>
+              <div className="mt-4 flex gap-2">
+                <button onClick={() => { const drop = combineCandidate.find((b) => b.id !== combineKeepId); if (drop) combineBeers(combineKeepId, drop.id); }} className="flex-1 rounded-lg px-3 py-2 text-sm font-semibold text-white hover:opacity-90" style={{ background: C.ink }}>Combine, keep this one</button>
+                <button onClick={() => { setCombineCandidate(null); setCombineKeepId(null); }} className="rounded-lg border px-3 py-2 text-sm font-medium text-slate-600" style={{ borderColor: C.line }}>Cancel</button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {q ? (
           results.length ? (
             <>
@@ -3484,7 +3622,7 @@ function TheCurfewCellarApp() {
       updateBeer={updateBeer} updateBeerPrice={updateBeerPrice} setCaskOwner={setCaskOwner} setBestBefore={setBestBefore} toggleBeerAllergen={toggleBeerAllergen}
       autoFillBeer={autoFillBeer} editBusy={editBusy} editNote={editNote} latestPrice={latestPrice}
       setEditBeerId={setEditBeerId} setEditBeerLineId={setEditBeerLineId} setEditNote={setEditNote}
-      deleteBeer={deleteBeer} beerIsDeletable={beerIsDeletable}
+      deleteBeer={deleteBeer} beerIsDeletable={beerIsDeletable} beerArchiveDeletable={beerArchiveDeletable}
     />
   );
 
