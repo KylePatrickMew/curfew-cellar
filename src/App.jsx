@@ -1225,6 +1225,7 @@ function TheCurfewCellarApp() {
       if (l.status === "on" && f && f.level === "check") out.push({ id: l.id, warn: false, text: `${nm}: on for ${daysOn(l)} days, check quality` });
       if (l.status === "vented" && l.dates.vented && dayDiff(l.dates.vented, new Date().toISOString()) >= 2) out.push({ id: l.id, warn: false, text: `${nm}: vented ${dayDiff(l.dates.vented, new Date().toISOString())}d ago, ready to tap` });
       if (!beer.allergensVerified) out.push({ id: l.id, warn: true, text: `${nm}: allergens not verified` });
+      else if (beer.allergens.length === 0) out.push({ id: l.id, warn: true, text: `${nm}: verified with no allergens listed, worth double-checking` });
     });
     const backupAge = prefs.lastBackup ? dayDiff(prefs.lastBackup, new Date().toISOString()) : null;
     if (lines.length > 3 && (backupAge === null || backupAge > 30)) out.push({ id: null, warn: false, backup: true, text: backupAge === null ? "No backup saved yet. Takes ten seconds" : `Last backup ${backupAge} days ago. Worth a fresh one` });
@@ -2307,7 +2308,8 @@ function TheCurfewCellarApp() {
   const addDistributor = (name) => {
     const clean = (name || "").trim();
     if (!clean) return;
-    setDistributors((ds) => (ds.some((d) => d.trim().toLowerCase() === clean.toLowerCase()) ? ds : [...ds, clean]));
+    const key = breweryCore(clean);
+    setDistributors((ds) => (key && ds.some((d) => breweryCore(d) === key) ? ds : [...ds, clean]));
   };
   const removeDistributor = (name) => setDistributors((ds) => ds.filter((d) => d !== name));
   const latestPrice = (beer) => { const h = beer.history || []; return h.length ? h[h.length - 1].price : ""; };
@@ -2808,7 +2810,7 @@ function TheCurfewCellarApp() {
     const q = librarySearch.trim().toLowerCase();
     const match = (b) => [b.name, b.brewery, b.style, b.category, b.location].some((x) => (x || "").toLowerCase().includes(q));
     const results = q ? library.filter(match) : [];
-    const incomplete = library.filter((b) => !b.archived && (!(b.abv || "").trim() || !(b.style || "").trim() || !(b.location || "").trim()));
+    const incomplete = library.filter((b) => !b.archived && (!(b.abv || "").trim() || !(b.style || "").trim() || !(b.location || "").trim() || !(b.notes || "").trim()));
     const archived = library.filter((b) => b.archived).slice().sort((a, b) => (a.brewery || "").localeCompare(b.brewery || "") || (a.name || "").localeCompare(b.name || ""));
     const rest = library.filter((b) => !b.archived).slice().sort((a, b) => {
       if (a.allergensVerified !== b.allergensVerified) return a.allergensVerified ? 1 : -1;
@@ -2956,10 +2958,10 @@ function TheCurfewCellarApp() {
                 {incomplete.length > 0 && (
                   <div className="rounded-xl border p-3.5" style={{ borderColor: C.line }}>
                     <h2 className="text-sm font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Needs more detail ({incomplete.length})</h2>
-                    <p className="mt-0.5 text-xs text-slate-500">Missing ABV, style, or location.</p>
+                    <p className="mt-0.5 text-xs text-slate-500">Missing ABV, style, location, or tasting notes.</p>
                     <div className="mt-2.5 space-y-1.5">
                       {incomplete.map((b) => {
-                        const missing = [!(b.abv || "").trim() && "ABV", !(b.style || "").trim() && "style", !(b.location || "").trim() && "location"].filter(Boolean).join(", ");
+                        const missing = [!(b.abv || "").trim() && "ABV", !(b.style || "").trim() && "style", !(b.location || "").trim() && "location", !(b.notes || "").trim() && "tasting notes"].filter(Boolean).join(", ");
                         return (
                           <button key={b.id} onClick={() => { setEditBeerId(b.id); setEditBeerLineId(null); }} className="block w-full rounded-lg border p-2 text-left transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>
                             <span className="block truncate text-sm font-semibold" style={{ color: C.ink }}>{b.brewery || "?"} - {b.name}</span>
