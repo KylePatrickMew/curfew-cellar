@@ -1117,10 +1117,10 @@ function TheCurfewCellarApp() {
     try {
       if (typeof window !== "undefined" && window.localStorage) {
         const raw = localStorage.getItem("curfew-cellar:ui-prefs:v1");
-        if (raw) return { on: true, racked: true, store: false, empties: {}, libraryTools: false, ...JSON.parse(raw) };
+        if (raw) return { on: true, racked: true, store: false, empties: {}, libraryTools: false, libRecent: true, libAll: false, libArchived: false, ...JSON.parse(raw) };
       }
     } catch (e) { /* ignore, fall through to default */ }
-    return { on: true, racked: true, store: false, empties: {}, libraryTools: false };
+    return { on: true, racked: true, store: false, empties: {}, libraryTools: false, libRecent: true, libAll: false, libArchived: false };
   });
   useEffect(() => {
     try { if (typeof window !== "undefined" && window.localStorage) localStorage.setItem("curfew-cellar:ui-prefs:v1", JSON.stringify(uiPrefs)); } catch (e) { /* ignore */ }
@@ -1151,7 +1151,6 @@ function TheCurfewCellarApp() {
   const [combineKeepId, setCombineKeepId] = useState(null);
   const [newDistributor, setNewDistributor] = useState("");
   const [historyOpen, setHistoryOpen] = useState({});
-  const [showArchived, setShowArchived] = useState(false);
   const [confirmDupe, setConfirmDupe] = useState(false);
   const [toast, setToast] = useState(null);
   const toastTimer = useRef(null);
@@ -2883,7 +2882,7 @@ function TheCurfewCellarApp() {
           results.length ? (
             <>
               <p className="text-xs text-slate-500">{results.length} match{results.length === 1 ? "" : "es"}</p>
-              <div className="space-y-2 overflow-y-auto" style={{ maxHeight: "50dvh", overscrollBehaviorY: "contain", WebkitOverflowScrolling: "touch" }}>{results.map(libRow)}</div>
+              <div className="space-y-2">{results.map(libRow)}</div>
             </>
           ) : (
             <div className="rounded-xl border border-dashed bg-white p-8 text-center" style={{ borderColor: C.line }}>
@@ -2893,30 +2892,33 @@ function TheCurfewCellarApp() {
           )
         ) : (
           <>
-            <p className="text-xs text-slate-400">{library.length} beer{library.length === 1 ? "" : "s"} saved</p>
-            <div className="space-y-3 overflow-y-auto" style={{ maxHeight: "50dvh", overscrollBehaviorY: "contain", WebkitOverflowScrolling: "touch" }}>
-              {recentAdded.length > 0 && (
-                <div>
-                  <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">Recently added</p>
-                  <div className="space-y-2">{recentAdded.map(libRow)}</div>
-                </div>
-              )}
-              {rest.length > 0 && (
-                <div>
-                  <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">Library</p>
-                  <div className="space-y-2">{rest.map(libRow)}</div>
-                </div>
-              )}
-              {archived.length > 0 && (
-                <div>
-                  <button onClick={() => setShowArchived((v) => !v)} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Archived <span className="font-normal">· {archived.length}</span></p>
-                    <ChevronDown size={16} className="text-slate-400" style={{ transform: showArchived ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
-                  </button>
-                  {showArchived && <div className="mt-1.5 space-y-2" style={{ opacity: 0.75 }}>{archived.map(libRow)}</div>}
-                </div>
-              )}
-            </div>
+            {recentAdded.length > 0 && (
+              <section>
+                <button onClick={() => toggleSection("libRecent")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
+                  <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Recently added <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {recentAdded.length}</span></h2>
+                  <ChevronDown size={20} className="text-slate-400" style={{ transform: uiPrefs.libRecent ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
+                </button>
+                {uiPrefs.libRecent && <div className="mt-2 space-y-2">{recentAdded.map(libRow)}</div>}
+              </section>
+            )}
+            {rest.length > 0 && (
+              <section className="border-t pt-4" style={{ borderColor: C.line }}>
+                <button onClick={() => toggleSection("libAll")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
+                  <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>All beers <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {rest.length}</span></h2>
+                  <ChevronDown size={20} className="text-slate-400" style={{ transform: uiPrefs.libAll ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
+                </button>
+                {uiPrefs.libAll && <div className="mt-2 space-y-2">{rest.map(libRow)}</div>}
+              </section>
+            )}
+            {archived.length > 0 && (
+              <section className="border-t pt-4" style={{ borderColor: C.line }}>
+                <button onClick={() => toggleSection("libArchived")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
+                  <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Archived <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {archived.length}</span></h2>
+                  <ChevronDown size={20} className="text-slate-400" style={{ transform: uiPrefs.libArchived ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
+                </button>
+                {uiPrefs.libArchived && <div className="mt-2 space-y-2" style={{ opacity: 0.75 }}>{archived.map(libRow)}</div>}
+              </section>
+            )}
           </>
         )}
 
