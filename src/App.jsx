@@ -1225,7 +1225,6 @@ function TheCurfewCellarApp() {
       if (l.status === "on" && f && f.level === "check") out.push({ id: l.id, warn: false, text: `${nm}: on for ${daysOn(l)} days, check quality` });
       if (l.status === "vented" && l.dates.vented && dayDiff(l.dates.vented, new Date().toISOString()) >= 2) out.push({ id: l.id, warn: false, text: `${nm}: vented ${dayDiff(l.dates.vented, new Date().toISOString())}d ago, ready to tap` });
       if (!beer.allergensVerified) out.push({ id: l.id, warn: true, text: `${nm}: allergens not verified` });
-      if (l.drinkType === "cask" && l.status === "in_cellar" && l.dates.delivered && dayDiff(l.dates.delivered, new Date().toISOString()) >= 5) out.push({ id: l.id, warn: false, text: `${nm}: delivered ${dayDiff(l.dates.delivered, new Date().toISOString())}d ago, not yet racked` });
     });
     const backupAge = prefs.lastBackup ? dayDiff(prefs.lastBackup, new Date().toISOString()) : null;
     if (lines.length > 3 && (backupAge === null || backupAge > 30)) out.push({ id: null, warn: false, backup: true, text: backupAge === null ? "No backup saved yet. Takes ten seconds" : `Last backup ${backupAge} days ago. Worth a fresh one` });
