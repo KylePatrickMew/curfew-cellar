@@ -359,7 +359,7 @@ const freshness = (line) => {
   if (d === null) return null;
   if (line.status === "off") return { level: "off", text: `Lasted ${d} day${d === 1 ? "" : "s"}` };
   if (d < FRESH_LIMIT) return null;
-  return { level: "check", text: `On for ${d} days · check quality` };
+  return { level: "check", text: `On for ${d} days · Check quality` };
 };
 const bbStatus = (line) => {
   if (!line.bestBefore) return null;
@@ -394,14 +394,14 @@ const groupByOwner = (items) => {
   return [...map.values()].sort((a, b) => (b.items.length - a.items.length) || a.label.localeCompare(b.label));
 };
 // Brewery names come back from the AI with company suffixes attached ("Ossett Brewing Company
-// Limited", "Wharfedale Brewery Ltd"), which crowd out the beer's own name in lists. Strip the
-// trailing suffix words so only the distinctive part remains. Applied to AI output only, never
-// to what Kyle types by hand, and it never strips the name down to nothing.
+// Limited", "Wharfedale Brewery Ltd", "Weston's Cider Co"), which crowd out the beer's own name
+// in lists. Strip the trailing suffix words so only the distinctive part remains. Applied to AI
+// output only, never to what Kyle types by hand, and it never strips the name down to nothing.
 const cleanBrewery = (name) => {
   if (!name) return "";
   let out = String(name).trim();
   for (let i = 0; i < 4; i++) {
-    const next = out.replace(/[\s,]+(?:limited|ltd\.?|co\.?|company|brewery|brewing|brewhouse|breweries|brewers|brew\s*co\.?|plc)$/i, "").trim();
+    const next = out.replace(/[\s,]+(?:limited|ltd\.?|co\.?|company|brewery|brewing|brewhouse|breweries|brewers|brew\s*co\.?|cider|ciders|cidery|cider\s*co\.?|perry|perries|plc)$/i, "").trim();
     if (next === out) break;
     out = next;
   }
@@ -935,6 +935,7 @@ const EditBeer = ({
   updateBeer, updateBeerPrice, setCaskOwner, setBestBefore, toggleBeerAllergen,
   autoFillBeer, editBusy, editNote, latestPrice,
   setEditBeerId, setEditBeerLineId, setEditNote,
+  deleteBeer, beerIsDeletable,
 }) => {
   const beer = editBeerId ? beerById[editBeerId] : null;
   const editLine = editBeerLineId ? lines.find((l) => l.id === editBeerLineId) : null;
@@ -945,6 +946,7 @@ const EditBeer = ({
   // different beer or line is opened, but not on every render, so it doesn't fight typing.
   const [priceDraft, setPriceDraft] = useState("");
   const [ownerDraft, setOwnerDraft] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const priceTimer = useRef(null);
   const ownerTimer = useRef(null);
   const draftKey = useRef(null);
@@ -954,6 +956,7 @@ const EditBeer = ({
     const liveLine0 = lines.find((l) => l.beerId === beer.id && l.status !== "off");
     setPriceDraft(liveLine0 ? (liveLine0.price || "") : (beer.price !== undefined && beer.price !== null ? beer.price : (latestPrice(beer) || "")));
     setOwnerDraft(editLine ? (editLine.caskOwner || "") : "");
+    setConfirmDelete(false);
   }
   if (!beer || !canEdit) return null;
   const close = () => {
@@ -1012,6 +1015,21 @@ const EditBeer = ({
             <Package size={15} /> {beer.archived ? "Restore from archive" : "Archive this beer"}
           </button>
           {!beer.archived && <p className="text-xs text-slate-400">Archiving hides it from your library and search without deleting its history. You can restore it any time.</p>}
+          {beerIsDeletable(beer) && (
+            confirmDelete ? (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-2.5">
+                <p className="text-xs text-red-800">This beer has never been stocked, so nothing will be lost. Delete it?</p>
+                <div className="mt-2 flex gap-2">
+                  <button onClick={() => deleteBeer(beer.id)} className="rounded-md bg-red-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-800">Delete now</button>
+                  <button onClick={() => setConfirmDelete(false)} className="rounded-md border px-3 py-1.5 text-xs font-medium text-slate-600" style={{ borderColor: C.line }}>Cancel</button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={() => setConfirmDelete(true)} className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-300">
+                <Trash2 size={15} /> Delete this beer
+              </button>
+            )
+          )}
           <button onClick={close} className="mt-1 inline-flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}>Done</button>
         </div>
       </div>
@@ -1193,7 +1211,7 @@ function TheCurfewCellarApp() {
       setPushState("on");
       showToast("Notifications are on for this phone.");
     } catch (e) {
-      showToast("Could not turn notifications on. Check your connection and try again.");
+      showToast("Could not turn notifications on just now. Check your connection and try again.");
     } finally { setPushBusy(false); }
   };
   const disablePush = async () => {
@@ -1210,7 +1228,7 @@ function TheCurfewCellarApp() {
       setPushState("off");
       showToast("Notifications are off for this phone.");
     } catch (e) {
-      showToast("Could not turn notifications off just now.");
+      showToast("Could not turn notifications off just now. Check your connection and try again.");
     } finally { setPushBusy(false); }
   };
   const sendCellarPush = (title, body) => {
@@ -1624,7 +1642,7 @@ function TheCurfewCellarApp() {
 
       doc.setFillColor(ink[0], ink[1], ink[2]); doc.rect(0, 0, W, 28, "F");
       doc.setFont("helvetica", "bold"); doc.setFontSize(17); doc.setTextColor(243, 239, 230);
-      doc.text("How to use The Curfew Cellar", M, 13);
+      doc.text("How to Use The Curfew Cellar", M, 13);
       doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(brassSoft[0], brassSoft[1], brassSoft[2]);
       doc.text(`${PUB_CONFIG.fullName.toUpperCase()} · STAFF GUIDE`, M, 20.5);
       doc.setFontSize(8.5); doc.setTextColor(200, 196, 186);
@@ -1648,7 +1666,7 @@ function TheCurfewCellarApp() {
         y += 3;
       });
 
-      await sharePdfDoc(doc, "curfew-cellar-guide.pdf", "How to use The Curfew Cellar");
+      await sharePdfDoc(doc, "curfew-cellar-guide.pdf", "How to Use The Curfew Cellar");
     } catch (e) {
       showToast("Could not make the PDF just now. Check your connection and try again.");
     } finally { setPdfBusy(false); }
@@ -2007,7 +2025,7 @@ function TheCurfewCellarApp() {
   const toggleAllergen = (a) => setF({ allergens: form.allergens.includes(a) ? form.allergens.filter((x) => x !== a) : [...form.allergens, a] });
 
   const addLine = () => {
-    if (!form.brewery.trim() || !form.name.trim()) { setFillNote({ type: "warn", text: "Producer and name are required." }); return; }
+    if (!form.brewery.trim() || !form.name.trim()) { setFillNote({ type: "warn", text: "Producer/brewery and name are required." }); return; }
     // Duplicate guard: if this beer already has a live line in the cellar, ask once before
     // adding another. A second tap of the button confirms (multiple casks is legitimate).
     const dupSaved = findSavedBeer(form.brewery, form.name);
@@ -2187,6 +2205,15 @@ function TheCurfewCellarApp() {
     setOpenId(null);
     showToast("Duplicated. The copy is In Store.");
   };
+  const beerIsDeletable = (beer) => !!beer && (beer.history || []).length === 0 && !lines.some((l) => l.beerId === beer.id);
+  const deleteBeer = (id) => {
+    const beer = library.find((b) => b.id === id);
+    if (!beerIsDeletable(beer)) return;
+    snapshotUndo("Beer deleted");
+    setLibrary((lib) => lib.filter((b) => b.id !== id));
+    setEditBeerId(null); setEditBeerLineId(null); setEditNote(null);
+    showToast("Beer deleted.");
+  };
   const latestPrice = (beer) => { const h = beer.history || []; return h.length ? h[h.length - 1].price : ""; };
   const latestSupplier = (beer) => { const h = beer.history || []; for (let i = h.length - 1; i >= 0; i--) { if (h[i].caskOwner) return h[i].caskOwner; } return ""; };
   // Loading a beer back from the library for a new delivery. Everything genuinely carries over
@@ -2332,8 +2359,8 @@ function TheCurfewCellarApp() {
     setLines((ls) => [...ls, ...newLines]);
     setInvoiceItems(null); setInvoiceOwner(""); setAddMode("pick"); setFillNote(null); setLibrarySearch(""); setView("cellar");
   };
-  const snapshotUndo = (label) => { setUndoState({ lines, label }); if (undoTimer.current) clearTimeout(undoTimer.current); undoTimer.current = setTimeout(() => setUndoState(null), 7000); };
-  const doUndo = () => { if (!undoState) return; setLines(undoState.lines); setUndoState(null); if (undoTimer.current) clearTimeout(undoTimer.current); };
+  const snapshotUndo = (label) => { setUndoState({ lines, library, label }); if (undoTimer.current) clearTimeout(undoTimer.current); undoTimer.current = setTimeout(() => setUndoState(null), 7000); };
+  const doUndo = () => { if (!undoState) return; setLines(undoState.lines); if (undoState.library) setLibrary(undoState.library); setUndoState(null); if (undoTimer.current) clearTimeout(undoTimer.current); };
   const setCaskOwner = (id, v) => setLines((ls) => ls.map((c) => (c.id === id ? { ...c, caskOwner: v } : c)));
   const markCollected = (id) => { snapshotUndo("Empty marked collected"); setLines((ls) => ls.map((c) => (c.id === id ? { ...c, collected: true } : c))); };
   const markOwnerCollected = (key) => { snapshotUndo("Empties marked collected"); setLines((ls) => ls.map((c) => (IS_EMPTY(c) && ownerKey(c.caskOwner) === key ? { ...c, collected: true } : c))); };
@@ -2538,7 +2565,7 @@ function TheCurfewCellarApp() {
                   <div className={`mt-2 grid grid-cols-2 gap-2 ${batchSource === "invoice" ? "sm:grid-cols-3" : "sm:grid-cols-4"}`}>
                     <input value={x.brewery} onChange={(e) => updateInvoice(idx, { brewery: e.target.value })} placeholder="Brewery" className="rounded border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
                     <input value={x.abv} onChange={(e) => updateInvoice(idx, { abv: e.target.value })} inputMode="decimal" placeholder="ABV %" className="rounded border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
-                    {batchSource !== "invoice" && <input value={x.price} onChange={(e) => updateInvoice(idx, { price: e.target.value })} inputMode="decimal" placeholder="£ price" className="rounded border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />}
+                    {batchSource !== "invoice" && <input value={x.price} onChange={(e) => updateInvoice(idx, { price: e.target.value })} inputMode="decimal" placeholder="e.g. 4.40" className="rounded border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />}
                     <select value={x.drinkType} onChange={(e) => updateInvoice(idx, { drinkType: e.target.value })} className="rounded border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }}>{DRINK_TYPES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}</select>
                   </div>
                   {batchSource === "labels" && (
@@ -2656,14 +2683,14 @@ function TheCurfewCellarApp() {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="Price (£ per pint)">
               <input className={inputCls} inputMode="decimal" value={form.price} onChange={(e) => setF({ price: e.target.value })} placeholder="e.g. 4.40" />
-              {priceNeedsConfirm && <p className="mt-1 text-xs font-medium" style={{ color: C.brass }}>Previous price. Please confirm</p>}
+              {priceNeedsConfirm && <p className="mt-1 text-xs font-medium" style={{ color: C.brass }}>Previous price. Please confirm.</p>}
             </Field>
             {form.drinkType === "cider" && <Field label="Container"><select className={inputCls} value={form.size} onChange={(e) => setF({ size: e.target.value })}>{SIZE_OPTIONS.map((s) => <option key={s}>{s}</option>)}</select></Field>}
           </div>
           {form.drinkType !== "cider" && form.drinkType !== "keykeg" && (
             <Field label="Delivered by">
               <input className={inputCls} value={form.caskOwner} onChange={(e) => setF({ caskOwner: e.target.value })} placeholder={form.brewery ? `Defaults to ${form.brewery}` : "Defaults to the brewery"} />
-              {supplierNeedsConfirm && <p className="mt-1 text-xs font-medium" style={{ color: C.brass }}>Previous delivery. Please confirm</p>}
+              {supplierNeedsConfirm && <p className="mt-1 text-xs font-medium" style={{ color: C.brass }}>Previous delivery. Please confirm.</p>}
             </Field>
           )}
           <Field label="Best before">
@@ -3316,7 +3343,7 @@ function TheCurfewCellarApp() {
           </div>
 
           <div className="mt-6">
-            {on.length === 0 && <p className="py-12 text-center" style={{ color: "rgba(243,239,230,0.6)" }}>Nothing on just now. Check back soon.</p>}
+            {on.length === 0 && <p className="py-12 text-center" style={{ color: "rgba(243,239,230,0.6)" }}>Nothing on right now. Check back soon.</p>}
 
             {caskByCat.length > 0 && (
               <section className="mb-7">
@@ -3457,6 +3484,7 @@ function TheCurfewCellarApp() {
       updateBeer={updateBeer} updateBeerPrice={updateBeerPrice} setCaskOwner={setCaskOwner} setBestBefore={setBestBefore} toggleBeerAllergen={toggleBeerAllergen}
       autoFillBeer={autoFillBeer} editBusy={editBusy} editNote={editNote} latestPrice={latestPrice}
       setEditBeerId={setEditBeerId} setEditBeerLineId={setEditBeerLineId} setEditNote={setEditNote}
+      deleteBeer={deleteBeer} beerIsDeletable={beerIsDeletable}
     />
   );
 
