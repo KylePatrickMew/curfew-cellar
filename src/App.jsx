@@ -1890,6 +1890,7 @@ function TheCurfewCellarApp() {
   // click handler that opens EditBeer). Shared by Escape and the Android back button below, so
   // both close exactly the one thing that's actually on top, not everything at once.
   const topModal = () => {
+    if (combineCandidate) return "combine";
     if (editBeerId) return "editBeer";
     if (openId || libraryOpenId) return "cardModal";
     if (swap) return "swap";
@@ -1899,7 +1900,8 @@ function TheCurfewCellarApp() {
   };
   const closeTopModal = () => {
     const top = topModal();
-    if (top === "editBeer") { setEditBeerId(null); setEditBeerLineId(null); setEditNote(null); }
+    if (top === "combine") { setCombineCandidate(null); setCombineKeepId(null); }
+    else if (top === "editBeer") { setEditBeerId(null); setEditBeerLineId(null); setEditNote(null); }
     else if (top === "cardModal") { setOpenId(null); setLibraryOpenId(null); }
     else if (top === "swap") { setSwap(null); setSwapPreviewId(null); }
     else if (top === "alerts") setShowAlerts(false);
@@ -1910,7 +1912,7 @@ function TheCurfewCellarApp() {
     const onKey = (e) => { if (e.key === "Escape") closeTopModal(); };
     document.addEventListener("keydown", onKey);
     return () => { document.removeEventListener("keydown", onKey); };
-  }, [openId, libraryOpenId, editBeerId, swap, showAlerts, menuOpen]);
+  }, [openId, libraryOpenId, editBeerId, swap, showAlerts, menuOpen, combineCandidate]);
 
   // Android's back gesture/button navigates browser history by default, which for a PWA with
   // no other history entries just exits the app. modalHistoryRef tracks whether WE pushed the
@@ -1928,7 +1930,7 @@ function TheCurfewCellarApp() {
       // entry we pushed for it, so history depth stays in sync and back still works normally.
       window.history.back();
     }
-  }, [openId, libraryOpenId, editBeerId, swap, showAlerts, menuOpen]);
+  }, [openId, libraryOpenId, editBeerId, swap, showAlerts, menuOpen, combineCandidate]);
   useEffect(() => {
     const onPopState = () => {
       if (modalHistoryRef.current) { modalHistoryRef.current = false; closeTopModal(); }
@@ -2931,31 +2933,6 @@ function TheCurfewCellarApp() {
           </div>
         )}
 
-        {combineCandidate && (
-          <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(28,54,54,0.45)" }} onClick={() => { setCombineCandidate(null); setCombineKeepId(null); }}>
-            <div className="w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white sm:rounded-2xl cc-pop p-5" style={{ maxHeight: "92vh" }} onClick={(e) => e.stopPropagation()}>
-              <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Combine these two?</h2>
-              <p className="mt-1 text-sm text-slate-500">Pick which one to keep. All stock history from the other moves across to it, then it's deleted.</p>
-              <div className="mt-3 space-y-2">
-                {combineCandidate.map((b) => (
-                  <button key={b.id} onClick={() => setCombineKeepId(b.id)} className="w-full rounded-lg border p-3 text-left transition" style={{ borderColor: combineKeepId === b.id ? C.brass : C.line, background: combineKeepId === b.id ? "#FBF3E3" : "white" }}>
-                    <div className="flex items-center gap-2">
-                      <input type="radio" checked={combineKeepId === b.id} readOnly className="h-4 w-4" />
-                      <span className="font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{b.brewery || "?"} - {b.name}</span>
-                    </div>
-                    <p className="mt-1 pl-6 text-xs text-slate-500">{[b.style || "", b.abv ? `${b.abv}%` : "", b.location || ""].filter(Boolean).join(" · ")}</p>
-                    <p className="mt-0.5 pl-6 text-xs text-slate-400">{(b.history || []).length} recorded {(b.history || []).length === 1 ? "delivery" : "deliveries"}{b.archived ? " · archived" : ""}</p>
-                  </button>
-                ))}
-              </div>
-              <div className="mt-4 flex gap-2">
-                <button onClick={() => { const drop = combineCandidate.find((b) => b.id !== combineKeepId); if (drop) combineBeers(combineKeepId, drop.id); }} className="flex-1 rounded-lg px-3 py-2 text-sm font-semibold text-white hover:opacity-90" style={{ background: C.ink }}>Combine, keep this one</button>
-                <button onClick={() => { setCombineCandidate(null); setCombineKeepId(null); }} className="rounded-lg border px-3 py-2 text-sm font-medium text-slate-600" style={{ borderColor: C.line }}>Cancel</button>
-              </div>
-            </div>
-          </div>
-        )}
-
         {q ? (
           results.length ? (
             <>
@@ -3676,6 +3653,34 @@ function TheCurfewCellarApp() {
     );
   };
 
+  const CombineModal = () => {
+    if (!combineCandidate) return null;
+    return (
+      <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(28,54,54,0.45)" }} onClick={() => { setCombineCandidate(null); setCombineKeepId(null); }}>
+        <div className="w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white sm:rounded-2xl cc-pop p-5" style={{ maxHeight: "92vh" }} onClick={(e) => e.stopPropagation()}>
+          <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Combine these two?</h2>
+          <p className="mt-1 text-sm text-slate-500">Pick which one to keep. All stock history from the other moves across to it, then it's deleted.</p>
+          <div className="mt-3 space-y-2">
+            {combineCandidate.map((b) => (
+              <button key={b.id} onClick={() => setCombineKeepId(b.id)} className="w-full rounded-lg border p-3 text-left transition" style={{ borderColor: combineKeepId === b.id ? C.brass : C.line, background: combineKeepId === b.id ? "#FBF3E3" : "white" }}>
+                <div className="flex items-center gap-2">
+                  <input type="radio" checked={combineKeepId === b.id} readOnly className="h-4 w-4" />
+                  <span className="font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{b.brewery || "?"} - {b.name}</span>
+                </div>
+                <p className="mt-1 pl-6 text-xs text-slate-500">{[b.style || "", b.abv ? `${b.abv}%` : "", b.location || ""].filter(Boolean).join(" · ")}</p>
+                <p className="mt-0.5 pl-6 text-xs text-slate-400">{(b.history || []).length} recorded {(b.history || []).length === 1 ? "delivery" : "deliveries"}{b.archived ? " · archived" : ""}</p>
+              </button>
+            ))}
+          </div>
+          <div className="mt-4 flex gap-2">
+            <button onClick={() => { const drop = combineCandidate.find((b) => b.id !== combineKeepId); if (drop) combineBeers(combineKeepId, drop.id); }} className="flex-1 rounded-lg px-3 py-2 text-sm font-semibold text-white hover:opacity-90" style={{ background: C.ink }}>Combine, keep this one</button>
+            <button onClick={() => { setCombineCandidate(null); setCombineKeepId(null); }} className="rounded-lg border px-3 py-2 text-sm font-medium text-slate-600" style={{ borderColor: C.line }}>Cancel</button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const EditBeerScreen = () => (
     <EditBeer
       editBeerId={editBeerId} editBeerLineId={editBeerLineId} beerById={beerById} lines={lines} canEdit={canEdit}
@@ -3949,7 +3954,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
           </nav>
         </div>
       </header>
-      <div ref={scrollAreaRef} className="min-h-0 flex-1 overflow-y-auto" style={{ overscrollBehaviorY: "none", paddingBottom: "env(safe-area-inset-bottom)", ...((openId || libraryOpenId || editBeerId || swap || showAlerts || menuOpen) ? { overflow: "hidden", overflowY: "hidden", WebkitOverflowScrolling: "auto", touchAction: "none" } : { WebkitOverflowScrolling: "touch" }) }}>
+      <div ref={scrollAreaRef} className="min-h-0 flex-1 overflow-y-auto" style={{ overscrollBehaviorY: "none", paddingBottom: "env(safe-area-inset-bottom)", ...((openId || libraryOpenId || editBeerId || swap || showAlerts || menuOpen || combineCandidate) ? { overflow: "hidden", overflowY: "hidden", WebkitOverflowScrolling: "auto", touchAction: "none" } : { WebkitOverflowScrolling: "touch" }) }}>
       <main className="mx-auto max-w-4xl px-4 pt-6 pb-28 sm:pb-6">
         {!hydrated ? (
           <div className="flex items-center justify-center gap-2 py-16 text-sm text-slate-500"><Loader2 size={16} className="animate-spin" /> Loading your cellar…</div>
@@ -4035,6 +4040,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
       {CardModal()}
       {EditBeerScreen()}
       {SwapChooser()}
+      {CombineModal()}
     </div>
   );
 }
