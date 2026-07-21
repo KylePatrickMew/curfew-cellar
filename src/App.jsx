@@ -1149,6 +1149,7 @@ function TheCurfewCellarApp() {
   const [duplicateResults, setDuplicateResults] = useState(null);
   const [combineCandidate, setCombineCandidate] = useState(null);
   const [combineKeepId, setCombineKeepId] = useState(null);
+  const [newDistributor, setNewDistributor] = useState("");
   const [historyOpen, setHistoryOpen] = useState({});
   const [showArchived, setShowArchived] = useState(false);
   const [confirmDupe, setConfirmDupe] = useState(false);
@@ -1224,6 +1225,8 @@ function TheCurfewCellarApp() {
       const f = freshness(l);
       if (l.status === "on" && f && f.level === "check") out.push({ id: l.id, warn: false, text: `${nm}: on for ${daysOn(l)} days, check quality` });
       if (l.status === "vented" && l.dates.vented && dayDiff(l.dates.vented, new Date().toISOString()) >= 2) out.push({ id: l.id, warn: false, text: `${nm}: vented ${dayDiff(l.dates.vented, new Date().toISOString())}d ago, ready to tap` });
+      if (!beer.allergensVerified) out.push({ id: l.id, warn: true, text: `${nm}: allergens not verified` });
+      if (l.drinkType === "cask" && l.status === "in_cellar" && l.dates.delivered && dayDiff(l.dates.delivered, new Date().toISOString()) >= 5) out.push({ id: l.id, warn: false, text: `${nm}: delivered ${dayDiff(l.dates.delivered, new Date().toISOString())}d ago, not yet racked` });
     });
     const backupAge = prefs.lastBackup ? dayDiff(prefs.lastBackup, new Date().toISOString()) : null;
     if (lines.length > 3 && (backupAge === null || backupAge > 30)) out.push({ id: null, warn: false, backup: true, text: backupAge === null ? "No backup saved yet. Takes ten seconds" : `Last backup ${backupAge} days ago. Worth a fresh one` });
@@ -1302,7 +1305,7 @@ function TheCurfewCellarApp() {
 
   const setF = (patch) => setForm((f) => ({ ...f, ...patch }));
   const findSavedBeer = (brewery, name) =>
-    library.find((b) => b.brewery.trim().toLowerCase() === brewery.trim().toLowerCase() && b.name.trim().toLowerCase() === name.trim().toLowerCase());
+    library.find((b) => breweryCore(b.brewery) === breweryCore(brewery) && normalizeForMatch(b.name) === normalizeForMatch(name));
 
   // Apply a saved data blob to state. remote=true means it came from another device,
   // so don't re-stamp "last updated" and don't echo it back to the cloud.
@@ -2106,6 +2109,7 @@ function TheCurfewCellarApp() {
     dates[STATUSES[STATUS_INDEX[form.status]].dateKey] = new Date().toISOString();
     const id = uid();
     setLines((ls) => [...ls, { id, beerId, drinkType: form.drinkType, size: form.size, price: form.price.trim(), status: form.status, caskOwner: form.caskOwner.trim() || form.brewery.trim(), collected: false, bestBefore: form.bestBefore, dates }]);
+    if (form.caskOwner.trim()) addDistributor(form.caskOwner.trim());
     setForm(emptyForm); setFillNote(null); setAddMode("pick"); setView("cellar"); setOpenId(id);
   };
 
@@ -2300,6 +2304,12 @@ function TheCurfewCellarApp() {
     setCombineKeepId(null);
     showToast("Combined. Stock history moved across.");
   };
+  const addDistributor = (name) => {
+    const clean = (name || "").trim();
+    if (!clean) return;
+    setDistributors((ds) => (ds.some((d) => d.trim().toLowerCase() === clean.toLowerCase()) ? ds : [...ds, clean]));
+  };
+  const removeDistributor = (name) => setDistributors((ds) => ds.filter((d) => d !== name));
   const latestPrice = (beer) => { const h = beer.history || []; return h.length ? h[h.length - 1].price : ""; };
   const latestSupplier = (beer) => { const h = beer.history || []; for (let i = h.length - 1; i >= 0; i--) { if (h[i].caskOwner) return h[i].caskOwner; } return ""; };
   // Loading a beer back from the library for a new delivery. Everything genuinely carries over
@@ -2427,7 +2437,7 @@ function TheCurfewCellarApp() {
     let lib = [...library];
     const newLines = [];
     chosen.forEach((x) => {
-      const existing = lib.find((b) => b.brewery.trim().toLowerCase() === x.brewery.trim().toLowerCase() && b.name.trim().toLowerCase() === x.name.trim().toLowerCase());
+      const existing = lib.find((b) => breweryCore(b.brewery) === breweryCore(x.brewery) && normalizeForMatch(b.name) === normalizeForMatch(x.name));
       const entry = { date: nowIso, abv: x.abv, price: x.price, caskOwner: (x.caskOwner || x.brewery || "").trim() };
       let beerId;
       // Reviewed and confirmed here, on this screen, so this is going straight to the
@@ -2443,6 +2453,7 @@ function TheCurfewCellarApp() {
     });
     setLibrary(lib);
     setLines((ls) => [...ls, ...newLines]);
+    chosen.forEach((x) => { if ((x.caskOwner || "").trim()) addDistributor(x.caskOwner.trim()); });
     setInvoiceItems(null); setInvoiceOwner(""); setAddMode("pick"); setFillNote(null); setLibrarySearch(""); setView("cellar");
   };
   const snapshotUndo = (label) => { setUndoState({ lines, library, label }); if (undoTimer.current) clearTimeout(undoTimer.current); undoTimer.current = setTimeout(() => setUndoState(null), 7000); };
@@ -2797,6 +2808,7 @@ function TheCurfewCellarApp() {
     const q = librarySearch.trim().toLowerCase();
     const match = (b) => [b.name, b.brewery, b.style, b.category, b.location].some((x) => (x || "").toLowerCase().includes(q));
     const results = q ? library.filter(match) : [];
+    const incomplete = library.filter((b) => !b.archived && (!(b.abv || "").trim() || !(b.style || "").trim() || !(b.location || "").trim()));
     const archived = library.filter((b) => b.archived).slice().sort((a, b) => (a.brewery || "").localeCompare(b.brewery || "") || (a.name || "").localeCompare(b.name || ""));
     const rest = library.filter((b) => !b.archived).slice().sort((a, b) => {
       if (a.allergensVerified !== b.allergensVerified) return a.allergensVerified ? 1 : -1;
@@ -2888,6 +2900,45 @@ function TheCurfewCellarApp() {
                 </div>
               )
             )}
+          </div>
+        )}
+
+        {canEdit && (
+          <div className="cc-elev rounded-xl border p-3.5" style={{ background: C.paper, borderColor: C.line }}>
+            <h2 className="text-sm font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Distributors</h2>
+            <p className="mt-0.5 text-xs text-slate-500">Helps the AI correctly read who delivered a beer off an invoice. New ones get added automatically when you confirm a delivery with a distributor named; add or remove any here too.</p>
+            {distributors.length > 0 && (
+              <div className="mt-2.5 flex flex-wrap gap-1.5">
+                {distributors.map((d) => (
+                  <span key={d} className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs" style={{ borderColor: C.line, color: C.inkSoft }}>
+                    {d}
+                    <button onClick={() => removeDistributor(d)} className="text-slate-400 hover:text-slate-600" aria-label={`Remove ${d}`}><X size={12} /></button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="mt-2.5 flex gap-2">
+              <input value={newDistributor} onChange={(e) => setNewDistributor(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { addDistributor(newDistributor); setNewDistributor(""); } }} placeholder="Add a distributor" className="flex-1 rounded-lg border px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
+              <button onClick={() => { addDistributor(newDistributor); setNewDistributor(""); }} disabled={!newDistributor.trim()} className="shrink-0 rounded-lg border px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>Add</button>
+            </div>
+          </div>
+        )}
+
+        {canEdit && incomplete.length > 0 && (
+          <div className="cc-elev rounded-xl border p-3.5" style={{ background: C.paper, borderColor: C.line }}>
+            <h2 className="text-sm font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Needs more detail ({incomplete.length})</h2>
+            <p className="mt-0.5 text-xs text-slate-500">Missing ABV, style, or location.</p>
+            <div className="mt-2.5 space-y-1.5">
+              {incomplete.map((b) => {
+                const missing = [!(b.abv || "").trim() && "ABV", !(b.style || "").trim() && "style", !(b.location || "").trim() && "location"].filter(Boolean).join(", ");
+                return (
+                  <button key={b.id} onClick={() => { setEditBeerId(b.id); setEditBeerLineId(null); }} className="block w-full rounded-lg border p-2 text-left transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>
+                    <span className="block truncate text-sm font-semibold" style={{ color: C.ink }}>{b.brewery || "?"} - {b.name}</span>
+                    <span className="block text-xs text-slate-400">Missing: {missing}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 
