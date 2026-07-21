@@ -1117,10 +1117,10 @@ function TheCurfewCellarApp() {
     try {
       if (typeof window !== "undefined" && window.localStorage) {
         const raw = localStorage.getItem("curfew-cellar:ui-prefs:v1");
-        if (raw) return { on: true, racked: true, store: false, empties: {}, ...JSON.parse(raw) };
+        if (raw) return { on: true, racked: true, store: false, empties: {}, libraryTools: false, ...JSON.parse(raw) };
       }
     } catch (e) { /* ignore, fall through to default */ }
-    return { on: true, racked: true, store: false, empties: {} };
+    return { on: true, racked: true, store: false, empties: {}, libraryTools: false };
   });
   useEffect(() => {
     try { if (typeof window !== "undefined" && window.localStorage) localStorage.setItem("curfew-cellar:ui-prefs:v1", JSON.stringify(uiPrefs)); } catch (e) { /* ignore */ }
@@ -2878,67 +2878,56 @@ function TheCurfewCellarApp() {
         </div>
 
         {canEdit && (
-          <div className="cc-elev rounded-xl border p-3.5" style={{ background: C.paper, borderColor: C.line }}>
-            <div className="flex items-center justify-between gap-2">
-              <div className="min-w-0">
-                <h2 className="text-sm font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Find duplicates</h2>
-                <p className="mt-0.5 text-xs text-slate-500">Looks for the same beer entered more than once, like "Weston's" and "Westons Cider" both being Old Rosie.</p>
-              </div>
-              <button onClick={() => setDuplicateResults(findDuplicateCandidates(library))} className="shrink-0 rounded-lg border px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>Scan</button>
-            </div>
-            {duplicateResults !== null && (
-              duplicateResults.length === 0 ? (
-                <p className="mt-2.5 text-xs text-slate-400">No likely duplicates found.</p>
-              ) : (
-                <div className="mt-2.5 space-y-1.5">
-                  {duplicateResults.map((pair, i) => (
-                    <div key={i} className="rounded-lg border p-2" style={{ borderColor: C.line }}>
-                      <p className="text-xs text-slate-600"><span className="font-semibold" style={{ color: C.ink }}>{pair[0].brewery || "?"} - {pair[0].name}</span> and <span className="font-semibold" style={{ color: C.ink }}>{pair[1].brewery || "?"} - {pair[1].name}</span></p>
-                      <button onClick={() => { setCombineCandidate(pair); setCombineKeepId(pair[0].id); }} className="mt-1.5 rounded-md px-2.5 py-1 text-xs font-semibold text-white hover:opacity-90" style={{ background: C.ink }}>Compare &amp; combine</button>
+          <div className="cc-elev rounded-xl border" style={{ background: C.paper, borderColor: C.line }}>
+            <button onClick={() => setUiPrefs((p) => ({ ...p, libraryTools: !p.libraryTools }))} className="flex w-full items-center justify-between gap-2 p-3.5 text-left focus:outline-none">
+              <span className="text-sm font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Library tools</span>
+              <ChevronDown size={18} className="text-slate-400" style={{ transform: uiPrefs.libraryTools ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
+            </button>
+            {uiPrefs.libraryTools && (
+              <div className="space-y-3 p-3.5 pt-0">
+                <div className="rounded-xl border p-3.5" style={{ borderColor: C.line }}>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <h2 className="text-sm font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Find duplicates</h2>
+                      <p className="mt-0.5 text-xs text-slate-500">Looks for the same beer entered more than once, like "Weston's" and "Westons Cider" both being Old Rosie.</p>
                     </div>
-                  ))}
+                    <button onClick={() => setDuplicateResults(findDuplicateCandidates(library))} className="shrink-0 rounded-lg border px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>Scan</button>
+                  </div>
+                  {duplicateResults !== null && (
+                    duplicateResults.length === 0 ? (
+                      <p className="mt-2.5 text-xs text-slate-400">No likely duplicates found.</p>
+                    ) : (
+                      <div className="mt-2.5 space-y-1.5">
+                        {duplicateResults.map((pair, i) => (
+                          <div key={i} className="rounded-lg border p-2" style={{ borderColor: C.line }}>
+                            <p className="text-xs text-slate-600"><span className="font-semibold" style={{ color: C.ink }}>{pair[0].brewery || "?"} - {pair[0].name}</span> and <span className="font-semibold" style={{ color: C.ink }}>{pair[1].brewery || "?"} - {pair[1].name}</span></p>
+                            <button onClick={() => { setCombineCandidate(pair); setCombineKeepId(pair[0].id); }} className="mt-1.5 rounded-md px-2.5 py-1 text-xs font-semibold text-white hover:opacity-90" style={{ background: C.ink }}>Compare &amp; combine</button>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  )}
                 </div>
-              )
-            )}
-          </div>
-        )}
 
-        {canEdit && (
-          <div className="cc-elev rounded-xl border p-3.5" style={{ background: C.paper, borderColor: C.line }}>
-            <h2 className="text-sm font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Distributors</h2>
-            <p className="mt-0.5 text-xs text-slate-500">Helps the AI correctly read who delivered a beer off an invoice. New ones get added automatically when you confirm a delivery with a distributor named; add or remove any here too.</p>
-            {distributors.length > 0 && (
-              <div className="mt-2.5 flex flex-wrap gap-1.5">
-                {distributors.map((d) => (
-                  <span key={d} className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs" style={{ borderColor: C.line, color: C.inkSoft }}>
-                    {d}
-                    <button onClick={() => removeDistributor(d)} className="text-slate-400 hover:text-slate-600" aria-label={`Remove ${d}`}><X size={12} /></button>
-                  </span>
-                ))}
+                {incomplete.length > 0 && (
+                  <div className="rounded-xl border p-3.5" style={{ borderColor: C.line }}>
+                    <h2 className="text-sm font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Needs more detail ({incomplete.length})</h2>
+                    <p className="mt-0.5 text-xs text-slate-500">Missing ABV, style, or location.</p>
+                    <div className="mt-2.5 space-y-1.5">
+                      {incomplete.map((b) => {
+                        const missing = [!(b.abv || "").trim() && "ABV", !(b.style || "").trim() && "style", !(b.location || "").trim() && "location"].filter(Boolean).join(", ");
+                        return (
+                          <button key={b.id} onClick={() => { setEditBeerId(b.id); setEditBeerLineId(null); }} className="block w-full rounded-lg border p-2 text-left transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>
+                            <span className="block truncate text-sm font-semibold" style={{ color: C.ink }}>{b.brewery || "?"} - {b.name}</span>
+                            <span className="block text-xs text-slate-400">Missing: {missing}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
-            <div className="mt-2.5 flex gap-2">
-              <input value={newDistributor} onChange={(e) => setNewDistributor(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { addDistributor(newDistributor); setNewDistributor(""); } }} placeholder="Add a distributor" className="flex-1 rounded-lg border px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
-              <button onClick={() => { addDistributor(newDistributor); setNewDistributor(""); }} disabled={!newDistributor.trim()} className="shrink-0 rounded-lg border px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>Add</button>
-            </div>
-          </div>
-        )}
-
-        {canEdit && incomplete.length > 0 && (
-          <div className="cc-elev rounded-xl border p-3.5" style={{ background: C.paper, borderColor: C.line }}>
-            <h2 className="text-sm font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Needs more detail ({incomplete.length})</h2>
-            <p className="mt-0.5 text-xs text-slate-500">Missing ABV, style, or location.</p>
-            <div className="mt-2.5 space-y-1.5">
-              {incomplete.map((b) => {
-                const missing = [!(b.abv || "").trim() && "ABV", !(b.style || "").trim() && "style", !(b.location || "").trim() && "location"].filter(Boolean).join(", ");
-                return (
-                  <button key={b.id} onClick={() => { setEditBeerId(b.id); setEditBeerLineId(null); }} className="block w-full rounded-lg border p-2 text-left transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>
-                    <span className="block truncate text-sm font-semibold" style={{ color: C.ink }}>{b.brewery || "?"} - {b.name}</span>
-                    <span className="block text-xs text-slate-400">Missing: {missing}</span>
-                  </button>
-                );
-              })}
-            </div>
           </div>
         )}
 
@@ -3353,6 +3342,26 @@ function TheCurfewCellarApp() {
     const groups = groupByOwner(empties);
     return (
       <div className="space-y-4">
+        {canEdit && (
+          <div className="cc-elev rounded-xl border p-3.5" style={{ background: C.paper, borderColor: C.line }}>
+            <h2 className="text-sm font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Distributors</h2>
+            <p className="mt-0.5 text-xs text-slate-500">Added automatically from deliveries. Add or remove here too.</p>
+            {distributors.length > 0 && (
+              <div className="mt-2.5 flex flex-wrap gap-1.5">
+                {distributors.map((d) => (
+                  <span key={d} className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs" style={{ borderColor: C.line, color: C.inkSoft }}>
+                    {d}
+                    <button onClick={() => removeDistributor(d)} className="text-slate-400 hover:text-slate-600" aria-label={`Remove ${d}`}><X size={12} /></button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="mt-2.5 flex gap-2">
+              <input value={newDistributor} onChange={(e) => setNewDistributor(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { addDistributor(newDistributor); setNewDistributor(""); } }} placeholder="Add a distributor" className="flex-1 rounded-lg border px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
+              <button onClick={() => { addDistributor(newDistributor); setNewDistributor(""); }} disabled={!newDistributor.trim()} className="shrink-0 rounded-lg border px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>Add</button>
+            </div>
+          </div>
+        )}
         <div className="flex items-center justify-end gap-3">
           <button onClick={shareEmptiesPDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-1 py-1 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40 focus:outline-none" style={{ color: "#778883" }}>{pdfBusy ? <Loader2 className="animate-spin" size={13} /> : <Share size={13} />} Share</button>
           <button onClick={() => go("cellar")} className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"><ArrowRight size={14} className="rotate-180" /> Back</button>
