@@ -29,6 +29,19 @@ const APP_BUILD = "2026-07-19 11:53";
 const SB_URL = "https://fnqhrckxmzioinbokicb.supabase.co";
 const SB_KEY = "sb_publishable_RyO06sDdZg3bH7Mt6hwHEQ_EA9RNkJ8";
 const BAR_EMAIL = "kyle.parkour@gmail.com";
+// Three real Supabase accounts, one per role, checked in this order against whatever password
+// was typed. MANAGER_EMAIL is the existing account: nothing changes for it. STAFF_EMAIL and
+// READONLY_EMAIL are new accounts Kyle needs to create in the Supabase dashboard (Authentication
+// > Users > Add user), each its own email and password. These don't need to be real, working
+// inboxes, Supabase only needs them as unique account identifiers for password sign-in.
+const MANAGER_EMAIL = BAR_EMAIL;
+const STAFF_EMAIL = "staff@curfewcellar.app";
+const READONLY_EMAIL = "readonly@curfewcellar.app";
+const ROLE_BY_EMAIL = { [MANAGER_EMAIL]: "manager", [STAFF_EMAIL]: "staff", [READONLY_EMAIL]: "readonly" };
+// Defaults to manager for any session that doesn't match one of the three (e.g. before the
+// staff/read-only accounts exist yet, or the same single account logging in as it always has),
+// so nothing about today's login changes until the new accounts are actually created and used.
+const roleFromSession = (session) => (session && session.user && ROLE_BY_EMAIL[session.user.email]) || "manager";
 const CLOUD_ID = "default";
 let _sb = null;
 let _rev = null; // last seen lastUpdated, used to ignore our own echoes
@@ -71,7 +84,18 @@ const _loadJsPDF = () => new Promise((resolve, reject) => {
 });
 const cloudStore = {
   async session() { try { const c = await _client(); const { data } = await c.auth.getSession(); return data ? data.session : null; } catch (e) { return null; } },
-  async signIn(password) { try { const c = await _client(); const { error } = await c.auth.signInWithPassword({ email: BAR_EMAIL, password }); return error ? (error.message || "Sign in failed") : null; } catch (e) { return "Cannot reach the cloud. Check your connection."; } },
+  async signIn(password) {
+    try {
+      const c = await _client();
+      let lastError = "Sign in failed";
+      for (const email of [MANAGER_EMAIL, STAFF_EMAIL, READONLY_EMAIL]) {
+        const { error } = await c.auth.signInWithPassword({ email, password });
+        if (!error) return null;
+        lastError = error.message || lastError;
+      }
+      return lastError;
+    } catch (e) { return "Cannot reach the cloud. Check your connection."; }
+  },
   async signOut() { try { const c = await _client(); await c.auth.signOut(); } catch (e) {} },
   async get(key) {
     try {
@@ -907,7 +931,7 @@ const Item = ({ line, beerById }) => {
 };
 
 const EditBeer = ({
-  editBeerId, editBeerLineId, beerById, lines,
+  editBeerId, editBeerLineId, beerById, lines, canEdit,
   updateBeer, updateBeerPrice, setCaskOwner, setBestBefore, toggleBeerAllergen,
   autoFillBeer, editBusy, editNote, latestPrice,
   setEditBeerId, setEditBeerLineId, setEditNote,
@@ -931,7 +955,7 @@ const EditBeer = ({
     setPriceDraft(liveLine0 ? (liveLine0.price || "") : (beer.price !== undefined && beer.price !== null ? beer.price : (latestPrice(beer) || "")));
     setOwnerDraft(editLine ? (editLine.caskOwner || "") : "");
   }
-  if (!beer) return null;
+  if (!beer || !canEdit) return null;
   const close = () => {
     if (priceTimer.current) { clearTimeout(priceTimer.current); priceTimer.current = null; updateBeerPrice(beer.id, priceDraft); }
     if (ownerTimer.current && editLine) { clearTimeout(ownerTimer.current); ownerTimer.current = null; setCaskOwner(editLine.id, ownerDraft); }
@@ -1015,7 +1039,23 @@ function TheCurfewCellarApp() {
   const [editNote, setEditNote] = useState(null);
   const [swap, setSwap] = useState(null);
   const [swapPreviewId, setSwapPreviewId] = useState(null);
-  const [prefs, setPrefs] = useState({ on: true, racked: true, store: false, empties: {} });
+  const [prefs, setPrefs] = useState({});
+  // Section collapse state: purely a per-device display preference, not cellar data, so it
+  // lives in localStorage only and never touches the shared cloud blob. Previously this was
+  // folded into `prefs` above and synced like everything else, so one device collapsing a
+  // section collapsed it for every device on the next sync.
+  const [uiPrefs, setUiPrefs] = useState(() => {
+    try {
+      if (typeof window !== "undefined" && window.localStorage) {
+        const raw = localStorage.getItem("curfew-cellar:ui-prefs:v1");
+        if (raw) return { on: true, racked: true, store: false, empties: {}, ...JSON.parse(raw) };
+      }
+    } catch (e) { /* ignore, fall through to default */ }
+    return { on: true, racked: true, store: false, empties: {} };
+  });
+  useEffect(() => {
+    try { if (typeof window !== "undefined" && window.localStorage) localStorage.setItem("curfew-cellar:ui-prefs:v1", JSON.stringify(uiPrefs)); } catch (e) { /* ignore */ }
+  }, [uiPrefs]);
   const [lastUpdated, setLastUpdated] = useState(() => new Date().toISOString());
   // The realtime subscription is registered once, so it closes over stale state. Keep the
   // newest lastUpdated in a ref so the staleness guard below always compares against reality.
@@ -1024,6 +1064,9 @@ function TheCurfewCellarApp() {
   const skipBump = useRef(false);
   const cloudMode = typeof window !== "undefined" && !window.storage;
   const [authed, setAuthed] = useState(!cloudMode);
+  const [role, setRole] = useState("manager");
+  const canService = role === "manager" || role === "staff";
+  const canEdit = role === "manager";
   const [authChecking, setAuthChecking] = useState(cloudMode);
   const [pw, setPw] = useState("");
   const [authErr, setAuthErr] = useState(null);
@@ -1031,7 +1074,7 @@ function TheCurfewCellarApp() {
   const [cloudReady, setCloudReady] = useState(!cloudMode);
   const [cloudLoadError, setCloudLoadError] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
-  const toggleSection = (k) => setPrefs((p) => ({ ...p, [k]: !p[k] }));
+  const toggleSection = (k) => setUiPrefs((p) => ({ ...p, [k]: !p[k] }));
   const [loading, setLoading] = useState(false);
   const [librarySearch, setLibrarySearch] = useState("");
   const [historyOpen, setHistoryOpen] = useState({});
@@ -1204,7 +1247,7 @@ function TheCurfewCellarApp() {
     if (Array.isArray(data.library)) setLibrary(data.library);
     if (Array.isArray(data.lines)) { const lib = Array.isArray(data.library) ? data.library : library; setLines(assignPumps(data.lines.map((l) => l.status === "en_route" ? { ...l, status: "in_cellar", dates: { ...l.dates, delivered: l.dates && l.dates.delivered ? l.dates.delivered : (l.dates && l.dates.ordered) || new Date().toISOString() } } : l), catFromLib(lib))); }
     if (Array.isArray(data.distributors)) setDistributors(data.distributors);
-    if (data.prefs) setPrefs((p) => ({ ...p, ...data.prefs, store: false, empties: data.prefs.empties || {} }));
+    if (data.prefs && data.prefs.lastBackup) setPrefs((p) => ({ ...p, lastBackup: data.prefs.lastBackup }));
     if (data.lastUpdated) { lastUpdatedRef.current = data.lastUpdated; setLastUpdated(data.lastUpdated); }
   };
 
@@ -1231,7 +1274,7 @@ function TheCurfewCellarApp() {
   useEffect(() => {
     if (!cloudMode) return;
     let cancelled = false;
-    (async () => { const s = await store.session(); if (!cancelled) { setAuthed(!!s); setAuthChecking(false); } })();
+    (async () => { const s = await store.session(); if (!cancelled) { setAuthed(!!s); setRole(roleFromSession(s)); setAuthChecking(false); } })();
     return () => { cancelled = true; };
   }, []);
 
@@ -1302,8 +1345,10 @@ function TheCurfewCellarApp() {
     if (authBusy) return;
     setAuthBusy(true); setAuthErr(null);
     const err = await store.signIn(pw.trim());
+    if (err) { setAuthBusy(false); setAuthErr(err); return; }
+    const s = await store.session();
+    setRole(roleFromSession(s));
     setAuthBusy(false);
-    if (err) { setAuthErr(err); return; }
     setPw(""); setAuthed(true);
   };
   const lock = async () => { try { await store.signOut(); } catch (e) { /* ignore */ } setView("cellar"); setOpenId(null); setAuthed(false); };
@@ -1872,7 +1917,7 @@ function TheCurfewCellarApp() {
     const cleaned = normaliseData({ library: data.library, lines: data.lines });
     setLibrary(cleaned.library); setLines(assignPumps(cleaned.lines, catFromLib(cleaned.library)));
     if (Array.isArray(data.distributors)) setDistributors(data.distributors);
-    if (data.prefs && typeof data.prefs === "object") setPrefs((p) => ({ ...p, ...data.prefs }));
+    if (data.prefs && typeof data.prefs === "object" && data.prefs.lastBackup) setPrefs((p) => ({ ...p, lastBackup: data.prefs.lastBackup }));
     setOpenId(null); setHistoryOpen({}); setView("cellar");
   };
   const confirmImport = () => {
@@ -2153,7 +2198,7 @@ function TheCurfewCellarApp() {
   const pickBeer = (beer) => { loadBeerIntoForm(beer); setFillNote({ type: "ok", text: `Loaded "${beer.name}" from your library. Set the best before, then confirm allergens.` }); setAddMode("form"); };
   const startNewBeer = () => { setForm(emptyForm); setFillNote(null); setAddMode("form"); };
   const addLineOfBeer = (beer) => { loadBeerIntoForm(beer); setFillNote({ type: "ok", text: `Loaded "${beer.name}" from your library.` }); setAddMode("form"); setView("add"); };
-  const go = (v) => { if (v === "add") { setAddMode("pick"); setAddPickSearch(""); setForm(emptyForm); setFillNote(null); } if (v === "empties") setPrefs((p) => ({ ...p, empties: {} })); setView(v); if (scrollAreaRef.current) scrollAreaRef.current.scrollTo({ top: 0, behavior: "smooth" }); };
+  const go = (v) => { if (v === "add") { setAddMode("pick"); setAddPickSearch(""); setForm(emptyForm); setFillNote(null); } if (v === "empties") setUiPrefs((p) => ({ ...p, empties: {} })); setView(v); if (scrollAreaRef.current) scrollAreaRef.current.scrollTo({ top: 0, behavior: "smooth" }); };
 
   const fileToBase64 = (file) => new Promise((resolve, reject) => {
     const r = new FileReader();
@@ -2366,7 +2411,8 @@ function TheCurfewCellarApp() {
         )}
         <div className={urgent ? "min-w-0 flex-1 self-stretch" : "flex-1"}>
           {slot.line ? <LineRow line={slot.line} context={urgent ? "on" : "racked"} beerById={beerById} onOpen={setOpenId} /> : (
-            urgent
+            !canService ? <div className="flex h-full w-full items-center justify-center gap-2 rounded-xl border border-dashed text-sm font-medium text-slate-400" style={{ borderColor: C.line, minHeight: 52 }}>Empty · {slot.label}</div>
+            : urgent
               ? <button onClick={() => openPump(slot)} className="flex h-full w-full items-center justify-center gap-2 rounded-xl border border-dashed text-sm font-medium transition hover:bg-amber-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ borderColor: "#e2c98a", color: "#b45309", minHeight: 52 }}><Plus size={15} /> Empty · {slot.label}</button>
               : <button onClick={() => openRack(slot.label)} className="flex h-full w-full items-center justify-center gap-2 rounded-xl border border-dashed text-sm font-medium text-slate-500 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line, minHeight: 52 }}><Plus size={15} /> Rack from store</button>
           )}
@@ -2379,9 +2425,11 @@ function TheCurfewCellarApp() {
         <div className="rounded-2xl border border-dashed bg-white p-10 text-center" style={{ borderColor: C.line }}>
           <Bell className="mx-auto mb-2" style={{ color: C.brass }} />
           <p className="font-semibold" style={{ color: C.ink }}>The cellar's empty</p>
+          {canEdit && (
           <div className="mt-4 flex flex-col items-center gap-2">
             <button onClick={() => go("add")} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white transition hover:opacity-90 active:scale-95" style={{ background: C.ink }}><Plus size={16} /> Add a cask</button>
           </div>
+          )}
         </div>
       );
     }
@@ -2390,9 +2438,9 @@ function TheCurfewCellarApp() {
         <section>
           <button onClick={() => toggleSection("on")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
             <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Pouring <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {onFilled}/10</span></h2>
-            <ChevronDown size={20} className="text-slate-400" style={{ transform: prefs.on ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
+            <ChevronDown size={20} className="text-slate-400" style={{ transform: uiPrefs.on ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
           </button>
-          {prefs.on && (
+          {uiPrefs.on && (
             <div className="mt-2 space-y-3">
               <div>
                 <p className="mb-1.5 flex items-center gap-2 uppercase" style={{ color: TYPE_ACCENT.cask, fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}><span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: TYPE_ACCENT.cask }} />Cask<span className="h-px flex-1" style={{ background: "linear-gradient(90deg, rgba(28,54,54,0.18), rgba(28,54,54,0))" }} /></p>
@@ -2412,9 +2460,9 @@ function TheCurfewCellarApp() {
         <section className="border-t pt-4" style={{ borderColor: C.line }}>
           <button onClick={() => toggleSection("racked")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
             <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Racked <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {rackedFilled}/6</span></h2>
-            <ChevronDown size={20} className="text-slate-400" style={{ transform: prefs.racked ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
+            <ChevronDown size={20} className="text-slate-400" style={{ transform: uiPrefs.racked ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
           </button>
-          {prefs.racked && (
+          {uiPrefs.racked && (
             <div className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
               {rackedSlots.map((s, i) => renderSlot(s, `r${i}`, false))}
               {rackedOverflow.map((l) => (
@@ -2430,9 +2478,9 @@ function TheCurfewCellarApp() {
           <section className="border-t pt-4" style={{ borderColor: C.line }}>
             <button onClick={() => toggleSection("store")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
               <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>In Store <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {store.length}</span></h2>
-              <ChevronDown size={20} className="text-slate-400" style={{ transform: prefs.store ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
+              <ChevronDown size={20} className="text-slate-400" style={{ transform: uiPrefs.store ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
             </button>
-            {prefs.store && (
+            {uiPrefs.store && (
               <div className="mt-2 space-y-2">
                 {storeGroups.map((g) => (
                   <div key={g.label}>
@@ -2458,6 +2506,15 @@ function TheCurfewCellarApp() {
   };
 
   const AddForm = () => {
+    if (!canEdit) {
+      return (
+        <div className="rounded-2xl border border-dashed bg-white p-10 text-center" style={{ borderColor: C.line }}>
+          <Lock className="mx-auto mb-2" style={{ color: C.brass }} />
+          <p className="font-semibold" style={{ color: C.ink }}>Manager access needed</p>
+          <p className="mt-1 text-sm text-slate-500">Adding stock isn't available on this login.</p>
+        </div>
+      );
+    }
     if (addMode === "invoice") {
       const items = invoiceItems || [];
       const cellChk = "min-w-0 flex-1 rounded border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300";
@@ -2652,7 +2709,7 @@ function TheCurfewCellarApp() {
               <div className="mt-1 flex flex-wrap items-center gap-1"><DietaryMini beer={b} /></div>
             </div>
             <div className="flex shrink-0 items-center gap-1">
-              <button onClick={(e) => { e.stopPropagation(); addLineOfBeer(b); }} title="Add to cellar" className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Plus size={13} /> Add</button>
+              {canEdit && <button onClick={(e) => { e.stopPropagation(); addLineOfBeer(b); }} title="Add to cellar" className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Plus size={13} /> Add</button>}
               <button onClick={(e) => { e.stopPropagation(); setHistoryOpen((m) => ({ ...m, [b.id]: !m[b.id] })); }} title="Price & ABV history" className="inline-flex items-center gap-0.5 rounded-lg border p-1.5 text-slate-500 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><History size={14} />{h.length ? <span className="text-xs font-medium">{h.length}</span> : null}</button>
             </div>
           </div>
@@ -2930,6 +2987,7 @@ function TheCurfewCellarApp() {
           <textarea readOnly value={exportData()} className={`mt-3 ${taCls}`} onFocus={(e) => e.target.select()} />
         </div>
 
+        {canEdit && (
         <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
           <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Import</h2>
           <p className="mt-1 text-sm text-slate-500">Replaces everything in the app.</p>
@@ -2951,8 +3009,9 @@ function TheCurfewCellarApp() {
             </div>
           )}
         </div>
+        )}
 
-        {cloudMode && (
+        {cloudMode && canEdit && (
           <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
             <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Recent snapshots</h2>
             <p className="mt-1 text-sm text-slate-500">The cloud keeps the last 30 states the cellar has been in, taken automatically. If something goes wrong on any device, you can put it back here, no manual backup needed.</p>
@@ -3090,16 +3149,16 @@ function TheCurfewCellarApp() {
           </div>
         )}
         {groups.map(({ key, label, items }) => {
-          const open = !!prefs.empties[key];
+          const open = !!uiPrefs.empties[key];
           return (
             <div key={key} className="rounded-xl border" style={{ background: C.paper, borderColor: C.line }}>
-              <button onClick={() => setPrefs((p) => ({ ...p, empties: { ...p.empties, [key]: !p.empties[key] } }))} className="flex w-full items-center justify-between gap-2 p-3 text-left focus:outline-none">
+              <button onClick={() => setUiPrefs((p) => ({ ...p, empties: { ...p.empties, [key]: !p.empties[key] } }))} className="flex w-full items-center justify-between gap-2 p-3 text-left focus:outline-none">
                 <p className="font-semibold" style={{ color: C.ink }}>{label} <span className="text-sm font-normal text-slate-400">· {items.length}</span></p>
                 <ChevronDown size={18} className="text-slate-400" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
               </button>
               {open && (
                 <>
-                  {items.length > 1 && (
+                  {items.length > 1 && canService && (
                     <div className="flex justify-end px-3 pb-1.5">
                       <button onClick={() => markOwnerCollected(key)} className="inline-flex items-center gap-1 px-1 py-1 text-xs font-medium transition hover:opacity-70 active:scale-95 focus:outline-none" style={{ color: "#778883" }}><Check size={13} /> All collected ({items.length})</button>
                     </div>
@@ -3116,7 +3175,7 @@ function TheCurfewCellarApp() {
                           {beer && beer.location && <span className="block truncate text-xs text-slate-400" style={{ fontFamily: "var(--font-data)" }}>{beer.location}</span>}
                           <span className="block truncate text-xs text-slate-500" style={{ fontFamily: "var(--font-data)" }}>{l.size ? `${l.size} · ` : ""}finished {l.dates.off ? fmtDate(l.dates.off.slice(0, 10)) : "--"}</span>
                         </button>
-                        <button onClick={() => markCollected(l.id)} className="inline-flex shrink-0 items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><Check size={13} /> Collected</button>
+                        {canService && <button onClick={() => markCollected(l.id)} className="inline-flex shrink-0 items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><Check size={13} /> Collected</button>}
                       </li>
                     );
                   })}
@@ -3340,13 +3399,13 @@ function TheCurfewCellarApp() {
                   {!previewBeer.allergensVerified ? (
                     <div className="mt-2 flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-sm text-amber-800">
                       <span className="flex items-center gap-1.5"><AlertTriangle size={15} /> Not staff verified yet</span>
-                      <button onClick={() => verify(previewBeer.id)} className="shrink-0 rounded-md bg-amber-800 px-2.5 py-1 text-xs font-medium text-white hover:bg-amber-900">Verify</button>
+                      {canService && <button onClick={() => verify(previewBeer.id)} className="shrink-0 rounded-md bg-amber-800 px-2.5 py-1 text-xs font-medium text-white hover:bg-amber-900">Verify</button>}
                     </div>
                   ) : <p className="mt-2 flex items-center gap-1.5 text-sm text-emerald-700"><CheckCircle2 size={15} /> Verified by staff</p>}
                 </div>
               </div>
               <div className="sticky bottom-0 border-t bg-white p-4" style={{ borderColor: C.line }}>
-                <button onClick={() => doSwap(previewLine.id, swap.oldId, swap.slot)} className="flex w-full items-center justify-center gap-1.5 rounded-lg px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Check size={16} /> {swap.toRack ? "Rack this cask" : "Put on"}</button>
+                {canService && <button onClick={() => doSwap(previewLine.id, swap.oldId, swap.slot)} className="flex w-full items-center justify-center gap-1.5 rounded-lg px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Check size={16} /> {swap.toRack ? "Rack this cask" : "Put on"}</button>}
               </div>
             </>
           ) : (
@@ -3394,7 +3453,7 @@ function TheCurfewCellarApp() {
 
   const EditBeerScreen = () => (
     <EditBeer
-      editBeerId={editBeerId} editBeerLineId={editBeerLineId} beerById={beerById} lines={lines}
+      editBeerId={editBeerId} editBeerLineId={editBeerLineId} beerById={beerById} lines={lines} canEdit={canEdit}
       updateBeer={updateBeer} updateBeerPrice={updateBeerPrice} setCaskOwner={setCaskOwner} setBestBefore={setBestBefore} toggleBeerAllergen={toggleBeerAllergen}
       autoFillBeer={autoFillBeer} editBusy={editBusy} editNote={editNote} latestPrice={latestPrice}
       setEditBeerId={setEditBeerId} setEditBeerLineId={setEditBeerLineId} setEditNote={setEditNote}
@@ -3454,7 +3513,7 @@ function TheCurfewCellarApp() {
               {!beer.allergensVerified ? (
                 <div className="mt-2 flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-sm text-amber-800">
                   <span className="flex items-center gap-1.5"><AlertTriangle size={15} /> Not staff verified yet</span>
-                  <button onClick={() => verify(beer.id)} className="shrink-0 rounded-md bg-amber-800 px-2.5 py-1 text-xs font-medium text-white hover:bg-amber-900">Verify</button>
+                  {canService && <button onClick={() => verify(beer.id)} className="shrink-0 rounded-md bg-amber-800 px-2.5 py-1 text-xs font-medium text-white hover:bg-amber-900">Verify</button>}
                 </div>
               ) : <p className="mt-2 flex items-center gap-1.5 text-sm text-emerald-700"><CheckCircle2 size={15} /> Verified by staff</p>}
             </div>
@@ -3490,6 +3549,7 @@ function TheCurfewCellarApp() {
                   })}
                 </div>
                 {alert && <p className="mt-2.5 inline-flex items-center gap-1 text-xs font-semibold text-amber-700">{AlertIcon && <AlertIcon size={13} />} {alert.text}</p>}
+                {canService && (
                 <div className="mt-3 flex gap-2">
                   {stageIdx > 0 && <button onClick={() => goBack(openLine.id)} className="inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-lg border bg-white px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><ArrowRight size={15} className="rotate-180" /> Back to {flow[stageIdx - 1] === "tapped" ? "Tapped" : STATUS_BY_KEY[flow[stageIdx - 1]].label}</button>}
                   {openLine.status === "on"
@@ -3498,17 +3558,20 @@ function TheCurfewCellarApp() {
                       ? <button onClick={() => advance(openLine.id)} className="inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}>Advance to {flow[stageIdx + 1] === "tapped" ? "Tapped" : STATUS_BY_KEY[flow[stageIdx + 1]].label} <ArrowRight size={15} /></button>
                       : null}
                 </div>
+                )}
                 {openLine.status === "off" && openLine.drinkType !== "cider" && openLine.drinkType !== "keykeg" && (openLine.collected
                   ? <p className="mt-2.5 flex items-center gap-1.5 text-sm text-emerald-700"><CheckCircle2 size={15} /> Empty collected</p>
-                  : <button onClick={() => markCollected(openLine.id)} className="mt-2.5 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><Check size={15} /> Mark empty collected</button>)}
+                  : canService && <button onClick={() => markCollected(openLine.id)} className="mt-2.5 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><Check size={15} /> Mark empty collected</button>)}
               </div>
             )}
 
+            {canEdit && (
             <div className="flex items-center justify-between border-t pt-4" style={{ borderColor: C.line }}>
               <button onClick={() => { setEditBeerId(beer.id); setEditBeerLineId(openLine ? openLine.id : null); close(); }} className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 transition hover:text-slate-900"><Pencil size={15} /> Edit details</button>
               {openLine && <button onClick={() => duplicateLine(openLine.id)} className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 transition hover:text-slate-900"><Copy size={15} /> Duplicate</button>}
               {openLine && <button onClick={() => removeLine(openLine.id)} className="inline-flex items-center gap-1.5 text-sm font-medium text-red-600 transition hover:text-red-700"><Trash2 size={15} /> Remove</button>}
             </div>
+            )}
           </div>
         </div>
       </div>
@@ -3644,14 +3707,14 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
           </div>
           <nav className="relative hidden items-center gap-1 sm:flex">
             <NavButton id="cellar" icon={ClipboardList} label="Cellar" view={view} go={go} />
-            <NavButton id="add" icon={Plus} label="Add" view={view} go={go} />
+            {canEdit && <NavButton id="add" icon={Plus} label="Add" view={view} go={go} />}
             <NavButton id="empties" icon={Package} label="Empties" view={view} go={go} />
             <button onClick={() => setMenuOpen((v) => !v)} style={{ color: C.cream }} className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-amber-300"><MoreHorizontal size={16} /><span className="hidden sm:inline">More</span></button>
             {menuOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
                 <div className="absolute right-0 top-full z-50 mt-1 w-44 overflow-hidden rounded-lg border bg-white shadow-lg" style={{ borderColor: C.line }}>
-                  {[["guide", "How to Use", Compass], ["library", "Library", BookOpen], ["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["notify", "Notifications", Bell], ["backup", "Backup & Restore", Database]].map(([id, label, Icon]) => (
+                  {[["guide", "How to Use", Compass], ["library", "Library", BookOpen], ["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["stats", "Cellar Stats", BarChart3], ["notify", "Notifications", Bell], ...(canEdit ? [["backup", "Backup & Restore", Database]] : [])].map(([id, label, Icon]) => (
                     <button key={id} onClick={() => { setMenuOpen(false); go(id); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"><Icon size={15} className="text-slate-400" />{label}</button>
                   ))}
                 </div>
@@ -3699,10 +3762,12 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
         <div className="mx-auto flex max-w-md items-end justify-around px-2">
           <BottomTab id="cellar" icon={ClipboardList} label="Cellar" view={view} go={go} />
           <BottomTab id="library" icon={BookOpen} label="Library" view={view} go={go} />
-          <button onClick={() => go("add")} className="flex flex-1 flex-col items-center justify-center transition active:scale-95 focus:outline-none">
-            <span className="-mt-5 grid h-12 w-12 place-items-center rounded-full" style={{ background: C.brass, color: C.ink, boxShadow: "0 6px 16px -6px rgba(184,134,43,0.65)" }}><Plus size={24} /></span>
-            <span className="mt-0.5 text-xs font-medium" style={{ color: view === "add" ? C.brass : C.inkSoft }}>Add</span>
-          </button>
+          {canEdit && (
+            <button onClick={() => go("add")} className="flex flex-1 flex-col items-center justify-center transition active:scale-95 focus:outline-none">
+              <span className="-mt-5 grid h-12 w-12 place-items-center rounded-full" style={{ background: C.brass, color: C.ink, boxShadow: "0 6px 16px -6px rgba(184,134,43,0.65)" }}><Plus size={24} /></span>
+              <span className="mt-0.5 text-xs font-medium" style={{ color: view === "add" ? C.brass : C.inkSoft }}>Add</span>
+            </button>
+          )}
           <BottomTab id="empties" icon={Package} label="Empties" view={view} go={go} />
           <BottomTab id="more" icon={MoreHorizontal} label="More" onClick={() => setMenuOpen(true)} view={view} go={go} />
         </div>
@@ -3714,7 +3779,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
           <div className="cc-sheet absolute inset-x-0 bottom-0 rounded-t-2xl bg-white p-4" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 16px)" }}>
             <div className="mx-auto mb-3 h-1.5 w-10 rounded-full" style={{ background: C.line }} />
             <div className="grid grid-cols-3 gap-2.5">
-              {[["guide", "How to Use", Compass], ["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["notify", "Notifications", Bell], ["backup", "Backup & Restore", Database]].map(([id, label, Icon]) => (
+              {[["guide", "How to Use", Compass], ["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["stats", "Cellar Stats", BarChart3], ["notify", "Notifications", Bell], ...(canEdit ? [["backup", "Backup & Restore", Database]] : [])].map(([id, label, Icon]) => (
                 <button key={id} onClick={() => { setMenuOpen(false); go(id); }} className="flex flex-col items-center gap-1.5 rounded-xl border p-3 transition active:scale-95" style={{ borderColor: C.line, color: C.ink }}>
                   <Icon size={20} style={{ color: C.brass }} />
                   <span className="text-center text-xs font-medium leading-tight">{label}</span>
