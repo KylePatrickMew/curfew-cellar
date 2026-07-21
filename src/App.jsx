@@ -2879,6 +2879,47 @@ function TheCurfewCellarApp() {
           {librarySearch && <button onClick={() => setLibrarySearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 hover:bg-slate-100"><X size={16} /></button>}
         </div>
 
+        {q ? (
+          results.length ? (
+            <>
+              <p className="text-xs text-slate-500">{results.length} match{results.length === 1 ? "" : "es"}</p>
+              <div className="space-y-2 overflow-y-auto" style={{ maxHeight: "50dvh", overscrollBehaviorY: "contain", WebkitOverflowScrolling: "touch" }}>{results.map(libRow)}</div>
+            </>
+          ) : (
+            <div className="rounded-xl border border-dashed bg-white p-8 text-center" style={{ borderColor: C.line }}>
+              <p className="font-medium" style={{ color: C.ink }}>No beers match "{librarySearch}"</p>
+              <p className="mt-1 text-sm text-slate-500">Try a brewery or style, or add it as new stock.</p>
+            </div>
+          )
+        ) : (
+          <>
+            <p className="text-xs text-slate-400">{library.length} beer{library.length === 1 ? "" : "s"} saved</p>
+            <div className="space-y-3 overflow-y-auto" style={{ maxHeight: "50dvh", overscrollBehaviorY: "contain", WebkitOverflowScrolling: "touch" }}>
+              {recentAdded.length > 0 && (
+                <div>
+                  <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">Recently added</p>
+                  <div className="space-y-2">{recentAdded.map(libRow)}</div>
+                </div>
+              )}
+              {rest.length > 0 && (
+                <div>
+                  <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">Library</p>
+                  <div className="space-y-2">{rest.map(libRow)}</div>
+                </div>
+              )}
+              {archived.length > 0 && (
+                <div>
+                  <button onClick={() => setShowArchived((v) => !v)} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Archived <span className="font-normal">· {archived.length}</span></p>
+                    <ChevronDown size={16} className="text-slate-400" style={{ transform: showArchived ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
+                  </button>
+                  {showArchived && <div className="mt-1.5 space-y-2" style={{ opacity: 0.75 }}>{archived.map(libRow)}</div>}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
         {canEdit && (
           <div className="cc-elev rounded-xl border" style={{ background: C.paper, borderColor: C.line }}>
             <button onClick={() => setUiPrefs((p) => ({ ...p, libraryTools: !p.libraryTools }))} className="flex w-full items-center justify-between gap-2 p-3.5 text-left focus:outline-none">
@@ -2931,49 +2972,6 @@ function TheCurfewCellarApp() {
               </div>
             )}
           </div>
-        )}
-
-        {q ? (
-          results.length ? (
-            <>
-              <p className="text-xs text-slate-500">{results.length} match{results.length === 1 ? "" : "es"}</p>
-              <div className="space-y-2">{results.map(libRow)}</div>
-            </>
-          ) : (
-            <div className="rounded-xl border border-dashed bg-white p-8 text-center" style={{ borderColor: C.line }}>
-              <p className="font-medium" style={{ color: C.ink }}>No beers match "{librarySearch}"</p>
-              <p className="mt-1 text-sm text-slate-500">Try a brewery or style, or add it as new stock.</p>
-            </div>
-          )
-        ) : (
-          <>
-            <div className="rounded-xl border border-dashed bg-white p-6 text-center" style={{ borderColor: C.line }}>
-              <Search size={22} className="mx-auto mb-2 text-slate-300" />
-              <p className="font-semibold" style={{ color: C.ink }}>Search your library</p>
-              <p className="mt-1 text-sm text-slate-500">{library.length} beer{library.length === 1 ? "" : "s"} saved. Type a name, brewery or style.</p>
-            </div>
-            {recentAdded.length > 0 && (
-              <div>
-                <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">Recently added</p>
-                <div className="space-y-2">{recentAdded.map(libRow)}</div>
-              </div>
-            )}
-            {rest.length > 0 && (
-              <div>
-                <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">Library</p>
-                <div className="space-y-2">{rest.map(libRow)}</div>
-              </div>
-            )}
-            {archived.length > 0 && (
-              <div>
-                <button onClick={() => setShowArchived((v) => !v)} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Archived <span className="font-normal">· {archived.length}</span></p>
-                  <ChevronDown size={16} className="text-slate-400" style={{ transform: showArchived ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
-                </button>
-                {showArchived && <div className="mt-1.5 space-y-2" style={{ opacity: 0.75 }}>{archived.map(libRow)}</div>}
-              </div>
-            )}
-          </>
         )}
       </div>
     );
