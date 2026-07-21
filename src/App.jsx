@@ -6,7 +6,7 @@ import {
 
 // ---------- Brand ----------
 const C = {
-  ink: "#1C3636", inkSoft: "#2C4A47", brass: "#B8862B", brassSoft: "#D1A44A",
+  ink: "#1E3A46", inkSoft: "#2E4E57", brass: "#B8862B", brassSoft: "#D1A44A",
   stone: "#E8E7E2", surface: "#FCFBF9", line: "#DBD8D0", cream: "#F3EFE6",
   paper: "#FBF8F2", alert: "#A23B3B",
 };
@@ -18,7 +18,7 @@ const DIET_BADGE_STYLE = {
   gluten: { background: "#E8F2F1", color: "#1F5C54", borderColor: "#BFDDD9" },
   hazy: { background: "#F7E9E7", color: C.alert, borderColor: "#E8CCC8" },
 };
-const CAT_ACCENT = { IPA: "#E3A93E", Pale: "#E8D976", Bitter: "#D6823C", "Stout/Porter": "#6E4A32", Stout: "#6E4A32", Porter: "#6E4A32", Cider: "#5E8C4F", Sour: "#A13B5C", Misc: "#96A19B" };
+const CAT_ACCENT = { IPA: "#E3A93E", Pale: "#F2CC45", Bitter: "#D6823C", "Stout/Porter": "#6E4A32", Stout: "#6E4A32", Porter: "#6E4A32", Cider: "#5E8C4F", Sour: "#C4553F", Misc: "#96A19B" };
 const STORE_KEY = "curfew-cellar:data:v1";
 const MODEL = "claude-sonnet-4-6";
 // Updated by hand every time a new App.jsx is handed over. Check this against what you were
@@ -711,7 +711,32 @@ const emptyForm = {
 // the louder dietary/allergen colours (Ve/GF/Hazy) that share the same card.
 const CatDot = ({ category }) => {
   const c = CAT_ACCENT[category] || CAT_ACCENT.Misc;
-  return <span className="inline-block shrink-0 rounded-full" style={{ width: 7, height: 7, background: c, boxShadow: `inset 0 0 0 1px rgba(0,0,0,0.08)` }} title={category || "Misc"} />;
+  return <span className="inline-block shrink-0 rounded-full" style={{ width: 9, height: 9, background: c, boxShadow: "inset 0 0 0 1.25px rgba(30, 58, 70,0.35)" }} title={category || "Misc"} />;
+};
+// The Curfew's own signature graphic (the festival poster and banner): a row of pint glasses,
+// yellow through to brown, sitting beneath a viaduct of arches. Reused here at the foot of the
+// one screen the public actually sees, so it's recognisably The Curfew rather than a
+// well-made but generic beer list. Fixed palette, not the live category colours, since this is
+// branding, not a reflection of what's currently on tap.
+const BridgeMotif = () => {
+  const colors = ["#F2CC45", "#E3A93E", "#D6823C", "#C4553F", "#6E4A32"];
+  const unit = 60;
+  const glassTop = 26;
+  const glassH = 46;
+  const totalW = colors.length * unit;
+  return (
+    <svg viewBox={`0 0 ${totalW} ${glassTop + glassH}`} preserveAspectRatio="xMidYMax meet" style={{ width: "100%", maxWidth: 320, height: 56, display: "block", margin: "0 auto" }} aria-hidden="true">
+      {colors.map((c, i) => (
+        <rect key={i} x={i * unit + 6} y={glassTop} width={unit - 12} height={glassH} rx={5} fill={c} />
+      ))}
+      {colors.map((_, i) => (
+        <rect key={`foam${i}`} x={i * unit + 6} y={glassTop} width={unit - 12} height={8} rx={5} fill="#F3EFE6" opacity="0.85" />
+      ))}
+      {colors.map((_, i) => (
+        <path key={`arch${i}`} d={`M ${i * unit + 2} ${glassTop + 4} A ${unit / 2 - 6} ${unit / 2 - 6} 0 0 1 ${i * unit + unit - 2} ${glassTop + 4}`} fill="none" stroke="rgba(184,134,43,0.55)" strokeWidth="1.5" />
+      ))}
+    </svg>
+  );
 };
 const Badge = ({ className = "", style, children }) => (
   <span style={style} className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${className}`}>{children}</span>
@@ -845,24 +870,27 @@ const LineRow = ({ line, context, beerById, onOpen }) => {
   // Always a short pill on this compact card: never the long sentence form, regardless of
   // which signal fired (best-before passed/soon, store-context BB, or a status label).
   const bb = bbStatus(line);
+  const hasDiet = !!beer.vegan || beer.glutenStatus === "Gluten-free" || beer.glutenStatus === "Low gluten" || beer.clarity === "Hazy";
   let badgeText = sig.text;
   if (storeBB) badgeText = `BB ${fmtDate(line.bestBefore)}`;
   else if (bb && bb.level === "past") badgeText = "BB passed";
   else if (bb && bb.level === "soon") badgeText = daysUntil(line.bestBefore) === 0 ? "BB today" : `BB ${daysUntil(line.bestBefore)}d`;
   return (
-    <button onClick={() => onOpen(line.id)} className="flex h-full w-full flex-col gap-1.5 rounded-xl border px-3 py-2 text-left transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-amber-300 active:scale-95" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[line.drinkType] || C.line, boxShadow: "0 1px 2px rgba(28,54,54,0.05), 0 6px 14px -10px rgba(28,54,54,0.2)", minHeight: 52 }}>
+    <button onClick={() => onOpen(line.id)} className="flex h-full w-full flex-col gap-1.5 rounded-xl border px-3 py-2 text-left transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-amber-300 active:scale-95" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[line.drinkType] || C.line, boxShadow: "0 1px 2px rgba(30, 58, 70,0.05), 0 6px 14px -10px rgba(30, 58, 70,0.2)", minHeight: 52 }}>
       <div className="min-w-0">
         <div className="flex items-center gap-1.5">
           <CatDot category={beer.category} />
-          <p className="truncate text-sm font-semibold leading-tight" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</p>
+          <p className="truncate text-sm font-semibold leading-tight" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer.brewery && <span className="font-medium" style={{ color: C.ink }}>{beer.brewery} - </span>}{beer.name}</p>
           {!beer.allergensVerified && <AlertTriangle size={13} className="shrink-0 text-amber-500" />}
         </div>
         <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[beer.style || "", beer.abv ? `${beer.abv}%` : "", `£${line.price || "--"}`, beer.location || ""].filter(Boolean).join("  ·  ")}</p>
       </div>
-      <div className="flex flex-wrap items-center gap-1" style={{ minHeight: 22 }}>
-        <DietaryMini beer={beer} />
-        {showBadge && <span className="max-w-full truncate rounded-full border px-1.5 py-0.5 font-semibold" style={{ fontSize: 10, fontFamily: "var(--font-data)", background: sig.warn ? "#F7E9E7" : C.stone, color: sig.warn ? C.alert : C.inkSoft, borderColor: sig.warn ? "#E8CCC8" : C.line }}>{badgeText}</span>}
-      </div>
+      {(hasDiet || showBadge) && (
+        <div className="flex flex-wrap items-center gap-1" style={{ minHeight: 22 }}>
+          <DietaryMini beer={beer} />
+          {showBadge && <span className="max-w-full truncate rounded-full border px-1.5 py-0.5 font-semibold" style={{ fontSize: 10, fontFamily: "var(--font-data)", background: sig.warn ? "#F7E9E7" : C.stone, color: sig.warn ? C.alert : C.inkSoft, borderColor: sig.warn ? "#E8CCC8" : C.line }}>{badgeText}</span>}
+        </div>
+      )}
     </button>
   );
 };
@@ -903,7 +931,7 @@ const Row = ({ l, stage, beerById }) => {
       <div className="min-w-0">
         <div className="flex items-center gap-1.5">
           <CatDot category={beer.category} />
-          <p className="truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</p>
+          <p className="truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer.brewery && <span className="font-medium" style={{ color: C.ink }}>{beer.brewery} - </span>}{beer.name}</p>
         </div>
         <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[dt, beer.style || "", extraSweetness(beer), beer.abv ? `${beer.abv}%` : ""].filter(Boolean).join("  ·  ")}</p>
         {beer.location && <p className="truncate text-xs text-slate-500" style={{ fontFamily: "var(--font-data)" }}>{beer.location}</p>}
@@ -939,7 +967,7 @@ const Item = ({ line, beerById }) => {
       <div className="flex items-baseline justify-between gap-3">
         <div className="flex min-w-0 flex-1 items-center gap-1.5">
           <CatDot category={beer.category} />
-          <p className="min-w-0 text-lg font-semibold" style={{ color: C.cream, fontFamily: "var(--font-display)" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</p>
+          <p className="min-w-0 text-lg font-semibold" style={{ color: C.cream, fontFamily: "var(--font-display)" }}>{beer.brewery && <span className="font-medium" style={{ color: C.cream }}>{beer.brewery} - </span>}{beer.name}</p>
         </div>
         <div className="shrink-0 text-right">
           <p className="text-lg font-semibold" style={{ color: C.brassSoft, fontFamily: "var(--font-display)" }}>{tlp ? tlp.pint : `£${line.price || "--"}`}</p>
@@ -1018,7 +1046,7 @@ const EditBeer = ({
     vegan: !!beer.vegan, allergens: beer.allergens, allergensVerified: !!beer.allergensVerified, notes: beer.notes || "",
   };
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(28,54,54,0.45)" }} onClick={close}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(30, 58, 70,0.45)" }} onClick={close}>
       <div className="w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white sm:rounded-2xl cc-pop" style={{ maxHeight: "92vh", overscrollBehaviorY: "none", WebkitOverflowScrolling: "touch", touchAction: "manipulation" }} onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 flex items-center justify-between gap-2 border-b bg-white p-4" style={{ borderColor: C.line }}>
           <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Edit beer details</h2>
@@ -2531,7 +2559,7 @@ function TheCurfewCellarApp() {
     const renderSlot = (slot, k, urgent) => (
       <div key={k} className={urgent ? "flex items-center gap-2" : "flex h-full flex-col"}>
         {urgent ? (
-          <span className="grid shrink-0 place-items-center rounded-md" style={{ width: 22, height: 22, background: "linear-gradient(180deg, #26494B 0%, #1C3636 100%)", color: C.brassSoft, fontFamily: "var(--font-data)", fontSize: 10, fontWeight: 700, border: "1px solid rgba(184,134,43,0.45)", boxShadow: "inset 0 1px 0 rgba(209,164,74,0.28), 0 1px 2px rgba(28,54,54,0.35)" }}>{String(PUMP_NUMBER[slot.slot]).padStart(2, "0")}</span>
+          <span className="grid shrink-0 place-items-center rounded-md" style={{ width: 22, height: 22, background: "linear-gradient(180deg, #284D5B 0%, #1E3A46 100%)", color: C.brassSoft, fontFamily: "var(--font-data)", fontSize: 10, fontWeight: 700, border: "1px solid rgba(184,134,43,0.45)", boxShadow: "inset 0 1px 0 rgba(209,164,74,0.28), 0 1px 2px rgba(30, 58, 70,0.35)" }}>{String(PUMP_NUMBER[slot.slot]).padStart(2, "0")}</span>
         ) : (
           <p className="mb-0.5 text-xs font-semibold uppercase tracking-wide text-slate-400">{slot.label}</p>
         )}
@@ -2569,15 +2597,15 @@ function TheCurfewCellarApp() {
           {uiPrefs.on && (
             <div className="mt-2 space-y-3">
               <div>
-                <p className="mb-1.5 flex items-center gap-2 uppercase" style={{ color: TYPE_ACCENT.cask, fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}><span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: TYPE_ACCENT.cask }} />Cask<span className="h-px flex-1" style={{ background: "linear-gradient(90deg, rgba(28,54,54,0.18), rgba(28,54,54,0))" }} /></p>
+                <p className="mb-1.5 flex items-center gap-2 uppercase" style={{ color: TYPE_ACCENT.cask, fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}><span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: TYPE_ACCENT.cask }} />Cask<span className="h-px flex-1" style={{ background: "linear-gradient(90deg, rgba(30, 58, 70,0.18), rgba(30, 58, 70,0))" }} /></p>
                 <div className="cc-stagger grid grid-cols-1 gap-1.5 sm:grid-cols-2">{onCaskSlots.map((s, i) => renderSlot(s, `oc${i}`, true))}</div>
               </div>
               <div className="border-t pt-3" style={{ borderColor: C.line }}>
-                <p className="mb-1.5 flex items-center gap-2 uppercase" style={{ color: TYPE_ACCENT.keg, fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}><span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: TYPE_ACCENT.keg }} />Keg<span className="h-px flex-1" style={{ background: "linear-gradient(90deg, rgba(28,54,54,0.18), rgba(28,54,54,0))" }} /></p>
+                <p className="mb-1.5 flex items-center gap-2 uppercase" style={{ color: TYPE_ACCENT.keg, fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}><span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: TYPE_ACCENT.keg }} />Keg<span className="h-px flex-1" style={{ background: "linear-gradient(90deg, rgba(30, 58, 70,0.18), rgba(30, 58, 70,0))" }} /></p>
                 <div className="cc-stagger grid grid-cols-1 gap-1.5 sm:grid-cols-2">{onKegSlots.map((s, i) => renderSlot(s, `ok${i}`, true))}</div>
               </div>
               <div className="border-t pt-3" style={{ borderColor: C.line }}>
-                <p className="mb-1.5 flex items-center gap-2 uppercase" style={{ color: TYPE_ACCENT.cider, fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}><span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: TYPE_ACCENT.cider }} />Cider<span className="h-px flex-1" style={{ background: "linear-gradient(90deg, rgba(28,54,54,0.18), rgba(28,54,54,0))" }} /></p>
+                <p className="mb-1.5 flex items-center gap-2 uppercase" style={{ color: TYPE_ACCENT.cider, fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}><span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: TYPE_ACCENT.cider }} />Cider<span className="h-px flex-1" style={{ background: "linear-gradient(90deg, rgba(30, 58, 70,0.18), rgba(30, 58, 70,0))" }} /></p>
                 <div className="cc-stagger grid grid-cols-1 gap-1.5 sm:grid-cols-2">{onCiderSlots.map((s, i) => renderSlot(s, `od${i}`, true))}</div>
               </div>
             </div>
@@ -2698,7 +2726,7 @@ function TheCurfewCellarApp() {
       const pickRow = (b) => (
         <button key={b.id} onClick={() => pickBeer(b)} className="flex w-full items-center justify-between gap-2 rounded-lg border p-2.5 text-left transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: CAT_ACCENT[b.category] || C.line }}>
           <span className="min-w-0">
-            <span className="block truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{b.brewery ? `${b.brewery} - ` : ""}{b.name}</span>
+            <span className="block truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{b.brewery && <span className="font-medium" style={{ color: C.ink }}>{b.brewery} - </span>}{b.name}</span>
             <span className="block truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[b.style || "", b.abv ? `${b.abv}%` : "", extraSweetness(b)].filter(Boolean).join("  ·  ")}</span>
             <span className="block truncate text-xs text-slate-400">{b.location || ""}</span>
           </span>
@@ -2829,7 +2857,7 @@ function TheCurfewCellarApp() {
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0 flex-1">
               <button onClick={() => setLibraryOpenId(b.id)} className="block w-full min-w-0 rounded-lg text-left transition focus:outline-none focus:ring-2 focus:ring-amber-300">
-                <p className="truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{b.brewery ? `${b.brewery} - ` : ""}{b.name}</p>
+                <p className="truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{b.brewery && <span className="font-medium" style={{ color: C.ink }}>{b.brewery} - </span>}{b.name}</p>
                 <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[b.style || "", b.abv ? `${b.abv}%` : "", extraSweetness(b), !b.allergensVerified ? "not staff verified" : ""].filter(Boolean).join("  ·  ")}</p>
                 <p className="truncate text-xs text-slate-400">{b.location || ""}{latestPrice(b) ? ` · Previous: £${latestPrice(b)}` : ""}{latestSupplier(b) ? ` · from ${latestSupplier(b)}` : ""}</p>
               </button>
@@ -3548,7 +3576,8 @@ function TheCurfewCellarApp() {
             )}
 
 
-            <p className="mt-10 text-center text-xs" style={{ color: "rgba(243,239,230,0.4)" }}>Please confirm allergens with staff before ordering.</p>
+            <div className="mt-10 mb-5"><BridgeMotif /></div>
+            <p className="text-center text-xs" style={{ color: "rgba(243,239,230,0.4)" }}>Please confirm allergens with staff before ordering.</p>
           </div>
         </div>
       </div>
@@ -3575,7 +3604,7 @@ function TheCurfewCellarApp() {
     const previewBeer = previewLine ? beerById[previewLine.beerId] : null;
     const pmeta = previewBeer ? [DRINK_TYPES.find((t) => t.key === previewLine.drinkType)?.label, previewBeer.style, `${previewBeer.abv}%`, `£${previewLine.price || "--"}`, previewLine.size ? previewLine.size.replace("Bag-in-box ", "").replace("Keg ", "") : ""].filter(Boolean).join("  ·  ") : "";
     return (
-      <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(28,54,54,0.45)" }} onClick={close}>
+      <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(30, 58, 70,0.45)" }} onClick={close}>
         <div className="flex w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-white sm:rounded-2xl cc-pop" style={{ maxHeight: "85vh" }} onClick={(e) => e.stopPropagation()}>
           {previewBeer ? (
             <>
@@ -3633,7 +3662,7 @@ function TheCurfewCellarApp() {
                           <span className="min-w-0">
                             <span className="flex items-center gap-1.5">
                               <CatDot category={beer.category} />
-                              <span className="font-semibold leading-snug" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</span>
+                              <span className="font-semibold leading-snug" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer.brewery && <span className="font-medium" style={{ color: C.ink }}>{beer.brewery} - </span>}{beer.name}</span>
                             </span>
                             <span className="block truncate text-sm font-medium text-slate-600">{[beer.style || "", beer.abv ? `${beer.abv}%` : ""].filter(Boolean).join("  ·  ")}</span>
                             <span className="block truncate text-xs text-slate-400">{beer.location || ""}</span>
@@ -3657,7 +3686,7 @@ function TheCurfewCellarApp() {
   const CombineModal = () => {
     if (!combineCandidate) return null;
     return (
-      <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(28,54,54,0.45)" }} onClick={() => { setCombineCandidate(null); setCombineKeepId(null); }}>
+      <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(30, 58, 70,0.45)" }} onClick={() => { setCombineCandidate(null); setCombineKeepId(null); }}>
         <div className="w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white sm:rounded-2xl cc-pop p-5" style={{ maxHeight: "92vh" }} onClick={(e) => e.stopPropagation()}>
           <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Combine these two?</h2>
           <p className="mt-1 text-sm text-slate-500">Pick which one to keep. All stock history from the other moves across to it, then it's deleted.</p>
@@ -3709,13 +3738,13 @@ function TheCurfewCellarApp() {
       : [beer.style, extraSweetness(beer) || null, beer.abv ? `${beer.abv}%` : null].filter(Boolean).join("  ·  ");
     const measures = priceTriple(openLine ? openLine.price : (latestPrice(beer) || beer.price));
     return (
-      <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(28,54,54,0.45)" }} onClick={close}>
+      <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(30, 58, 70,0.45)" }} onClick={close}>
         <div className="w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white sm:rounded-2xl cc-pop" style={{ maxHeight: "92vh", overscrollBehaviorY: "none", WebkitOverflowScrolling: "touch", touchAction: "manipulation" }} onClick={(e) => e.stopPropagation()}>
-          <div className="sticky top-0 z-10 flex items-start justify-between gap-3 p-4 pl-5" style={{ background: "linear-gradient(180deg, #234342 0%, #1C3636 100%)", borderLeft: `4px solid ${(openLine && TYPE_ACCENT[openLine.drinkType]) || C.brass}`, boxShadow: "0 1px 0 rgba(184,134,43,0.28)" }}>
+          <div className="sticky top-0 z-10 flex items-start justify-between gap-3 p-4 pl-5" style={{ background: "linear-gradient(180deg, #254752 0%, #1E3A46 100%)", borderLeft: `4px solid ${(openLine && TYPE_ACCENT[openLine.drinkType]) || C.brass}`, boxShadow: "0 1px 0 rgba(184,134,43,0.28)" }}>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <CatDot category={beer.category} />
-                <h2 className="text-xl font-bold leading-snug" style={{ color: C.cream, fontFamily: "var(--font-display)", letterSpacing: "0.01em" }}>{beer.brewery ? `${beer.brewery} - ` : ""}{beer.name}</h2>
+                <h2 className="text-xl font-bold leading-snug" style={{ color: C.cream, fontFamily: "var(--font-display)", letterSpacing: "0.01em" }}>{beer.brewery && <span className="font-medium" style={{ color: C.cream }}>{beer.brewery} - </span>}{beer.name}</h2>
               </div>
               {beer.location ? <p className="mt-1 text-xs font-semibold uppercase" style={{ color: C.brassSoft, letterSpacing: "0.14em", fontFamily: "var(--font-data)" }}>{beer.location}</p> : null}
             </div>
@@ -3878,10 +3907,10 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
 .cc-press:active{transform:scale(.975)}
 /* Layered elevation: a tight contact shadow plus a soft ambient one, so surfaces read as
    sitting on the page rather than drawn onto it. */
-.cc-elev{box-shadow:0 1px 2px rgba(28,54,54,0.05), 0 8px 20px -12px rgba(28,54,54,0.16);}
-.cc-elev-lg{box-shadow:0 1px 3px rgba(28,54,54,0.06), 0 16px 34px -18px rgba(28,54,54,0.22);}
-.cc-tile{box-shadow:0 1px 2px rgba(28,54,54,0.06), 0 6px 14px -8px rgba(28,54,54,0.18);transition:transform .16s cubic-bezier(.16,1,.3,1), box-shadow .2s ease}
-.cc-tile:hover{transform:translateY(-2px);box-shadow:0 2px 4px rgba(28,54,54,0.07), 0 12px 24px -10px rgba(28,54,54,0.24)}
+.cc-elev{box-shadow:0 1px 2px rgba(30, 58, 70,0.05), 0 8px 20px -12px rgba(30, 58, 70,0.16);}
+.cc-elev-lg{box-shadow:0 1px 3px rgba(30, 58, 70,0.06), 0 16px 34px -18px rgba(30, 58, 70,0.22);}
+.cc-tile{box-shadow:0 1px 2px rgba(30, 58, 70,0.06), 0 6px 14px -8px rgba(30, 58, 70,0.18);transition:transform .16s cubic-bezier(.16,1,.3,1), box-shadow .2s ease}
+.cc-tile:hover{transform:translateY(-2px);box-shadow:0 2px 4px rgba(30, 58, 70,0.07), 0 12px 24px -10px rgba(30, 58, 70,0.24)}
 .cc-tile:active{transform:scale(.975)}
 @media (prefers-reduced-motion: reduce){.cc-fade,.cc-rise,.cc-stagger>*,.cc-overlay,.cc-pop,.cc-sheet{animation:none}.cc-press{transition:none}}
 /* Retint Tailwind's default cool-blue slate scale to a warm, teal-tinted neutral so
@@ -3895,7 +3924,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
 .focus\:ring-slate-300:focus{--tw-ring-color:#C7C6B7!important}
 .focus\:ring-slate-400:focus{--tw-ring-color:#96A19B!important}`}</style>
       {view === "taplist" ? TapList() : (<>
-      <header className="no-print relative z-40 border-b" style={{ background: "linear-gradient(180deg, #234342 0%, #1C3636 100%)", borderColor: "rgba(184,134,43,0.35)", boxShadow: "0 1px 0 rgba(184,134,43,0.22), 0 10px 26px -18px rgba(0,0,0,0.65)", paddingTop: "env(safe-area-inset-top)" }}>
+      <header className="no-print relative z-40 border-b" style={{ background: "linear-gradient(180deg, #254752 0%, #1E3A46 100%)", borderColor: "rgba(184,134,43,0.35)", boxShadow: "0 1px 0 rgba(184,134,43,0.22), 0 10px 26px -18px rgba(0,0,0,0.65)", paddingTop: "env(safe-area-inset-top)" }}>
         <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 py-2.5">
           <div className="flex items-center gap-2.5">
             <div className="relative">
@@ -3990,7 +4019,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
       </footer>
       </div>
 
-      <nav className="no-print fixed inset-x-0 bottom-0 z-40 border-t bg-white sm:hidden" style={{ borderColor: C.line, paddingBottom: "env(safe-area-inset-bottom)", boxShadow: "0 -6px 22px -14px rgba(28,54,54,0.4)" }}>
+      <nav className="no-print fixed inset-x-0 bottom-0 z-40 border-t bg-white sm:hidden" style={{ borderColor: C.line, paddingBottom: "env(safe-area-inset-bottom)", boxShadow: "0 -6px 22px -14px rgba(30, 58, 70,0.4)" }}>
         <div className="mx-auto flex max-w-md items-end justify-around px-2">
           <BottomTab id="cellar" icon={ClipboardList} label="Cellar" view={view} go={go} />
           <BottomTab id="library" icon={BookOpen} label="Library" view={view} go={go} />
@@ -4007,7 +4036,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
 
       {menuOpen && (
         <div className="no-print fixed inset-0 z-50 sm:hidden">
-          <div className="absolute inset-0 cc-overlay" style={{ background: "rgba(28,54,54,0.45)" }} onClick={() => setMenuOpen(false)} />
+          <div className="absolute inset-0 cc-overlay" style={{ background: "rgba(30, 58, 70,0.45)" }} onClick={() => setMenuOpen(false)} />
           <div className="cc-sheet absolute inset-x-0 bottom-0 rounded-t-2xl bg-white p-4" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 16px)" }}>
             <div className="mx-auto mb-3 h-1.5 w-10 rounded-full" style={{ background: C.line }} />
             <div className="grid grid-cols-3 gap-2.5">
@@ -4059,9 +4088,9 @@ class ErrorBoundary extends React.Component {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center p-6 text-center" style={{ background: "linear-gradient(180deg, #F6F1E4 0%, #EEE7D5 60%)", fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif" }}>
         <div className="w-full max-w-sm rounded-2xl border bg-white p-6" style={{ borderColor: "#E6E2D8" }}>
-          <p className="text-lg font-bold" style={{ color: "#1C3636" }}>Something went wrong</p>
+          <p className="text-lg font-bold" style={{ color: "#1E3A46" }}>Something went wrong</p>
           <p className="mt-2 text-sm text-slate-600">The app hit a problem and needs a reload. Your cellar data lives in the cloud, not in this screen, so nothing here is lost, reloading is safe.</p>
-          <button onClick={() => window.location.reload()} className="mt-4 w-full rounded-lg px-4 py-2.5 text-sm font-semibold text-white" style={{ background: "#1C3636" }}>Reload the app</button>
+          <button onClick={() => window.location.reload()} className="mt-4 w-full rounded-lg px-4 py-2.5 text-sm font-semibold text-white" style={{ background: "#1E3A46" }}>Reload the app</button>
           <button onClick={() => this.setState((s) => ({ showDetails: !s.showDetails }))} className="mt-3 text-xs text-slate-400 underline">{this.state.showDetails ? "Hide" : "Show"} technical details</button>
           {this.state.showDetails && <p className="mt-2 max-h-40 overflow-y-auto rounded-lg bg-slate-50 p-2 text-left text-xs text-slate-500" style={{ fontFamily: "monospace" }}>{String(this.state.error && this.state.error.message)}</p>}
         </div>
