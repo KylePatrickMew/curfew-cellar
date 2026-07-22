@@ -306,8 +306,8 @@ const GUIDE_SECTIONS = [
 // The unlock and error screens return before the main app shell (where the full style
 // block lives), so they need their own font bootstrap or the wordmark falls back to
 // the system font. The browser dedupes the duplicate @import.
-const FontBoot = () => <style>{`@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&display=swap');
-:root { --font-data: 'Archivo', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; --font-display: 'Archivo', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }`}</style>;
+const FontBoot = () => <style>{`@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=DM+Sans:wght@500;600;700;800&display=swap');
+:root { --font-data: 'Archivo', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; --font-display: 'Archivo', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; --font-brand: 'DM Sans', 'Archivo', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }`}</style>;
 const VIEW_TITLES = { cellar: "Cellar", add: "Add Stock", library: "Library", allergens: "Allergen Sheet", stock: "Stock List", empties: "Empties to Return", stats: "Cellar Stats", guide: "How to Use", notify: "Notifications", backup: "Backup & Restore" };
 const SIZE_OPTIONS = ["Bag-in-box 20L"];
 const FRESH_LIMIT = 4; // days on a cask before a quality check is worth a look
@@ -880,7 +880,7 @@ const LineRow = ({ line, context, beerById, onOpen }) => {
       <div className="min-w-0">
         <div className="flex items-center gap-1.5">
           <CatDot category={beer.category} />
-          <p className="truncate text-sm font-semibold leading-tight" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer.brewery && <span className="font-medium" style={{ color: C.ink }}>{beer.brewery} - </span>}{beer.name}</p>
+          <p className="truncate text-sm font-normal leading-tight" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer.brewery && <span className="font-semibold" style={{ color: C.ink }}>{beer.brewery} - </span>}{beer.name}</p>
           {!beer.allergensVerified && <AlertTriangle size={13} className="shrink-0 text-amber-500" />}
         </div>
         <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[beer.style || "", beer.abv ? `${beer.abv}%` : "", `£${line.price || "--"}`, beer.location || ""].filter(Boolean).join("  ·  ")}</p>
@@ -931,7 +931,7 @@ const Row = ({ l, stage, beerById }) => {
       <div className="min-w-0">
         <div className="flex items-center gap-1.5">
           <CatDot category={beer.category} />
-          <p className="truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer.brewery && <span className="font-medium" style={{ color: C.ink }}>{beer.brewery} - </span>}{beer.name}</p>
+          <p className="truncate text-sm font-normal" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer.brewery && <span className="font-semibold" style={{ color: C.ink }}>{beer.brewery} - </span>}{beer.name}</p>
         </div>
         <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[dt, beer.style || "", extraSweetness(beer), beer.abv ? `${beer.abv}%` : ""].filter(Boolean).join("  ·  ")}</p>
         {beer.location && <p className="truncate text-xs text-slate-500" style={{ fontFamily: "var(--font-data)" }}>{beer.location}</p>}
@@ -967,7 +967,7 @@ const Item = ({ line, beerById }) => {
       <div className="flex items-baseline justify-between gap-3">
         <div className="flex min-w-0 flex-1 items-center gap-1.5">
           <CatDot category={beer.category} />
-          <p className="min-w-0 text-lg font-semibold" style={{ color: C.cream, fontFamily: "var(--font-display)" }}>{beer.brewery && <span className="font-medium" style={{ color: C.cream }}>{beer.brewery} - </span>}{beer.name}</p>
+          <p className="min-w-0 text-lg font-normal" style={{ color: C.cream, fontFamily: "var(--font-display)" }}>{beer.brewery && <span className="font-semibold" style={{ color: C.cream }}>{beer.brewery} - </span>}{beer.name}</p>
         </div>
         <div className="shrink-0 text-right">
           <p className="text-lg font-semibold" style={{ color: C.brassSoft, fontFamily: "var(--font-display)" }}>{tlp ? tlp.pint : `£${line.price || "--"}`}</p>
@@ -1049,7 +1049,7 @@ const EditBeer = ({
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(30, 58, 70,0.45)" }} onClick={close}>
       <div className="w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white sm:rounded-2xl cc-pop" style={{ maxHeight: "92vh", overscrollBehaviorY: "none", WebkitOverflowScrolling: "touch", touchAction: "manipulation" }} onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 flex items-center justify-between gap-2 border-b bg-white p-4" style={{ borderColor: C.line }}>
-          <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Edit beer details</h2>
+          <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Edit beer details</h2>
           <button onClick={close} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400"><X size={18} /></button>
         </div>
         <div className="space-y-3 p-4">
@@ -2591,7 +2591,7 @@ function TheCurfewCellarApp() {
       <div className="space-y-4">
         <section>
           <button onClick={() => toggleSection("on")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
-            <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Pouring <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {onFilled}/10</span></h2>
+            <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Pouring <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {onFilled}/10</span></h2>
             <ChevronDown size={20} className="text-slate-400" style={{ transform: uiPrefs.on ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
           </button>
           {uiPrefs.on && (
@@ -2613,7 +2613,7 @@ function TheCurfewCellarApp() {
         </section>
         <section className="border-t pt-4" style={{ borderColor: C.line }}>
           <button onClick={() => toggleSection("racked")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
-            <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Racked <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {rackedFilled}/6</span></h2>
+            <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Racked <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {rackedFilled}/6</span></h2>
             <ChevronDown size={20} className="text-slate-400" style={{ transform: uiPrefs.racked ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
           </button>
           {uiPrefs.racked && (
@@ -2631,7 +2631,7 @@ function TheCurfewCellarApp() {
         {store.length > 0 && (
           <section className="border-t pt-4" style={{ borderColor: C.line }}>
             <button onClick={() => toggleSection("store")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
-              <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>In Store <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {store.length}</span></h2>
+              <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>In Store <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {store.length}</span></h2>
               <ChevronDown size={20} className="text-slate-400" style={{ transform: uiPrefs.store ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
             </button>
             {uiPrefs.store && (
@@ -2677,7 +2677,7 @@ function TheCurfewCellarApp() {
         <div className="mx-auto max-w-2xl space-y-4">
           <button onClick={() => { setAddMode("pick"); setInvoiceItems(null); }} className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"><ArrowRight size={14} className="rotate-180" /> Back</button>
           <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
-            <p className="text-base font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{batchSource === "labels" ? "Scanned labels" : "Delivery items"}</p>
+            <p className="text-base font-semibold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>{batchSource === "labels" ? "Scanned labels" : "Delivery items"}</p>
             <p className="mt-1 text-sm text-slate-500">Check the details below, then confirm. Each one saves to your library and goes straight into In Store{batchSource === "labels" ? ", best before and supplier included" : ""}.</p>
             <div className="mt-3 space-y-2">
               {items.length === 0 && <p className="py-3 text-center text-sm text-slate-400">Nothing found.</p>}
@@ -2726,7 +2726,7 @@ function TheCurfewCellarApp() {
       const pickRow = (b) => (
         <button key={b.id} onClick={() => pickBeer(b)} className="flex w-full items-center justify-between gap-2 rounded-lg border p-2.5 text-left transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: CAT_ACCENT[b.category] || C.line }}>
           <span className="min-w-0">
-            <span className="block truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{b.brewery && <span className="font-medium" style={{ color: C.ink }}>{b.brewery} - </span>}{b.name}</span>
+            <span className="block truncate text-sm font-normal" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{b.brewery && <span className="font-semibold" style={{ color: C.ink }}>{b.brewery} - </span>}{b.name}</span>
             <span className="block truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[b.style || "", b.abv ? `${b.abv}%` : "", extraSweetness(b)].filter(Boolean).join("  ·  ")}</span>
             <span className="block truncate text-xs text-slate-400">{b.location || ""}</span>
           </span>
@@ -2738,7 +2738,7 @@ function TheCurfewCellarApp() {
           <input ref={labelRef} type="file" accept="image/*" multiple onChange={(e) => { const fs = Array.from(e.target.files || []); e.target.value = ""; if (fs.length === 1) scanLabel(fs[0]); else if (fs.length > 1) scanLabelsBatch(fs); }} className="hidden" />
           <input ref={invoiceRef} type="file" accept="image/*,application/pdf" onChange={(e) => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) scanInvoice(f); }} className="hidden" />
           <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
-            <p className="text-base font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Scan it in</p>
+            <p className="text-base font-semibold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Scan it in</p>
             <div className="mt-3 flex flex-wrap gap-2">
               <button onClick={() => labelRef.current && labelRef.current.click()} disabled={scanning} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:opacity-60" style={{ background: C.ink }}><Camera size={16} /> Scan a cask label / pump clip</button>
               <button onClick={() => invoiceRef.current && invoiceRef.current.click()} disabled={scanning} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-60" style={{ borderColor: C.line }}><FileText size={16} /> Scan an invoice</button>
@@ -2748,7 +2748,7 @@ function TheCurfewCellarApp() {
             {scanError && <p className="mt-2 text-sm text-amber-700">{scanError}</p>}
           </div>
           <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
-            <p className="text-base font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Add from your library</p>
+            <p className="text-base font-semibold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Add from your library</p>
             <div className="relative mt-3">
               <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input value={addPickSearch} onChange={(e) => setAddPickSearch(e.target.value)} placeholder="Search ales, breweries, styles…" className="w-full rounded-xl border bg-white py-2.5 pl-10 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
@@ -2857,7 +2857,7 @@ function TheCurfewCellarApp() {
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0 flex-1">
               <button onClick={() => setLibraryOpenId(b.id)} className="block w-full min-w-0 rounded-lg text-left transition focus:outline-none focus:ring-2 focus:ring-amber-300">
-                <p className="truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{b.brewery && <span className="font-medium" style={{ color: C.ink }}>{b.brewery} - </span>}{b.name}</p>
+                <p className="truncate text-sm font-normal" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{b.brewery && <span className="font-semibold" style={{ color: C.ink }}>{b.brewery} - </span>}{b.name}</p>
                 <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[b.style || "", b.abv ? `${b.abv}%` : "", extraSweetness(b), !b.allergensVerified ? "not staff verified" : ""].filter(Boolean).join("  ·  ")}</p>
                 <p className="truncate text-xs text-slate-400">{b.location || ""}{latestPrice(b) ? ` · Previous: £${latestPrice(b)}` : ""}{latestSupplier(b) ? ` · from ${latestSupplier(b)}` : ""}</p>
               </button>
@@ -2924,7 +2924,7 @@ function TheCurfewCellarApp() {
             {recentAdded.length > 0 && (
               <section>
                 <button onClick={() => toggleSection("libRecent")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
-                  <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Recently added <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {recentAdded.length}</span></h2>
+                  <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Recently added <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {recentAdded.length}</span></h2>
                   <ChevronDown size={20} className="text-slate-400" style={{ transform: uiPrefs.libRecent ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
                 </button>
                 {uiPrefs.libRecent && <div className="mt-2 space-y-2">{recentAdded.map(libRow)}</div>}
@@ -2933,7 +2933,7 @@ function TheCurfewCellarApp() {
             {rest.length > 0 && (
               <section className="border-t pt-4" style={{ borderColor: C.line }}>
                 <button onClick={() => toggleSection("libAll")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
-                  <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>All beers <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {rest.length}</span></h2>
+                  <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>All beers <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {rest.length}</span></h2>
                   <ChevronDown size={20} className="text-slate-400" style={{ transform: uiPrefs.libAll ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
                 </button>
                 {uiPrefs.libAll && <div className="mt-2 space-y-2">{rest.map(libRow)}</div>}
@@ -2942,7 +2942,7 @@ function TheCurfewCellarApp() {
             {archived.length > 0 && (
               <section className="border-t pt-4" style={{ borderColor: C.line }}>
                 <button onClick={() => toggleSection("libArchived")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
-                  <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Archived <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {archived.length}</span></h2>
+                  <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Archived <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {archived.length}</span></h2>
                   <ChevronDown size={20} className="text-slate-400" style={{ transform: uiPrefs.libArchived ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
                 </button>
                 {uiPrefs.libArchived && <div className="mt-2 space-y-2" style={{ opacity: 0.75 }}>{archived.map(libRow)}</div>}
@@ -2954,7 +2954,7 @@ function TheCurfewCellarApp() {
         {canEdit && (
           <div className="cc-elev rounded-xl border" style={{ background: C.paper, borderColor: C.line }}>
             <button onClick={() => setUiPrefs((p) => ({ ...p, libraryTools: !p.libraryTools }))} className="flex w-full items-center justify-between gap-2 p-3.5 text-left focus:outline-none">
-              <span className="text-sm font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Library tools</span>
+              <span className="text-sm font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Library tools</span>
               <ChevronDown size={18} className="text-slate-400" style={{ transform: uiPrefs.libraryTools ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
             </button>
             {uiPrefs.libraryTools && (
@@ -2962,7 +2962,7 @@ function TheCurfewCellarApp() {
                 <div className="rounded-xl border p-3.5" style={{ borderColor: C.line }}>
                   <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0">
-                      <h2 className="text-sm font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Find duplicates</h2>
+                      <h2 className="text-sm font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Find duplicates</h2>
                       <p className="mt-0.5 text-xs text-slate-500">Looks for the same beer entered more than once, like "Weston's" and "Westons Cider" both being Old Rosie.</p>
                     </div>
                     <button onClick={() => setDuplicateResults(findDuplicateCandidates(library))} className="shrink-0 rounded-lg border px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>Scan</button>
@@ -2985,7 +2985,7 @@ function TheCurfewCellarApp() {
 
                 {incomplete.length > 0 && (
                   <div className="rounded-xl border p-3.5" style={{ borderColor: C.line }}>
-                    <h2 className="text-sm font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Needs more detail ({incomplete.length})</h2>
+                    <h2 className="text-sm font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Needs more detail ({incomplete.length})</h2>
                     <p className="mt-0.5 text-xs text-slate-500">Missing ABV, style, location, or tasting notes.</p>
                     <div className="mt-2.5 space-y-1.5">
                       {incomplete.map((b) => {
@@ -3011,7 +3011,7 @@ function TheCurfewCellarApp() {
   const NotifySettings = () => (
     <div className="space-y-4">
       <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
-        <h2 className="text-base font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Pump notifications</h2>
+        <h2 className="text-base font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Pump notifications</h2>
         <div className="mt-1 mb-3 h-0.5 w-8 rounded-full" style={{ background: C.brass }} />
         <p className="text-sm text-slate-500">Get a ping on this phone whenever a beer goes on or a line finishes, even with the app closed. Each phone turns this on separately, so every manager who wants it enables it on their own phone.</p>
         <div className="mt-4">
@@ -3053,7 +3053,7 @@ function TheCurfewCellarApp() {
       </div>
       {GUIDE_SECTIONS.map((sec) => (
         <div key={sec.title} className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
-          <h2 className="text-base font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{sec.title}</h2>
+          <h2 className="text-base font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>{sec.title}</h2>
           <div className="mt-1 mb-3 h-0.5 w-8 rounded-full" style={{ background: C.brass }} />
           <ul className="space-y-2.5">
             {sec.steps.map(([h, t]) => (
@@ -3189,7 +3189,7 @@ function TheCurfewCellarApp() {
       <div className="mx-auto max-w-2xl space-y-5">
         <p className="text-center text-xs text-slate-400" style={{ fontFamily: "var(--font-data)" }}>Build {APP_BUILD}</p>
         <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
-          <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Export</h2>
+          <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Export</h2>
           <p className="mt-0.5 text-xs text-slate-400">{prefs.lastBackup ? `Last backup: ${fmtUpdated(prefs.lastBackup)}` : "No backup taken yet. The cloud keeps no history, so a saved copy is your safety net."}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             <button onClick={copyBackup} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Copy size={16} /> Copy backup</button>
@@ -3200,7 +3200,7 @@ function TheCurfewCellarApp() {
 
         {canEdit && (
         <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
-          <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Import</h2>
+          <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Import</h2>
           <p className="mt-1 text-sm text-slate-500">Replaces everything in the app.</p>
           <input ref={fileRef} type="file" accept="application/json,.json" onChange={handleFile} className="hidden" />
           <div className="mt-3 flex flex-wrap gap-2">
@@ -3224,7 +3224,7 @@ function TheCurfewCellarApp() {
 
         {cloudMode && canEdit && (
           <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
-            <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Recent snapshots</h2>
+            <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Recent snapshots</h2>
             <p className="mt-1 text-sm text-slate-500">The cloud keeps the last 30 states the cellar has been in, taken automatically. If something goes wrong on any device, you can put it back here, no manual backup needed.</p>
             {historyList === null ? (
               <button onClick={loadHistory} disabled={historyLoading} className="mt-3 inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-50" style={{ borderColor: C.line }}>
@@ -3257,7 +3257,7 @@ function TheCurfewCellarApp() {
         )}
 
         <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
-          <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Fix a stuck app</h2>
+          <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Fix a stuck app</h2>
           <p className="mt-1 text-sm text-slate-500">If the app seems out of date after an update, e.g. it doesn't match what you were told changed, this clears whatever's holding the old version and reloads fresh. Your cellar data is untouched, this only clears cached app files.</p>
           {!confirmCacheReset ? (
             <button onClick={() => setConfirmCacheReset(true)} className="mt-3 inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><RotateCcw size={16} /> Reset app cache</button>
@@ -3350,7 +3350,7 @@ function TheCurfewCellarApp() {
       <div className="space-y-4">
         {canEdit && (
           <div className="cc-elev rounded-xl border p-3.5" style={{ background: C.paper, borderColor: C.line }}>
-            <h2 className="text-sm font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Distributors</h2>
+            <h2 className="text-sm font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Distributors</h2>
             <p className="mt-0.5 text-xs text-slate-500">Added automatically from deliveries. Add or remove here too.</p>
             {distributors.length > 0 && (
               <div className="mt-2.5 flex flex-wrap gap-1.5">
@@ -3434,7 +3434,7 @@ function TheCurfewCellarApp() {
           <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Printer size={15} /> Print</button>
         </div>
         <div id="allergen-sheet" className="cc-elev rounded-xl border p-5" style={{ background: C.paper, borderColor: C.line }}>
-          <h1 className="text-xl font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>What's on: allergen and dietary guide</h1>
+          <h1 className="text-xl font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>What's on: allergen and dietary guide</h1>
           <p className="mt-0.5 text-xs text-slate-500">Please confirm with staff before ordering.</p>
           {fmtUpdated(lastUpdated) && <p className="mt-0.5 text-xs text-slate-400">Last updated: {fmtUpdated(lastUpdated)}</p>}
           {groups.length === 0 && <p className="mt-4 text-sm text-slate-400">Nothing on right now.</p>}
@@ -3449,7 +3449,7 @@ function TheCurfewCellarApp() {
                   return (
                     <div key={l.id} className="py-2">
                       <div className="flex items-baseline justify-between gap-2">
-                        <span className="font-medium" style={{ color: C.ink }}>{beer.name}</span>
+                        <span className="font-normal" style={{ color: C.ink }}>{beer.name}</span>
                         <span className="text-xs text-slate-500">{[beer.brewery || "", beer.abv ? `${beer.abv}%` : ""].filter(Boolean).join("  ·  ")}</span>
                       </div>
                       <p className="text-xs text-slate-600">{diet ? diet + " · " : ""}{beer.allergensVerified ? (beer.allergens.length ? "Contains: " + beer.allergens.join(", ") : "No declared allergens") : "Allergens: please ask at the bar"}</p>
@@ -3536,7 +3536,7 @@ function TheCurfewCellarApp() {
           <div style={{ border: "1.5px solid rgba(184,134,43,0.4)", borderBottom: "none", borderTopLeftRadius: 130, borderTopRightRadius: 130, padding: "28px 22px 4px" }}>
             <div className="flex flex-col items-center text-center">
               <div className="grid h-11 w-11 place-items-center rounded-full" style={{ background: C.brass, color: C.ink }}><Bell size={22} /></div>
-              <p className="mt-2.5 text-2xl font-semibold leading-tight" style={{ color: C.cream, fontFamily: "var(--font-display)", letterSpacing: "0.03em" }}>{PUB_CONFIG.name}</p>
+              <p className="mt-2.5 text-2xl font-semibold leading-tight" style={{ color: C.cream, fontFamily: "var(--font-brand)", letterSpacing: "0.03em" }}>{PUB_CONFIG.name}</p>
               <p className="mt-0.5 text-xs uppercase tracking-widest" style={{ color: C.brassSoft }}>What's on today</p>
               {fmtUpdated(lastUpdated) && <p className="mt-2 text-xs" style={{ color: "rgba(243,239,230,0.5)" }}>Last updated: {fmtUpdated(lastUpdated)}</p>}
               <div className="mt-1 flex items-center gap-4">
@@ -3644,7 +3644,7 @@ function TheCurfewCellarApp() {
             <>
               <div className="sticky top-0 flex items-center justify-between gap-2 border-b bg-white p-4" style={{ borderColor: C.line }}>
                 <div className="min-w-0">
-                  <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{swap.toRack ? "Rack from store" : "Choose next"}</h2>
+                  <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>{swap.toRack ? "Rack from store" : "Choose next"}</h2>
                   {catLabel && <p className="truncate text-xs text-slate-500">{matching.length ? catLabel : `No ${catLabel} ${swap.toRack ? "in store" : "ready"}, showing all casks`}</p>}
                 </div>
                 <button onClick={close} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400"><X size={18} /></button>
@@ -3662,7 +3662,7 @@ function TheCurfewCellarApp() {
                           <span className="min-w-0">
                             <span className="flex items-center gap-1.5">
                               <CatDot category={beer.category} />
-                              <span className="font-semibold leading-snug" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer.brewery && <span className="font-medium" style={{ color: C.ink }}>{beer.brewery} - </span>}{beer.name}</span>
+                              <span className="font-normal leading-snug" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer.brewery && <span className="font-semibold" style={{ color: C.ink }}>{beer.brewery} - </span>}{beer.name}</span>
                             </span>
                             <span className="block truncate text-sm font-medium text-slate-600">{[beer.style || "", beer.abv ? `${beer.abv}%` : ""].filter(Boolean).join("  ·  ")}</span>
                             <span className="block truncate text-xs text-slate-400">{beer.location || ""}</span>
@@ -3688,7 +3688,7 @@ function TheCurfewCellarApp() {
     return (
       <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(30, 58, 70,0.45)" }} onClick={() => { setCombineCandidate(null); setCombineKeepId(null); }}>
         <div className="w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white sm:rounded-2xl cc-pop p-5" style={{ maxHeight: "92vh" }} onClick={(e) => e.stopPropagation()}>
-          <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>Combine these two?</h2>
+          <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Combine these two?</h2>
           <p className="mt-1 text-sm text-slate-500">Pick which one to keep. All stock history from the other moves across to it, then it's deleted.</p>
           <div className="mt-3 space-y-2">
             {combineCandidate.map((b) => (
@@ -3744,7 +3744,7 @@ function TheCurfewCellarApp() {
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <CatDot category={beer.category} />
-                <h2 className="text-xl font-bold leading-snug" style={{ color: C.cream, fontFamily: "var(--font-display)", letterSpacing: "0.01em" }}>{beer.brewery && <span className="font-medium" style={{ color: C.cream }}>{beer.brewery} - </span>}{beer.name}</h2>
+                <h2 className="text-xl font-normal leading-snug" style={{ color: C.cream, fontFamily: "var(--font-display)", letterSpacing: "0.01em" }}>{beer.brewery && <span className="font-bold" style={{ color: C.cream }}>{beer.brewery} - </span>}{beer.name}</h2>
               </div>
               {beer.location ? <p className="mt-1 text-xs font-semibold uppercase" style={{ color: C.brassSoft, letterSpacing: "0.14em", fontFamily: "var(--font-data)" }}>{beer.location}</p> : null}
             </div>
@@ -3846,7 +3846,7 @@ function TheCurfewCellarApp() {
         <div className="w-full max-w-xs">
           <div className="mb-6 text-center">
             <Bell size={26} className="mx-auto mb-2.5" style={{ color: C.brassSoft }} aria-hidden="true" />
-            <p className="text-2xl font-bold" style={{ color: C.cream, fontFamily: "var(--font-display)", letterSpacing: "0.03em" }}>{PUB_CONFIG.name}</p>
+            <p className="text-2xl font-bold" style={{ color: C.cream, fontFamily: "var(--font-brand)", letterSpacing: "0.03em" }}>{PUB_CONFIG.name}</p>
             <p className="mt-1 text-xs uppercase tracking-widest" style={{ color: C.brassSoft }}>Cellar Management</p>
           </div>
           {authChecking ? (
@@ -3881,7 +3881,7 @@ function TheCurfewCellarApp() {
 
   return (
     <div className="flex w-full flex-col" style={{ background: "linear-gradient(180deg, #F6F1E4 0%, #EEE7D5 60%)", fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", height: "100dvh", overflow: "hidden" }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&display=swap');
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap');
 :root { --font-data: 'Archivo', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; --font-display: 'Archivo', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
 .cc-brandtrack{letter-spacing:0.04em;}
 html, body { overflow-x: clip; width: 100%; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -3963,7 +3963,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
                 </>
               )}
             </div>
-            <p className="text-base font-semibold leading-none" style={{ color: C.cream, fontFamily: "var(--font-display)", letterSpacing: "0.025em" }}>{PUB_CONFIG.name}</p>
+            <p className="text-base font-semibold leading-none" style={{ color: C.cream, fontFamily: "var(--font-brand)", letterSpacing: "0.025em" }}>{PUB_CONFIG.name}</p>
             <p className="hidden sm:inline" style={{ color: C.brassSoft, fontFamily: "var(--font-data)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.14em", lineHeight: 1 }}>Cellar</p>
           </div>
           <nav className="relative hidden items-center gap-1 sm:flex">
@@ -3992,7 +3992,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
           <>
             {VIEW_TITLES[view] && (
               <div className="no-print mb-5">
-                <h1 className="text-2xl font-bold" style={{ color: C.ink, fontFamily: "var(--font-display)", letterSpacing: "0.02em" }}>{VIEW_TITLES[view]}</h1>
+                <h1 className="text-2xl font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)", letterSpacing: "0.02em" }}>{VIEW_TITLES[view]}</h1>
                 <div className="mt-2 h-1 w-10 rounded-full" style={{ background: C.brass }} />
               </div>
             )}
