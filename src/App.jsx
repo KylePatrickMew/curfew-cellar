@@ -880,10 +880,10 @@ const LineRow = ({ line, context, beerById, onOpen }) => {
       <div className="min-w-0">
         <div className="flex items-center gap-1.5">
           <CatDot category={beer.category} />
-          <p className="truncate text-sm font-normal leading-tight" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer.brewery && <span className="font-semibold" style={{ color: C.ink }}>{beer.brewery} - </span>}{beer.name}</p>
+          <p className="truncate text-sm font-normal leading-tight" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer.brewery && <span className="font-semibold" style={{ color: C.ink }}>{beer.brewery}</span>} {beer.name}</p>
           {!beer.allergensVerified && <AlertTriangle size={13} className="shrink-0 text-amber-500" />}
         </div>
-        <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[beer.style || "", beer.abv ? `${beer.abv}%` : "", `£${line.price || "--"}`, beer.location || ""].filter(Boolean).join("  ·  ")}</p>
+        <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[beer.style || "", beer.abv ? `${beer.abv}%` : "", line.price ? `£${line.price}` : "no price set", beer.location || ""].filter(Boolean).join("  ·  ")}</p>
       </div>
       {(hasDiet || showBadge) && (
         <div className="flex flex-wrap items-center gap-1" style={{ minHeight: 22 }}>
@@ -931,7 +931,7 @@ const Row = ({ l, stage, beerById }) => {
       <div className="min-w-0">
         <div className="flex items-center gap-1.5">
           <CatDot category={beer.category} />
-          <p className="truncate text-sm font-normal" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer.brewery && <span className="font-semibold" style={{ color: C.ink }}>{beer.brewery} - </span>}{beer.name}</p>
+          <p className="truncate text-sm font-normal" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer.brewery && <span className="font-semibold" style={{ color: C.ink }}>{beer.brewery}</span>} {beer.name}</p>
         </div>
         <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[dt, beer.style || "", extraSweetness(beer), beer.abv ? `${beer.abv}%` : ""].filter(Boolean).join("  ·  ")}</p>
         {beer.location && <p className="truncate text-xs text-slate-500" style={{ fontFamily: "var(--font-data)" }}>{beer.location}</p>}
@@ -967,10 +967,10 @@ const Item = ({ line, beerById }) => {
       <div className="flex items-baseline justify-between gap-3">
         <div className="flex min-w-0 flex-1 items-center gap-1.5">
           <CatDot category={beer.category} />
-          <p className="min-w-0 text-lg font-normal" style={{ color: C.cream, fontFamily: "var(--font-display)" }}>{beer.brewery && <span className="font-semibold" style={{ color: C.cream }}>{beer.brewery} - </span>}{beer.name}</p>
+          <p className="min-w-0 text-lg font-normal" style={{ color: C.cream, fontFamily: "var(--font-display)" }}>{beer.brewery && <span className="font-semibold" style={{ color: C.cream }}>{beer.brewery}</span>} {beer.name}</p>
         </div>
         <div className="shrink-0 text-right">
-          <p className="text-lg font-semibold" style={{ color: C.brassSoft, fontFamily: "var(--font-display)" }}>{tlp ? tlp.pint : `£${line.price || "--"}`}</p>
+          <p className="text-lg font-semibold" style={{ color: C.brassSoft, fontFamily: "var(--font-display)" }}>{tlp ? tlp.pint : line.price ? `£${line.price}` : "Ask at the bar"}</p>
           {tlp && <p className="text-xs" style={{ color: "rgba(243,239,230,0.55)" }}>Half {tlp.half} · Schooner {tlp.schooner}</p>}
         </div>
       </div>
@@ -2726,7 +2726,7 @@ function TheCurfewCellarApp() {
       const pickRow = (b) => (
         <button key={b.id} onClick={() => pickBeer(b)} className="flex w-full items-center justify-between gap-2 rounded-lg border p-2.5 text-left transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: CAT_ACCENT[b.category] || C.line }}>
           <span className="min-w-0">
-            <span className="block truncate text-sm font-normal" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{b.brewery && <span className="font-semibold" style={{ color: C.ink }}>{b.brewery} - </span>}{b.name}</span>
+            <span className="block truncate text-sm font-normal" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{b.brewery && <span className="font-semibold" style={{ color: C.ink }}>{b.brewery}</span>} {b.name}</span>
             <span className="block truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[b.style || "", b.abv ? `${b.abv}%` : "", extraSweetness(b)].filter(Boolean).join("  ·  ")}</span>
             <span className="block truncate text-xs text-slate-400">{b.location || ""}</span>
           </span>
@@ -2857,8 +2857,8 @@ function TheCurfewCellarApp() {
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0 flex-1">
               <button onClick={() => setLibraryOpenId(b.id)} className="block w-full min-w-0 rounded-lg text-left transition focus:outline-none focus:ring-2 focus:ring-amber-300">
-                <p className="truncate text-sm font-normal" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{b.brewery && <span className="font-semibold" style={{ color: C.ink }}>{b.brewery} - </span>}{b.name}</p>
-                <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[b.style || "", b.abv ? `${b.abv}%` : "", extraSweetness(b), !b.allergensVerified ? "not staff verified" : ""].filter(Boolean).join("  ·  ")}</p>
+                <p className="truncate text-sm font-normal" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{b.brewery && <span className="font-semibold" style={{ color: C.ink }}>{b.brewery}</span>} {b.name} {!b.allergensVerified && <AlertTriangle size={13} className="inline shrink-0 text-amber-500" />}</p>
+                <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[b.style || "", b.abv ? `${b.abv}%` : "", extraSweetness(b)].filter(Boolean).join("  ·  ")}</p>
                 <p className="truncate text-xs text-slate-400">{b.location || ""}{latestPrice(b) ? ` · Previous: £${latestPrice(b)}` : ""}{latestSupplier(b) ? ` · from ${latestSupplier(b)}` : ""}</p>
               </button>
               <div className="mt-1 flex flex-wrap items-center gap-1"><DietaryMini beer={b} /></div>
@@ -3602,7 +3602,7 @@ function TheCurfewCellarApp() {
     const emptyMsg = swap.toRack ? "Nothing in the store to rack. Add a cask from your library first." : (isCask ? "Nothing racked, vented or tapped yet. Rack and vent a cask to get one ready." : `Nothing in the store to put on. Add ${swap.drink === "keg" ? "a keg" : "a cider"} first.`);
     const previewLine = swapPreviewId ? lines.find((l) => l.id === swapPreviewId) : null;
     const previewBeer = previewLine ? beerById[previewLine.beerId] : null;
-    const pmeta = previewBeer ? [DRINK_TYPES.find((t) => t.key === previewLine.drinkType)?.label, previewBeer.style, `${previewBeer.abv}%`, `£${previewLine.price || "--"}`, previewLine.size ? previewLine.size.replace("Bag-in-box ", "").replace("Keg ", "") : ""].filter(Boolean).join("  ·  ") : "";
+    const pmeta = previewBeer ? [DRINK_TYPES.find((t) => t.key === previewLine.drinkType)?.label, previewBeer.style, `${previewBeer.abv}%`, previewLine.price ? `£${previewLine.price}` : "no price set", previewLine.size ? previewLine.size.replace("Bag-in-box ", "").replace("Keg ", "") : ""].filter(Boolean).join("  ·  ") : "";
     return (
       <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(30, 58, 70,0.45)" }} onClick={close}>
         <div className="flex w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-white sm:rounded-2xl cc-pop" style={{ maxHeight: "85vh" }} onClick={(e) => e.stopPropagation()}>
@@ -3662,7 +3662,7 @@ function TheCurfewCellarApp() {
                           <span className="min-w-0">
                             <span className="flex items-center gap-1.5">
                               <CatDot category={beer.category} />
-                              <span className="font-normal leading-snug" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer.brewery && <span className="font-semibold" style={{ color: C.ink }}>{beer.brewery} - </span>}{beer.name}</span>
+                              <span className="font-normal leading-snug" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer.brewery && <span className="font-semibold" style={{ color: C.ink }}>{beer.brewery}</span>} {beer.name}</span>
                             </span>
                             <span className="block truncate text-sm font-medium text-slate-600">{[beer.style || "", beer.abv ? `${beer.abv}%` : ""].filter(Boolean).join("  ·  ")}</span>
                             <span className="block truncate text-xs text-slate-400">{beer.location || ""}</span>
@@ -3744,7 +3744,7 @@ function TheCurfewCellarApp() {
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <CatDot category={beer.category} />
-                <h2 className="text-xl font-normal leading-snug" style={{ color: C.cream, fontFamily: "var(--font-display)", letterSpacing: "0.01em" }}>{beer.brewery && <span className="font-bold" style={{ color: C.cream }}>{beer.brewery} - </span>}{beer.name}</h2>
+                <h2 className="text-xl font-normal leading-snug" style={{ color: C.cream, fontFamily: "var(--font-display)", letterSpacing: "0.01em" }}>{beer.brewery && <span className="font-bold" style={{ color: C.cream }}>{beer.brewery}</span>} {beer.name}</h2>
               </div>
               {beer.location ? <p className="mt-1 text-xs font-semibold uppercase" style={{ color: C.brassSoft, letterSpacing: "0.14em", fontFamily: "var(--font-data)" }}>{beer.location}</p> : null}
             </div>
