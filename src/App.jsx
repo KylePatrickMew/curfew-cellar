@@ -24,7 +24,7 @@ const MODEL = "claude-sonnet-4-6";
 // Updated by hand every time a new App.jsx is handed over. Check this against what you were
 // just given, if it doesn't match, the deploy hasn't actually landed yet, whatever the app
 // looks like otherwise. Shown in Backup & Restore.
-const APP_BUILD = "2026-07-19 11:53";
+const APP_BUILD = "2026-07-22 23:00";
 // ---- Cloud sync (active only in the deployed app; the preview uses window.storage) ----
 const SB_URL = "https://fnqhrckxmzioinbokicb.supabase.co";
 const SB_KEY = "sb_publishable_RyO06sDdZg3bH7Mt6hwHEQ_EA9RNkJ8";
@@ -531,21 +531,33 @@ const deriveCategory = (drinkType, style, abv) => (drinkType === "cider" ? "Cide
 const EMPTY_DATES = { ordered: null, delivered: null, racked: null, vented: null, tapped: null, on: null, off: null };
 const normaliseData = (data) => {
   if (!data) return data;
-  const lib = Array.isArray(data.library) ? data.library.map((b) => ({
-    ...b,
-    allergens: Array.isArray(b.allergens) ? b.allergens : [],
-    history: Array.isArray(b.history) ? b.history : [],
-  })) : [];
+  const seenLibIds = new Set();
+  const lib = Array.isArray(data.library) ? data.library.map((b) => {
+    const id = (b && b.id && !seenLibIds.has(b.id)) ? b.id : uid();
+    seenLibIds.add(id);
+    return {
+      ...b,
+      id,
+      allergens: Array.isArray(b.allergens) ? b.allergens : [],
+      history: Array.isArray(b.history) ? b.history : [],
+    };
+  }) : [];
   const libIds = new Set(lib.map((b) => b.id));
   const rawLines = Array.isArray(data.lines) ? data.lines : [];
   const dropped = rawLines.filter((l) => !l || !libIds.has(l.beerId)).length;
   if (dropped) console.warn(`normaliseData: dropped ${dropped} line(s) with no matching library beer.`);
-  const lines = rawLines.filter((l) => l && libIds.has(l.beerId)).map((l) => ({
-    ...l,
-    status: STATUS_BY_KEY[l.status] ? l.status : "in_cellar",
-    dates: { ...EMPTY_DATES, ...(l.dates || {}) },
-    collected: !!l.collected,
-  }));
+  const seenLineIds = new Set();
+  const lines = rawLines.filter((l) => l && libIds.has(l.beerId)).map((l) => {
+    const id = (l.id && !seenLineIds.has(l.id)) ? l.id : uid();
+    seenLineIds.add(id);
+    return {
+      ...l,
+      id,
+      status: STATUS_BY_KEY[l.status] ? l.status : "in_cellar",
+      dates: { ...EMPTY_DATES, ...(l.dates || {}) },
+      collected: !!l.collected,
+    };
+  });
   return { ...data, library: lib, lines };
 };
 
