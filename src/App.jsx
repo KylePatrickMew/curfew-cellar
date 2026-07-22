@@ -964,9 +964,9 @@ const Item = ({ line, beerById }) => {
   else if (beer.glutenStatus === "Low gluten") diet.push("Low gluten, <20ppm");
   return (
     <div className="py-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-      <div className="flex items-baseline justify-between gap-3">
-        <div className="flex min-w-0 flex-1 items-center gap-1.5">
-          <CatDot category={beer.category} />
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-1 gap-1.5">
+          <span className="shrink-0" style={{ paddingTop: 9 }}><CatDot category={beer.category} /></span>
           <p className="min-w-0 text-lg font-normal" style={{ color: C.cream, fontFamily: "var(--font-display)" }}>{beer.brewery && <span className="font-semibold" style={{ color: C.cream }}>{beer.brewery}</span>} {beer.name}</p>
         </div>
         <div className="shrink-0 text-right">
@@ -2112,6 +2112,15 @@ function TheCurfewCellarApp() {
 
   const addLine = () => {
     if (!form.brewery.trim() || !form.name.trim()) { setFillNote({ type: "warn", text: "Producer/brewery and name are required." }); return; }
+    if (form.status === "on") {
+      const drinkGroup = PUMP_DRINK(form.drinkType);
+      const onCount = lines.filter((l) => l.status === "on" && PUMP_DRINK(l.drinkType) === drinkGroup).length;
+      if (onCount >= PUMPS[drinkGroup].length) {
+        const label = drinkGroup === "cask" ? "cask" : drinkGroup === "keg" ? "keg" : "cider";
+        setFillNote({ type: "warn", text: `All ${label} pumps are full (${onCount}/${PUMPS[drinkGroup].length}). Add it as In Store instead, or finish one first.` });
+        return;
+      }
+    }
     // Duplicate guard: if this beer already has a live line in the cellar, ask once before
     // adding another. A second tap of the button confirms (multiple casks is legitimate).
     const dupSaved = findSavedBeer(form.brewery, form.name);
@@ -2155,6 +2164,12 @@ function TheCurfewCellarApp() {
       const flow0 = flowFor(before.drinkType);
       const i0 = flow0.indexOf(before.status);
       const nk = i0 >= 0 && i0 < flow0.length - 1 ? flow0[i0 + 1] : null;
+      if (nk === "on" && !freePumpFor(lines, before, id)) {
+        const drinkGroup = PUMP_DRINK(before.drinkType);
+        const label = drinkGroup === "cask" ? "cask" : drinkGroup === "keg" ? "keg" : "cider";
+        showToast(`All ${label} pumps are full. Finish one first.`);
+        return;
+      }
       const b = beerById[before.beerId];
       const nm = b ? `${b.brewery ? b.brewery + " - " : ""}${b.name}` : "A beer";
       if (nk === "on") sendCellarPush("Now pouring", nm);
@@ -2169,6 +2184,7 @@ function TheCurfewCellarApp() {
     const nextKey = flow[i + 1];
     const next = STATUS_BY_KEY[nextKey];
     const slot = nextKey === "on" ? freePumpFor(ls, cur, id) : cur.slot || null;
+    if (nextKey === "on" && !slot) return ls;
     return ls.map((c) => {
       if (c.id !== id) return c;
       const dates = { ...c.dates };
@@ -2823,7 +2839,7 @@ function TheCurfewCellarApp() {
           <Field label="Best before">
             <input type="date" className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" value={form.bestBefore} onChange={(e) => setF({ bestBefore: e.target.value })} style={{ WebkitAppearance: "none", appearance: "none", fontSize: 14, colorScheme: "light" }} />
           </Field>
-          <Field label="Status"><select className={inputCls} value={form.status} onChange={(e) => setF({ status: e.target.value })}>{STATUSES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}</select></Field>
+          <Field label="Status"><select className={inputCls} value={form.status} onChange={(e) => setF({ status: e.target.value })}>{STATUSES.map((s) => { const full = s.key === "on" && lines.filter((l) => l.status === "on" && PUMP_DRINK(l.drinkType) === PUMP_DRINK(form.drinkType)).length >= PUMPS[PUMP_DRINK(form.drinkType)].length; return <option key={s.key} value={s.key} disabled={full}>{s.label}{full ? " (pumps full)" : ""}</option>; })}</select></Field>
         </div>
 
         <div className="flex gap-2">
