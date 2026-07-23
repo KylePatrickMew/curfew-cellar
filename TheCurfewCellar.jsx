@@ -28,13 +28,15 @@ const APP_BUILD = "2026-07-22 23:00";
 // ---- Cloud sync (active only in the deployed app; the preview uses window.storage) ----
 const SB_URL = "https://fnqhrckxmzioinbokicb.supabase.co";
 const SB_KEY = "sb_publishable_RyO06sDdZg3bH7Mt6hwHEQ_EA9RNkJ8";
-const BAR_EMAIL = "kyle.parkour@gmail.com";
 // Three real Supabase accounts, one per role, checked in this order against whatever password
-// was typed. MANAGER_EMAIL is the existing account: nothing changes for it. STAFF_EMAIL and
-// READONLY_EMAIL are new accounts Kyle needs to create in the Supabase dashboard (Authentication
-// > Users > Add user), each its own email and password. These don't need to be real, working
-// inboxes, Supabase only needs them as unique account identifiers for password sign-in.
-const MANAGER_EMAIL = BAR_EMAIL;
+// was typed. All three are dedicated accounts under Kyle's own curfewcellar.app domain, not
+// his personal email (manager was switched over from kyle.parkour@gmail.com once the dedicated
+// account existed). Each needs its own genuinely distinct password for the role system to
+// actually work: sign-in tries them in this order and stops at the first match, so if two
+// accounts share a password, whichever is tried first always wins and the other is unreachable.
+// These don't need to be real, working inboxes, Supabase only needs them as unique account
+// identifiers for password sign-in.
+const MANAGER_EMAIL = "manager@curfewcellar.app";
 const STAFF_EMAIL = "staff@curfewcellar.app";
 const READONLY_EMAIL = "readonly@curfewcellar.app";
 const ROLE_BY_EMAIL = { [MANAGER_EMAIL]: "manager", [STAFF_EMAIL]: "staff", [READONLY_EMAIL]: "readonly" };
