@@ -882,7 +882,6 @@ const LineRow = ({ line, context, beerById, onOpen }) => {
   // Always a short pill on this compact card: never the long sentence form, regardless of
   // which signal fired (best-before passed/soon, store-context BB, or a status label).
   const bb = bbStatus(line);
-  const hasDiet = !!beer.vegan || beer.glutenStatus === "Gluten-free" || beer.glutenStatus === "Low gluten" || beer.clarity === "Hazy";
   let badgeText = sig.text;
   if (storeBB) badgeText = `BB ${fmtDate(line.bestBefore)}`;
   else if (bb && bb.level === "past") badgeText = "BB passed";
@@ -897,12 +896,10 @@ const LineRow = ({ line, context, beerById, onOpen }) => {
         </div>
         <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[beer.style || "", beer.abv ? `${beer.abv}%` : "", line.price ? `£${line.price}` : "no price set", beer.location || ""].filter(Boolean).join("  ·  ")}</p>
       </div>
-      {(hasDiet || showBadge) && (
-        <div className="flex flex-wrap items-center gap-1" style={{ minHeight: 22 }}>
-          <DietaryMini beer={beer} />
-          {showBadge && <span className="max-w-full truncate rounded-full border px-1.5 py-0.5 font-semibold" style={{ fontSize: 10, fontFamily: "var(--font-data)", background: sig.warn ? "#F7E9E7" : C.stone, color: sig.warn ? C.alert : C.inkSoft, borderColor: sig.warn ? "#E8CCC8" : C.line }}>{badgeText}</span>}
-        </div>
-      )}
+      <div className="flex flex-wrap items-center gap-1" style={{ minHeight: 22 }}>
+        <DietaryMini beer={beer} />
+        {showBadge && <span className="max-w-full truncate rounded-full border px-1.5 py-0.5 font-semibold" style={{ fontSize: 10, fontFamily: "var(--font-data)", background: sig.warn ? "#F7E9E7" : C.stone, color: sig.warn ? C.alert : C.inkSoft, borderColor: sig.warn ? "#E8CCC8" : C.line }}>{badgeText}</span>}
+      </div>
     </button>
   );
 };
