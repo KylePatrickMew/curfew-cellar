@@ -198,6 +198,15 @@ const PUMPS = PUB_CONFIG.pumps;
 const PUMP_LABELS = PUB_CONFIG.pumpLabels;
 const PUMP_NUMBER = PUB_CONFIG.pumpNumber;
 const caskPrefPumps = PUB_CONFIG.caskPrefPumps;
+// Features built with the eventual sellable, multi-pub product in mind, not everything here is
+// right for The Curfew specifically. Each one defaults to whatever's correct for this pub; a
+// future paying tenant would flip theirs on. This only gates the navigation entry points below,
+// not the screen components themselves, so a flag can be flipped on temporarily to view and
+// keep developing a gated screen without it ever being reachable through Kyle's own day-to-day
+// navigation, and without needing to strip a guard back out first just to look at it.
+const TENANT_FEATURES = {
+  cellarStats: false, // Cellar Stats: useful for the wider product, not needed day-to-day here
+};
 const bbCmp = (a, b) => (a.bestBefore || "9999-12-31").localeCompare(b.bestBefore || "9999-12-31");
 // Pin each "on" line to a physical pump so beers never jump between pumps.
 const assignPumps = (ls, catOf) => {
@@ -1977,6 +1986,20 @@ function TheCurfewCellarApp() {
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
+  const carriedPriceAppliedRef = useRef(null);
+  useEffect(() => {
+    if (view !== "add" || addMode !== "form") { carriedPriceAppliedRef.current = null; return; }
+    if (!form.brewery.trim() || !form.name.trim()) { carriedPriceAppliedRef.current = null; return; }
+    const known = findSavedBeer(form.brewery, form.name);
+    if (!known) { carriedPriceAppliedRef.current = null; return; }
+    if (carriedPriceAppliedRef.current === known.id) return;
+    carriedPriceAppliedRef.current = known.id;
+    if (!form.price.trim()) {
+      const carried = latestPrice(known);
+      if (carried) setF({ price: carried });
+    }
+  }, [form.brewery, form.name, view, addMode]);
+
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -2430,14 +2453,18 @@ function TheCurfewCellarApp() {
     const dt = p.kind === "cider" ? "cider" : "cask";
     const style = p.style ? String(p.style) : "";
     const abv = p.abv != null ? String(p.abv) : "";
-    return { id: "lb" + i + "_" + uid(), include: true, drinkType: dt, brewery: p.brewery ? cleanBrewery(p.brewery) : "", location: p.location ? String(p.location) : "", name: p.name ? String(p.name) : "", abv, price: "", bestBefore: toISO(p.bestBefore), caskOwner: p.deliveredBy ? String(p.deliveredBy) : "", style, clarity: CLARITY_OPTIONS.includes(p.clarity) ? p.clarity : (p.clarity === "Cloudy" ? "Hazy" : "Clear"), glutenStatus: GLUTEN_OPTIONS.includes(p.glutenStatus) ? p.glutenStatus : "Standard", vegan: !!p.vegan, allergens: Array.isArray(p.allergens) ? p.allergens.filter((a) => ALLERGEN_OPTIONS.includes(a)) : [], notes: p.notes ? String(p.notes) : "", category: deriveCategory(dt, style, abv) };
+    const brewery = p.brewery ? cleanBrewery(p.brewery) : "";
+    const name = p.name ? String(p.name) : "";
+    const known = brewery && name ? findSavedBeer(brewery, name) : null;
+    const carriedPrice = known ? latestPrice(known) : "";
+    return { id: "lb" + i + "_" + uid(), include: true, drinkType: dt, brewery, location: p.location ? String(p.location) : "", name, abv, price: carriedPrice, bestBefore: toISO(p.bestBefore), caskOwner: p.deliveredBy ? String(p.deliveredBy) : "", style, clarity: CLARITY_OPTIONS.includes(p.clarity) ? p.clarity : (p.clarity === "Cloudy" ? "Hazy" : "Clear"), glutenStatus: GLUTEN_OPTIONS.includes(p.glutenStatus) ? p.glutenStatus : "Standard", vegan: !!p.vegan, allergens: Array.isArray(p.allergens) ? p.allergens.filter((a) => ALLERGEN_OPTIONS.includes(a)) : [], notes: p.notes ? String(p.notes) : "", category: deriveCategory(dt, style, abv) };
   };
   const scanLabel = async (file) => {
     setScanning(true); setScanError(null); setFillNote({ type: "loading", text: "Reading the label…" });
     try {
       const p = parseLooseJSON(await visionCall(file, labelPrompt, true));
       const it = labelToItem(p, 0);
-      setForm({ ...emptyForm, drinkType: it.drinkType, brewery: it.brewery, location: it.location, name: it.name, style: it.style, abv: it.abv, bestBefore: it.bestBefore, caskOwner: it.caskOwner, clarity: it.clarity, glutenStatus: it.glutenStatus, vegan: it.vegan, allergens: it.allergens, notes: it.notes, allergensVerified: false, category: it.category });
+      setForm({ ...emptyForm, drinkType: it.drinkType, brewery: it.brewery, location: it.location, name: it.name, style: it.style, abv: it.abv, price: it.price, bestBefore: it.bestBefore, caskOwner: it.caskOwner, clarity: it.clarity, glutenStatus: it.glutenStatus, vegan: it.vegan, allergens: it.allergens, notes: it.notes, allergensVerified: false, category: it.category });
       setAddMode("form");
       setFillNote(withContradictionCheck({ type: "ai", text: "Read from the label. Check everything, especially allergens, before serving." }, it));
     } catch (e) {
@@ -2471,7 +2498,9 @@ function TheCurfewCellarApp() {
         const brewery = x.brewery ? cleanBrewery(x.brewery) : "";
         if (!name || SKIP.test(name) || SKIP.test(brewery)) return;
         const qty = Math.max(1, Math.min(36, parseInt(x.qty, 10) || 1));
-        for (let q = 0; q < qty; q++) expanded.push({ id: "inv" + expanded.length, brewery, name, abv: x.abv != null ? String(x.abv) : "", price: "", caskOwner: x.deliveredBy ? String(x.deliveredBy) : "", drinkType: "cask", include: true });
+        const known = findSavedBeer(brewery, name);
+        const carriedPrice = known ? latestPrice(known) : "";
+        for (let q = 0; q < qty; q++) expanded.push({ id: "inv" + expanded.length, brewery, name, abv: x.abv != null ? String(x.abv) : "", price: carriedPrice, caskOwner: x.deliveredBy ? String(x.deliveredBy) : "", drinkType: "cask", include: true });
       });
       if (!expanded.length) throw new Error("empty");
       setInvoiceItems(expanded);
@@ -2716,12 +2745,17 @@ function TheCurfewCellarApp() {
                     <button onClick={() => duplicateInvoice(idx)} title="Duplicate this beer" className="shrink-0 rounded-lg border p-1.5 text-slate-500 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><Copy size={14} /></button>
                   </div>
                   {(() => { const warn = checkContradictions(x); return warn.length > 0 && <p className="mt-1.5 flex items-start gap-1 text-xs" style={{ color: C.alert }}><AlertTriangle size={12} className="mt-0.5 shrink-0" /> {warn.join(" ")}</p>; })()}
-                  <div className={`mt-2 grid grid-cols-2 gap-2 ${batchSource === "invoice" ? "sm:grid-cols-3" : "sm:grid-cols-4"}`}>
+                  <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
                     <input value={x.brewery} onChange={(e) => updateInvoice(idx, { brewery: e.target.value })} placeholder="Brewery" className="rounded border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
                     <input value={x.abv} onChange={(e) => updateInvoice(idx, { abv: e.target.value })} inputMode="decimal" placeholder="ABV %" className="rounded border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
-                    {batchSource !== "invoice" && <input value={x.price} onChange={(e) => updateInvoice(idx, { price: e.target.value })} inputMode="decimal" placeholder="e.g. 4.40" className="rounded border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />}
+                    <input value={x.price} onChange={(e) => updateInvoice(idx, { price: e.target.value })} inputMode="decimal" placeholder="e.g. 4.40" className="rounded border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
                     <select value={x.drinkType} onChange={(e) => updateInvoice(idx, { drinkType: e.target.value })} className="rounded border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }}>{DRINK_TYPES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}</select>
                   </div>
+                  {(() => {
+                    const known = x.brewery.trim() && x.name.trim() ? findSavedBeer(x.brewery, x.name) : null;
+                    const carried = known ? latestPrice(known) : "";
+                    return !!carried && x.price.trim() === carried.trim() && <p className="mt-1.5 text-xs font-medium" style={{ color: C.brass }}>Previous price. Please confirm.</p>;
+                  })()}
                   {batchSource === "labels" && (
                     (x.drinkType === "cider" || x.drinkType === "keykeg") ? (
                       <div className="mt-2">
@@ -4002,7 +4036,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
                 <div className="absolute right-0 top-full z-50 mt-1 w-44 overflow-hidden rounded-lg border bg-white shadow-lg" style={{ borderColor: C.line }}>
-                  {[["guide", "How to Use", Compass], ["library", "Library", BookOpen], ["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["stats", "Cellar Stats", BarChart3], ["notify", "Notifications", Bell], ...(canEdit ? [["backup", "Backup & Restore", Database]] : [])].map(([id, label, Icon]) => (
+                  {[["guide", "How to Use", Compass], ["library", "Library", BookOpen], ["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ...(TENANT_FEATURES.cellarStats ? [["stats", "Cellar Stats", BarChart3]] : []), ["notify", "Notifications", Bell], ...(canEdit ? [["backup", "Backup & Restore", Database]] : [])].map(([id, label, Icon]) => (
                     <button key={id} onClick={() => { setMenuOpen(false); go(id); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"><Icon size={15} className="text-slate-400" />{label}</button>
                   ))}
                 </div>
@@ -4067,7 +4101,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
           <div className="cc-sheet absolute inset-x-0 bottom-0 rounded-t-2xl bg-white p-4" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 16px)" }}>
             <div className="mx-auto mb-3 h-1.5 w-10 rounded-full" style={{ background: C.line }} />
             <div className="grid grid-cols-3 gap-2.5">
-              {[["guide", "How to Use", Compass], ["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["stats", "Cellar Stats", BarChart3], ["notify", "Notifications", Bell], ...(canEdit ? [["backup", "Backup & Restore", Database]] : [])].map(([id, label, Icon]) => (
+              {[["guide", "How to Use", Compass], ["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ...(TENANT_FEATURES.cellarStats ? [["stats", "Cellar Stats", BarChart3]] : []), ["notify", "Notifications", Bell], ...(canEdit ? [["backup", "Backup & Restore", Database]] : [])].map(([id, label, Icon]) => (
                 <button key={id} onClick={() => { setMenuOpen(false); go(id); }} className="flex flex-col items-center gap-1.5 rounded-xl border p-3 transition active:scale-95" style={{ borderColor: C.line, color: C.ink }}>
                   <Icon size={20} style={{ color: C.brass }} />
                   <span className="text-center text-xs font-medium leading-tight">{label}</span>
