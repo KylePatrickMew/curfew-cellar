@@ -954,9 +954,9 @@ const Row = ({ l, stage, beerById }) => {
           <p className="truncate text-sm font-normal" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer.brewery && <span className="font-semibold" style={{ color: C.ink }}>{beer.brewery}</span>} {beer.name}</p>
         </div>
         <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[dt, beer.style || "", extraSweetness(beer), beer.abv ? `${beer.abv}%` : ""].filter(Boolean).join("  ·  ")}</p>
-        {beer.location && <p className="truncate text-xs text-slate-500" style={{ fontFamily: "var(--font-data)" }}>{beer.location}</p>}
-        {(l.caskOwner && l.drinkType !== "cider" && l.drinkType !== "keykeg") && <p className="truncate text-xs text-slate-500" style={{ fontFamily: "var(--font-data)" }}>Delivered by: {l.caskOwner}</p>}
-        <div className="mt-1 flex flex-wrap items-center gap-1"><DietaryMini beer={beer} /></div>
+        <p className="truncate text-xs text-slate-500" style={{ fontFamily: "var(--font-data)", minHeight: 16 }}>{beer.location || ""}</p>
+        <p className="truncate text-xs text-slate-500" style={{ fontFamily: "var(--font-data)", minHeight: 16 }}>{(l.caskOwner && l.drinkType !== "cider" && l.drinkType !== "keykeg") ? `Delivered by: ${l.caskOwner}` : ""}</p>
+        <div className="mt-1 flex flex-wrap items-center gap-1" style={{ minHeight: 22 }}><DietaryMini beer={beer} /></div>
       </div>
       <div className="shrink-0 text-right" style={{ fontFamily: "var(--font-data)" }}>
         {pump && <p className="text-xs font-semibold" style={{ color: C.brass }}>{pump}</p>}
@@ -2922,7 +2922,7 @@ function TheCurfewCellarApp() {
                 <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[b.style || "", b.abv ? `${b.abv}%` : "", extraSweetness(b)].filter(Boolean).join("  ·  ")}</p>
                 <p className="truncate text-xs text-slate-400">{b.location || ""}{latestPrice(b) ? ` · Previous: £${latestPrice(b)}` : ""}{latestSupplier(b) ? ` · from ${latestSupplier(b)}` : ""}</p>
               </button>
-              <div className="mt-1 flex flex-wrap items-center gap-1"><DietaryMini beer={b} /></div>
+              <div className="mt-1 flex flex-wrap items-center gap-1" style={{ minHeight: 22 }}><DietaryMini beer={b} /></div>
             </div>
             <div className="flex shrink-0 items-center gap-1">
               {canEdit && <button onClick={(e) => { e.stopPropagation(); addLineOfBeer(b); }} title="Add to cellar" className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Plus size={13} /> Add</button>}
