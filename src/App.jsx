@@ -2277,7 +2277,9 @@ function TheCurfewCellarApp() {
     if (saved) { beerId = saved.id; setLibrary((lib) => lib.map((b) => (b.id === saved.id ? { ...b, ...beerFields, history: [...(b.history || []), entry], pendingBestBefore: "", pendingCaskOwner: "", pendingPrice: "", pendingDrinkType: "" } : b))); }
     else { beerId = uid(); setLibrary((lib) => [...lib, { id: beerId, ...beerFields, history: [entry] }]); }
     const dates = { ordered: null, delivered: null, racked: null, vented: null, tapped: null, on: null, off: null };
-    dates[STATUSES[STATUS_INDEX[form.status]].dateKey] = new Date().toISOString();
+    const addedAt = new Date().toISOString();
+    dates.delivered = addedAt;
+    dates[STATUSES[STATUS_INDEX[form.status]].dateKey] = addedAt;
     const id = uid();
     setLines((ls) => [...ls, { id, beerId, drinkType: form.drinkType, size: form.size, price: form.price.trim(), status: form.status, caskOwner: form.caskOwner.trim() || form.brewery.trim(), collected: false, bestBefore: form.bestBefore, dates }]);
     if (form.caskOwner.trim()) addDistributor(form.caskOwner.trim());
@@ -3063,6 +3065,7 @@ function TheCurfewCellarApp() {
             <input type="date" className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" value={form.bestBefore} onChange={(e) => setF({ bestBefore: e.target.value })} style={{ WebkitAppearance: "none", appearance: "none", fontSize: 14, colorScheme: "light" }} />
           </Field>
           <Field label="Status"><select className={inputCls} value={form.status} onChange={(e) => setF({ status: e.target.value })}>{STATUSES.map((s) => { const full = s.key === "on" && lines.filter((l) => l.status === "on" && PUMP_DRINK(l.drinkType) === PUMP_DRINK(form.drinkType)).length >= PUMPS[PUMP_DRINK(form.drinkType)].length; return <option key={s.key} value={s.key} disabled={full}>{s.label}{full ? " (pumps full)" : ""}</option>; })}</select></Field>
+          {form.status === "off" && <p className="text-xs text-slate-500">For stock that's already done, damaged, spoiled, or otherwise never going on. It's logged and finished straight away, not added to what's currently in the cellar.</p>}
         </div>
 
         <div className="flex gap-2">
