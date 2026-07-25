@@ -416,7 +416,7 @@ const cleanBrewery = (name) => {
   if (!name) return "";
   let out = String(name).trim();
   for (let i = 0; i < 4; i++) {
-    const next = out.replace(/[\s,]+(?:limited|ltd\.?|co\.?|company|brewery|brewing|brewhouse|breweries|brewers|brew\s*co\.?|cider|ciders|cidery|cider\s*co\.?|perry|perries|plc)$/i, "").trim();
+    const next = out.replace(/[\s,]+(?:limited|ltd\.?|co\.?|company|brewery|brewing|brewhouse|breweries|brewers|brew\s*co\.?|ales|beers|beer\s*co\.?|cider|ciders|cidery|cider\s*co\.?|perry|perries|plc)$/i, "").trim();
     if (next === out) break;
     out = next;
   }
@@ -492,6 +492,21 @@ JSON only.`;
 // internally inconsistent combinations that can slip past even a well-sourced AI answer, e.g.
 // marked vegan while isinglass (a fish product) is listed as an allergen. Returns plain-English
 // warnings, or an empty array if nothing looks contradictory.
+const GLUTEN_GRAINS = ["Barley (gluten)", "Wheat (gluten)", "Oats (gluten)", "Rye (gluten)"];
+// Never present "Gluten-free" as a claim while a gluten grain is also listed as an allergen.
+// One of the two is wrong, and on something a coeliac customer reads, the safe direction is to
+// drop the reassuring claim rather than the warning. The allergen list still shows in full, and
+// the attention bell tells Kyle so the underlying data can be corrected.
+const glutenClaimConflict = (beer) => beer.glutenStatus === "Gluten-free" && (beer.allergens || []).some((a) => GLUTEN_GRAINS.includes(a));
+const isGlutenFree = (beer) => beer.glutenStatus === "Gluten-free" && !glutenClaimConflict(beer);
+// When a beer's name already starts with its brewery ("Malvern" + "Malvern Gold") printing both
+// gives "Malvern Malvern Gold". Drop the repeated prefix so the weight split still reads as
+// brewery-then-beer without the stutter.
+const splitTitle = (brewery, name) => {
+  const b = (brewery || "").trim(), n = (name || "").trim();
+  if (b && n.toLowerCase().startsWith(b.toLowerCase() + " ")) return { lead: b, rest: n.slice(b.length).trim() };
+  return { lead: b, rest: n };
+};
 const checkContradictions = (f) => {
   const warnings = [];
   const allergens = Array.isArray(f.allergens) ? f.allergens : [];
@@ -746,22 +761,28 @@ const CatDot = ({ category }) => {
 // well-made but generic beer list. Fixed palette, not the live category colours, since this is
 // branding, not a reflection of what's currently on tap.
 const BridgeMotif = () => {
+  // The festival poster's motif is a viaduct whose arches ARE the pint glasses: a dome-topped
+  // opening with straight sides, filled with beer, the dark piers showing between them. The
+  // first attempt drew flat-topped rectangles with separate arcs floating above, which read as
+  // croquet hoops over colour swatches rather than a bridge. Each glass is now a single arched
+  // shape, and the gaps between them do the work of the piers against the dark background.
   const colors = ["#F2CC45", "#E3A93E", "#D6823C", "#C4553F", "#6E4A32"];
-  const unit = 60;
-  const glassTop = 26;
-  const glassH = 46;
+  const unit = 56, gap = 8, H = 54, foamH = 7;
+  const w = unit - gap, r = w / 2;
   const totalW = colors.length * unit;
+  const arch = (x) => `M ${x} ${H} L ${x} ${r} A ${r} ${r} 0 0 1 ${x + w} ${r} L ${x + w} ${H} Z`;
+  const foam = (x) => `M ${x} ${r} A ${r} ${r} 0 0 1 ${x + w} ${r} L ${x + w} ${r + foamH} L ${x} ${r + foamH} Z`;
   return (
-    <svg viewBox={`0 0 ${totalW} ${glassTop + glassH}`} preserveAspectRatio="xMidYMax meet" style={{ width: "100%", maxWidth: 320, height: 56, display: "block", margin: "0 auto" }} aria-hidden="true">
-      {colors.map((c, i) => (
-        <rect key={i} x={i * unit + 6} y={glassTop} width={unit - 12} height={glassH} rx={5} fill={c} />
-      ))}
-      {colors.map((_, i) => (
-        <rect key={`foam${i}`} x={i * unit + 6} y={glassTop} width={unit - 12} height={8} rx={5} fill="#F3EFE6" opacity="0.85" />
-      ))}
-      {colors.map((_, i) => (
-        <path key={`arch${i}`} d={`M ${i * unit + 2} ${glassTop + 4} A ${unit / 2 - 6} ${unit / 2 - 6} 0 0 1 ${i * unit + unit - 2} ${glassTop + 4}`} fill="none" stroke="rgba(184,134,43,0.55)" strokeWidth="1.5" />
-      ))}
+    <svg viewBox={`0 0 ${totalW} ${H}`} preserveAspectRatio="xMidYMax meet" style={{ width: "100%", maxWidth: 300, height: 58, display: "block", margin: "0 auto" }} aria-hidden="true">
+      {colors.map((c, i) => {
+        const x = i * unit + gap / 2;
+        return (
+          <g key={i}>
+            <path d={arch(x)} fill={c} />
+            <path d={foam(x)} fill="#F3EFE6" opacity="0.92" />
+          </g>
+        );
+      })}
     </svg>
   );
 };
@@ -771,7 +792,7 @@ const Badge = ({ className = "", style, children }) => (
 const DietaryBadges = ({ beer }) => (
   <div className="flex flex-wrap gap-1.5">
     {beer.vegan && <Badge style={DIET_BADGE_STYLE.vegan}>Vegan</Badge>}
-    {beer.glutenStatus === "Gluten-free" && <Badge style={DIET_BADGE_STYLE.gluten}>Gluten-free</Badge>}
+    {isGlutenFree(beer) && <Badge style={DIET_BADGE_STYLE.gluten}>Gluten-free</Badge>}
     {beer.glutenStatus === "Low gluten" && <Badge style={DIET_BADGE_STYLE.gluten}>Low gluten, &lt;20ppm</Badge>}
     {beer.clarity === "Hazy" && <Badge style={DIET_BADGE_STYLE.hazy}>Hazy</Badge>}
   </div>
@@ -779,7 +800,7 @@ const DietaryBadges = ({ beer }) => (
 const DietaryMini = ({ beer }) => {
   const items = [];
   if (beer.vegan) items.push(["VG", "Vegan", DIET_BADGE_STYLE.vegan]);
-  if (beer.glutenStatus === "Gluten-free") items.push(["GF", "Gluten-free", DIET_BADGE_STYLE.gluten]);
+  if (isGlutenFree(beer)) items.push(["GF", "Gluten-free", DIET_BADGE_STYLE.gluten]);
   else if (beer.glutenStatus === "Low gluten") items.push(["<20ppm", "Low gluten, under 20ppm", DIET_BADGE_STYLE.gluten]);
   if (beer.clarity === "Hazy") items.push(["Hazy", "Hazy", DIET_BADGE_STYLE.hazy]);
   if (!items.length) return null;
@@ -906,7 +927,7 @@ const LineRow = ({ line, context, beerById, onOpen }) => {
       <div className="min-w-0">
         <div className="flex items-center gap-1.5">
           <CatDot category={beer.category} />
-          <p className="truncate text-sm font-normal leading-tight" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer.brewery && <span className="font-semibold" style={{ color: C.ink }}>{beer.brewery}</span>} {beer.name}</p>
+          <p className="truncate text-sm font-normal leading-tight" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{(() => { const t = splitTitle(beer.brewery, beer.name); return <>{t.lead && <span className="font-semibold" style={{ color: C.ink }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()}</p>
           {!beer.allergensVerified && <AlertTriangle size={13} className="shrink-0 text-amber-500" />}
         </div>
         <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[beer.style || "", beer.abv ? `${beer.abv}%` : "", line.price ? `£${line.price}` : "no price set", beer.location || ""].filter(Boolean).join("  ·  ")}</p>
@@ -955,7 +976,7 @@ const Row = ({ l, stage, beerById }) => {
       <div className="min-w-0">
         <div className="flex items-center gap-1.5">
           <CatDot category={beer.category} />
-          <p className="truncate text-sm font-normal" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer.brewery && <span className="font-semibold" style={{ color: C.ink }}>{beer.brewery}</span>} {beer.name}</p>
+          <p className="truncate text-sm font-normal" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{(() => { const t = splitTitle(beer.brewery, beer.name); return <>{t.lead && <span className="font-semibold" style={{ color: C.ink }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()}</p>
         </div>
         <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[dt, beer.style || "", extraSweetness(beer), beer.abv ? `${beer.abv}%` : ""].filter(Boolean).join("  ·  ")}</p>
         <p className="truncate text-xs text-slate-500" style={{ fontFamily: "var(--font-data)", minHeight: 16 }}>{beer.location || ""}</p>
@@ -984,21 +1005,21 @@ const Item = ({ line, beerById }) => {
   const faint = "rgba(243,239,230,0.68)";
   const diet = [];
   if (beer.vegan) diet.push("Vegan");
-  if (beer.glutenStatus === "Gluten-free") diet.push("Gluten-free");
+  if (isGlutenFree(beer)) diet.push("Gluten-free");
   else if (beer.glutenStatus === "Low gluten") diet.push("Low gluten, <20ppm");
   return (
     <div className="py-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-1 gap-1.5">
           <span className="shrink-0" style={{ paddingTop: 9 }}><CatDot category={beer.category} /></span>
-          <p className="min-w-0 text-lg font-normal" style={{ color: C.cream, fontFamily: "var(--font-display)" }}>{beer.brewery && <span className="font-semibold" style={{ color: C.cream }}>{beer.brewery}</span>} {beer.name}</p>
+          <p className="min-w-0 text-lg font-normal" style={{ color: C.cream, fontFamily: "var(--font-display)" }}>{(() => { const t = splitTitle(beer.brewery, beer.name); return <>{t.lead && <span className="font-semibold" style={{ color: C.cream }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()}</p>
         </div>
-        <div className="shrink-0 text-right">
-          <p className="text-lg font-semibold" style={{ color: C.brassSoft, fontFamily: "var(--font-display)" }}>{tlp ? tlp.pint : line.price ? `£${line.price}` : "Ask at the bar"}</p>
-          {tlp && <p className="text-xs" style={{ color: "rgba(243,239,230,0.55)" }}>Half {tlp.half} · Schooner {tlp.schooner}</p>}
-        </div>
+        <p className="shrink-0 text-lg font-semibold" style={{ color: C.brassSoft, fontFamily: "var(--font-display)" }}>{tlp ? tlp.pint : line.price ? `£${line.price}` : "Ask at the bar"}</p>
       </div>
-      <p className="text-sm font-medium" style={{ color: "rgba(243,239,230,0.85)" }}>{beer.style}{extraSweetness(beer) ? ` · ${extraSweetness(beer)}` : ""} · {beer.abv}%{beer.clarity === "Hazy" ? " · Hazy" : ""}</p>
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="text-sm font-medium" style={{ color: "rgba(243,239,230,0.85)" }}>{beer.style}{extraSweetness(beer) ? ` · ${extraSweetness(beer)}` : ""} · {beer.abv}%{beer.clarity === "Hazy" ? " · Hazy" : ""}</p>
+        {tlp && <p className="shrink-0 text-xs" style={{ color: "rgba(243,239,230,0.55)" }}>Half {tlp.half} · Schooner {tlp.schooner}</p>}
+      </div>
       {beer.location && <p className="text-xs" style={{ color: "rgba(243,239,230,0.5)" }}>{beer.location}</p>}
       {beer.notes && <ul className="mt-1 space-y-0.5">{splitNote(beer.notes).map((line, i) => <li key={i} className="flex gap-1.5 text-sm italic" style={{ color: faint }}><span>·</span><span>{line}.</span></li>)}</ul>}
       <div className="mt-1.5">
@@ -1693,7 +1714,7 @@ function TheCurfewCellarApp() {
         const name = `${b.brewery ? b.brewery + " - " : ""}${b.name || ""}`;
         const tlp = priceTriple(l.price);
         const meta = [b.style, b.abv ? b.abv + "%" : "", b.clarity === "Hazy" ? "Hazy" : "", b.location || ""].filter(Boolean).join("  ·  ");
-        const diet = [b.vegan ? "Vegan" : "", b.glutenStatus === "Gluten-free" ? "Gluten-free" : b.glutenStatus === "Low gluten" ? "Low gluten, <20ppm" : ""].filter(Boolean).join("  ·  ");
+        const diet = [b.vegan ? "Vegan" : "", isGlutenFree(b) ? "Gluten-free" : b.glutenStatus === "Low gluten" ? "Low gluten, <20ppm" : ""].filter(Boolean).join("  ·  ");
         const allergenLine = b.allergensVerified ? (b.allergens.length ? `Contains: ${b.allergens.join(", ")}` : "No declared allergens") : "Allergens: please ask at the bar";
         doc.setFont("helvetica", "bold"); doc.setFontSize(9.5);
         const nameLines = doc.splitTextToSize(name, W - 2 * M - 38);
@@ -1832,7 +1853,7 @@ function TheCurfewCellarApp() {
       const beerLine = (l, accentRGB) => {
         const b = beerById[l.beerId]; if (!b) return;
         const name = `${b.brewery ? b.brewery + " - " : ""}${b.name || ""}`;
-        const diet = [b.vegan ? "Vegan" : "", b.glutenStatus === "Gluten-free" ? "Gluten-free" : b.glutenStatus === "Low gluten" ? "Low gluten, <20ppm" : ""].filter(Boolean).join("  ·  ");
+        const diet = [b.vegan ? "Vegan" : "", isGlutenFree(b) ? "Gluten-free" : b.glutenStatus === "Low gluten" ? "Low gluten, <20ppm" : ""].filter(Boolean).join("  ·  ");
         const allergenText = (b.allergensVerified ? (b.allergens.length ? `Contains: ${b.allergens.join(", ")}` : "No declared allergens") : "Allergens: please ask at the bar") + (b.allergensVerified ? "" : "  ·  not staff verified");
         doc.setFont("helvetica", "bold"); doc.setFontSize(9.5);
         const nameLines = doc.splitTextToSize(name, W - 2 * M - 40);
@@ -2667,9 +2688,9 @@ function TheCurfewCellarApp() {
     ].filter((g) => g.items.length);
 
     const renderSlot = (slot, k, urgent) => (
-      <div key={k} className={urgent ? "flex items-center gap-2" : "flex h-full flex-col"}>
+      <div key={k} className={urgent ? "flex items-start gap-2" : "flex h-full flex-col"}>
         {urgent ? (
-          <span className="grid shrink-0 place-items-center rounded-md" style={{ width: 22, height: 22, background: "linear-gradient(180deg, #284D5B 0%, #1E3A46 100%)", color: C.brassSoft, fontFamily: "var(--font-data)", fontSize: 10, fontWeight: 700, border: "1px solid rgba(184,134,43,0.45)", boxShadow: "inset 0 1px 0 rgba(209,164,74,0.28), 0 1px 2px rgba(30, 58, 70,0.35)" }}>{String(PUMP_NUMBER[slot.slot]).padStart(2, "0")}</span>
+          <span className="grid shrink-0 place-items-center rounded-md" style={{ width: 22, height: 22, marginTop: 6, background: "linear-gradient(180deg, #284D5B 0%, #1E3A46 100%)", color: C.brassSoft, fontFamily: "var(--font-data)", fontSize: 10, fontWeight: 700, border: "1px solid rgba(184,134,43,0.45)", boxShadow: "inset 0 1px 0 rgba(209,164,74,0.28), 0 1px 2px rgba(30, 58, 70,0.35)" }}>{String(PUMP_NUMBER[slot.slot]).padStart(2, "0")}</span>
         ) : (
           <p className="mb-0.5 text-xs font-semibold uppercase tracking-wide text-slate-400">{slot.label}</p>
         )}
@@ -2890,7 +2911,7 @@ function TheCurfewCellarApp() {
       const pickRow = (b) => (
         <button key={b.id} onClick={() => pickBeer(b)} className="flex w-full items-center justify-between gap-2 rounded-lg border p-2.5 text-left transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: CAT_ACCENT[b.category] || C.line }}>
           <span className="min-w-0">
-            <span className="block truncate text-sm font-normal" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{b.brewery && <span className="font-semibold" style={{ color: C.ink }}>{b.brewery}</span>} {b.name}</span>
+            <span className="block truncate text-sm font-normal" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{(() => { const t = splitTitle(b.brewery, b.name); return <>{t.lead && <span className="font-semibold" style={{ color: C.ink }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()}</span>
             <span className="block truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[b.style || "", b.abv ? `${b.abv}%` : "", extraSweetness(b)].filter(Boolean).join("  ·  ")}</span>
             <span className="block truncate text-xs text-slate-400">{b.location || ""}</span>
           </span>
@@ -3021,9 +3042,9 @@ function TheCurfewCellarApp() {
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0 flex-1">
               <button onClick={() => setLibraryOpenId(b.id)} className="block w-full min-w-0 rounded-lg text-left transition focus:outline-none focus:ring-2 focus:ring-amber-300">
-                <p className="truncate text-sm font-normal" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{b.brewery && <span className="font-semibold" style={{ color: C.ink }}>{b.brewery}</span>} {b.name} {!b.allergensVerified && <AlertTriangle size={13} className="inline shrink-0 text-amber-500" />}</p>
+                <p className="truncate text-sm font-normal" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{(() => { const t = splitTitle(b.brewery, b.name); return <>{t.lead && <span className="font-semibold" style={{ color: C.ink }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()} {!b.allergensVerified && <AlertTriangle size={13} className="inline shrink-0 text-amber-500" />}</p>
                 <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[b.style || "", b.abv ? `${b.abv}%` : "", extraSweetness(b)].filter(Boolean).join("  ·  ")}</p>
-                <p className="truncate text-xs text-slate-400">{b.location || ""}{latestPrice(b) ? ` · Previous: £${latestPrice(b)}` : ""}{latestSupplier(b) ? ` · from ${latestSupplier(b)}` : ""}</p>
+                <p className="truncate text-xs text-slate-400">{[b.location || "", latestPrice(b) ? `Last £${latestPrice(b)}` : ""].filter(Boolean).join("  ·  ")}</p>
               </button>
               <div className="mt-1 flex flex-wrap items-center gap-1" style={{ minHeight: 22 }}><DietaryMini beer={b} /></div>
             </div>
@@ -3881,7 +3902,7 @@ function TheCurfewCellarApp() {
                           <span className="min-w-0">
                             <span className="flex items-center gap-1.5">
                               <CatDot category={beer.category} />
-                              <span className="font-normal leading-snug" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer.brewery && <span className="font-semibold" style={{ color: C.ink }}>{beer.brewery}</span>} {beer.name}</span>
+                              <span className="font-normal leading-snug" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{(() => { const t = splitTitle(beer.brewery, beer.name); return <>{t.lead && <span className="font-semibold" style={{ color: C.ink }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()}</span>
                             </span>
                             <span className="block truncate text-sm font-medium text-slate-600">{[beer.style || "", beer.abv ? `${beer.abv}%` : ""].filter(Boolean).join("  ·  ")}</span>
                             <span className="block truncate text-xs text-slate-400">{beer.location || ""}</span>
@@ -3963,7 +3984,7 @@ function TheCurfewCellarApp() {
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <CatDot category={beer.category} />
-                <h2 className="text-xl font-normal leading-snug" style={{ color: C.cream, fontFamily: "var(--font-display)", letterSpacing: "0.01em" }}>{beer.brewery && <span className="font-bold" style={{ color: C.cream }}>{beer.brewery}</span>} {beer.name}</h2>
+                <h2 className="text-xl font-normal leading-snug" style={{ color: C.cream, fontFamily: "var(--font-display)", letterSpacing: "0.01em" }}>{(() => { const t = splitTitle(beer.brewery, beer.name); return <>{t.lead && <span className="font-bold" style={{ color: C.cream }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()}</h2>
               </div>
               {beer.location ? <p className="mt-1 text-xs font-semibold uppercase" style={{ color: C.brassSoft, letterSpacing: "0.14em", fontFamily: "var(--font-data)" }}>{beer.location}</p> : null}
             </div>
@@ -4260,12 +4281,22 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
           <div className="cc-sheet absolute inset-x-0 bottom-0 rounded-t-2xl bg-white p-4" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 16px)" }}>
             <div className="mx-auto mb-3 h-1.5 w-10 rounded-full" style={{ background: C.line }} />
             <div className="grid grid-cols-3 gap-2.5">
-              {[["guide", "How to Use", Compass], ["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["lines", "Line Cleaning", Droplet], ...(TENANT_FEATURES.cellarStats ? [["stats", "Cellar Stats", BarChart3]] : []), ["notify", "Notifications", Bell], ...(canEdit ? [["backup", "Backup & Restore", Database]] : [])].map(([id, label, Icon]) => (
-                <button key={id} onClick={() => { setMenuOpen(false); go(id); }} className="flex flex-col items-center gap-1.5 rounded-xl border p-3 transition active:scale-95" style={{ borderColor: C.line, color: C.ink }}>
-                  <Icon size={20} style={{ color: C.brass }} />
-                  <span className="text-center text-xs font-medium leading-tight">{label}</span>
-                </button>
-              ))}
+              {(() => {
+                // Seven items in a three-column grid left one tile stranded beside two empty
+                // cells, and the two longest labels wrapped while the rest didn't, so rows sat
+                // at different heights. A fixed tile height evens the rows out, and a lone
+                // trailing tile stretches across the row rather than leaving a gap.
+                const menuItems = [["guide", "How to Use", Compass], ["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["lines", "Line Cleaning", Droplet], ...(TENANT_FEATURES.cellarStats ? [["stats", "Cellar Stats", BarChart3]] : []), ["notify", "Notifications", Bell], ...(canEdit ? [["backup", "Backup & Restore", Database]] : [])];
+                return menuItems.map(([id, label, Icon], i) => {
+                  const lone = i === menuItems.length - 1 && menuItems.length % 3 === 1;
+                  return (
+                    <button key={id} onClick={() => { setMenuOpen(false); go(id); }} className={`flex flex-col items-center justify-center gap-1.5 rounded-xl border p-3 transition active:scale-95${lone ? " col-span-3" : ""}`} style={{ borderColor: C.line, color: C.ink, minHeight: 84 }}>
+                      <Icon size={20} style={{ color: C.brass }} />
+                      <span className="text-center text-xs font-medium leading-tight">{label}</span>
+                    </button>
+                  );
+                });
+              })()}
             </div>
           </div>
         </div>
