@@ -449,6 +449,30 @@ const findDuplicateCandidates = (library) => {
   });
   return pairs;
 };
+// A brewery has exactly one real location, unlike its ABV or style, which genuinely differ
+// beer to beer. More than one distinct location on file for the same brewery (fuzzy-matched
+// the same way duplicate beers are) is always a data error, never a legitimate difference, so
+// unlike findDuplicateCandidates this doesn't need a second signal to avoid false positives.
+// Groups by whichever location is most common, so the option Kyle is most likely to want to
+// keep is offered first.
+const findLocationClashes = (library) => {
+  const groups = {};
+  library.forEach((b) => {
+    const loc = (b.location || "").trim();
+    if (!loc) return;
+    const key = breweryCore(b.brewery);
+    if (!key) return;
+    const g = (groups[key] = groups[key] || { brewery: b.brewery, byLoc: new Map() });
+    if (!g.brewery && b.brewery) g.brewery = b.brewery;
+    const lk = loc.toLowerCase();
+    const entry = g.byLoc.get(lk) || { loc, beerIds: [] };
+    entry.beerIds.push(b.id);
+    g.byLoc.set(lk, entry);
+  });
+  return Object.values(groups)
+    .filter((g) => g.byLoc.size > 1)
+    .map((g) => ({ brewery: g.brewery, options: [...g.byLoc.values()].sort((a, b) => b.beerIds.length - a.beerIds.length) }));
+};
 // Both autofill paths (Add Stock and Edit beer details) share this. Kept in one place so the
 // two can never drift apart. Wrong details cost real time behind the bar, so the model is told
 // to actually look things up and cross-check rather than answer from memory, and to admit when
@@ -1223,6 +1247,7 @@ function TheCurfewCellarApp() {
   const [duplicateResults, setDuplicateResults] = useState(null);
   const [combineCandidate, setCombineCandidate] = useState(null);
   const [combineKeepId, setCombineKeepId] = useState(null);
+  const [clashResults, setClashResults] = useState(null);
   const [newDistributor, setNewDistributor] = useState("");
   const [historyOpen, setHistoryOpen] = useState({});
   const [confirmDupe, setConfirmDupe] = useState(false);
@@ -2447,6 +2472,13 @@ function TheCurfewCellarApp() {
     setCombineKeepId(null);
     showToast("Combined. Stock history moved across.");
   };
+  const resolveLocationClash = (allBeerIds, chosenLocation) => {
+    if (!allBeerIds || !allBeerIds.length || !chosenLocation) return;
+    snapshotUndo("Location fixed");
+    setLibrary((lib) => lib.map((b) => (allBeerIds.includes(b.id) ? { ...b, location: chosenLocation } : b)));
+    setClashResults(null);
+    showToast(`Updated to ${chosenLocation} across all matching beers.`);
+  };
   const addDistributor = (name) => {
     const clean = (name || "").trim();
     if (!clean) return;
@@ -3163,6 +3195,40 @@ function TheCurfewCellarApp() {
                             <button onClick={() => { setCombineCandidate(pair); setCombineKeepId(pair[0].id); }} className="mt-1.5 rounded-md px-2.5 py-1 text-xs font-semibold text-white hover:opacity-90" style={{ background: C.ink }}>Compare &amp; combine</button>
                           </div>
                         ))}
+                      </div>
+                    )
+                  )}
+                </div>
+
+                <div className="rounded-xl border p-3.5" style={{ borderColor: C.line }}>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <h2 className="text-sm font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Brewery details clash</h2>
+                      <p className="mt-0.5 text-xs text-slate-500">Looks for the same brewery with different locations on file, like Two By Two showing as both Wallsend and Byker.</p>
+                    </div>
+                    <button onClick={() => setClashResults(findLocationClashes(library))} className="shrink-0 rounded-lg border px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>Scan</button>
+                  </div>
+                  {clashResults !== null && (
+                    clashResults.length === 0 ? (
+                      <p className="mt-2.5 text-xs text-slate-400">No clashes found.</p>
+                    ) : (
+                      <div className="mt-2.5 space-y-2">
+                        {clashResults.map((c, i) => {
+                          const allIds = c.options.flatMap((o) => o.beerIds);
+                          return (
+                            <div key={i} className="rounded-lg border p-2.5" style={{ borderColor: C.line }}>
+                              <p className="text-xs font-semibold" style={{ color: C.ink }}>{c.brewery || "?"}</p>
+                              <div className="mt-1.5 space-y-1">
+                                {c.options.map((o) => (
+                                  <button key={o.loc} onClick={() => resolveLocationClash(allIds, o.loc)} className="flex w-full items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-left text-xs transition hover:bg-slate-50" style={{ borderColor: C.line }}>
+                                    <span className="text-slate-700">{o.loc}</span>
+                                    <span className="shrink-0 text-slate-400">{o.beerIds.length} beer{o.beerIds.length === 1 ? "" : "s"} · use for all</span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     )
                   )}
