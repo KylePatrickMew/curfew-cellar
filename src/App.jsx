@@ -1194,6 +1194,7 @@ function TheCurfewCellarApp() {
   const toggleSection = (k) => setUiPrefs((p) => ({ ...p, [k]: !p[k] }));
   const [loading, setLoading] = useState(false);
   const [librarySearch, setLibrarySearch] = useState("");
+  const [cellarSearch, setCellarSearch] = useState("");
   const [duplicateResults, setDuplicateResults] = useState(null);
   const [combineCandidate, setCombineCandidate] = useState(null);
   const [combineKeepId, setCombineKeepId] = useState(null);
@@ -1261,23 +1262,32 @@ function TheCurfewCellarApp() {
 
   // "Needs attention": things a publican should see at a glance, computed from data the app
   // already tracks. Shared by the header notification bell and its dropdown.
+  // Everything the bell can raise, each with a triage priority (lower = more urgent). Without
+  // this the list came out in line-iteration order, so a passed best-before on a cask you're
+  // actively serving could sit below a dozen slower-burn notices.
+  // Allergen checks are deliberately scoped to what's servable now (on) or about to be
+  // (tapped), not all live stock. An unverified cask in the cellar is housekeeping, not a live
+  // risk, and it's already surfaced three other ways: the Verify button in the swap picker when
+  // you choose what goes on, the same button in the card modal, and the amber icon on its
+  // Library row. Warning on every line instead just buried the urgent ones.
   const attentionItems = useMemo(() => {
     const out = [];
     lines.filter((l) => l.status !== "off").forEach((l) => {
       const beer = beerById[l.beerId]; if (!beer) return;
       const nm = `${beer.brewery ? beer.brewery + " - " : ""}${beer.name}`;
+      const servable = l.status === "on" || l.status === "tapped";
       const bb = bbStatus(l);
-      if (bb && bb.level === "past") out.push({ id: l.id, warn: true, text: `${nm}: best before has passed` });
-      else if (bb && bb.level === "soon") out.push({ id: l.id, warn: true, text: `${nm}: best before ${daysUntil(l.bestBefore) === 0 ? "today" : `in ${daysUntil(l.bestBefore)}d`}` });
+      if (bb && bb.level === "past") out.push({ pri: 1, id: l.id, warn: true, text: `${nm}: best before has passed` });
+      else if (bb && bb.level === "soon") out.push({ pri: 4, id: l.id, warn: true, text: `${nm}: best before ${daysUntil(l.bestBefore) === 0 ? "today" : `in ${daysUntil(l.bestBefore)}d`}` });
       const f = freshness(l);
-      if (l.status === "on" && f && f.level === "check") out.push({ id: l.id, warn: false, text: `${nm}: on for ${daysOn(l)} days, check quality` });
-      if (l.status === "vented" && l.dates.vented && dayDiff(l.dates.vented, new Date().toISOString()) >= 2) out.push({ id: l.id, warn: false, text: `${nm}: vented ${dayDiff(l.dates.vented, new Date().toISOString())}d ago, ready to tap` });
-      if (!beer.allergensVerified) out.push({ id: l.id, warn: true, text: `${nm}: allergens not verified` });
-      else if (beer.allergens.length === 0) out.push({ id: l.id, warn: true, text: `${nm}: verified with no allergens listed, worth double-checking` });
+      if (l.status === "on" && f && f.level === "check") out.push({ pri: 6, id: l.id, warn: false, text: `${nm}: on for ${daysOn(l)} days, check quality` });
+      if (l.status === "vented" && l.dates.vented && dayDiff(l.dates.vented, new Date().toISOString()) >= 2) out.push({ pri: 5, id: l.id, warn: false, text: `${nm}: vented ${dayDiff(l.dates.vented, new Date().toISOString())}d ago, ready to tap` });
+      if (servable && !beer.allergensVerified) out.push({ pri: 2, id: l.id, warn: true, text: `${nm}: allergens not verified` });
+      else if (servable && beer.allergens.length === 0) out.push({ pri: 3, id: l.id, warn: true, text: `${nm}: verified with no allergens listed, worth double-checking` });
     });
     const backupAge = prefs.lastBackup ? dayDiff(prefs.lastBackup, new Date().toISOString()) : null;
-    if (lines.length > 3 && (backupAge === null || backupAge > 30)) out.push({ id: null, warn: false, backup: true, text: backupAge === null ? "No backup saved yet. Takes ten seconds" : `Last backup ${backupAge} days ago. Worth a fresh one` });
-    return out;
+    if (lines.length > 3 && (backupAge === null || backupAge > 30)) out.push({ pri: 7, id: null, warn: false, backup: true, text: backupAge === null ? "No backup saved yet. Takes ten seconds" : `Last backup ${backupAge} days ago. Worth a fresh one` });
+    return out.sort((a, b) => a.pri - b.pri);
   }, [lines, beerById, prefs.lastBackup]);
 
   // ---- Push notifications (managers get a ping when a beer goes on or finishes) ----
@@ -2401,7 +2411,7 @@ function TheCurfewCellarApp() {
   const pickBeer = (beer) => { loadBeerIntoForm(beer); setFillNote({ type: "ok", text: `Loaded "${beer.name}" from your library. Set the best before, then confirm allergens.` }); setAddMode("form"); };
   const startNewBeer = () => { setForm(emptyForm); setFillNote(null); setAddMode("form"); };
   const addLineOfBeer = (beer) => { loadBeerIntoForm(beer); setFillNote({ type: "ok", text: `Loaded "${beer.name}" from your library.` }); setAddMode("form"); setView("add"); };
-  const go = (v) => { if (v === "add") { setAddMode("pick"); setAddPickSearch(""); setForm(emptyForm); setFillNote(null); } if (v === "empties") setUiPrefs((p) => ({ ...p, empties: {} })); setView(v); if (scrollAreaRef.current) scrollAreaRef.current.scrollTo({ top: 0, behavior: "smooth" }); };
+  const go = (v) => { if (v === "add") { setAddMode("pick"); setAddPickSearch(""); setForm(emptyForm); setFillNote(null); } if (v === "empties") setUiPrefs((p) => ({ ...p, empties: {} })); setCellarSearch(""); setView(v); if (scrollAreaRef.current) scrollAreaRef.current.scrollTo({ top: 0, behavior: "smooth" }); };
 
   const fileToBase64 = (file) => new Promise((resolve, reject) => {
     const r = new FileReader();
@@ -2600,7 +2610,6 @@ function TheCurfewCellarApp() {
       { label: "Bitter", line: rBitter[0] || null },
       { label: "Stout", line: rStout[0] || null },
     ];
-    const rackedFilled = rackedSlots.filter((s) => s.line).length;
     const placed = new Set(rackedSlots.map((s) => s.line && s.line.id).filter(Boolean));
     const rackedOverflow = rackedCask.filter((l) => !placed.has(l.id)).sort(byBB);
 
@@ -2643,8 +2652,57 @@ function TheCurfewCellarApp() {
         </div>
       );
     }
+    const q = cellarSearch.trim().toLowerCase();
+    const matchLine = (l) => {
+      const b = beerById[l.beerId];
+      if (!b) return false;
+      return [b.name, b.brewery, b.style, b.category, b.location].some((x) => (x || "").toLowerCase().includes(q));
+    };
+    const searchHits = q ? live.filter(matchLine) : [];
+    const bySlot = (a, b) => (PUMP_NUMBER[a.slot] || 99) - (PUMP_NUMBER[b.slot] || 99);
+    const searchGroups = [
+      { label: "Pouring", context: "on", items: searchHits.filter((l) => l.status === "on").sort(bySlot) },
+      { label: "Racked", context: "racked", items: searchHits.filter((l) => l.status === "racked" || l.status === "vented" || l.status === "tapped").sort(byBB) },
+      { label: "In Store", context: "store", items: searchHits.filter((l) => l.status === "in_cellar").sort(byBB) },
+    ].filter((g) => g.items.length);
+
+    const searchBox = (
+      <div className="relative">
+        <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <input value={cellarSearch} onChange={(e) => setCellarSearch(e.target.value)} placeholder="Search the cellar…" className="w-full rounded-xl border bg-white py-2.5 pl-10 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
+        {cellarSearch && <button onClick={() => setCellarSearch("")} aria-label="Clear search" className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 hover:bg-slate-100"><X size={16} /></button>}
+      </div>
+    );
+
+    if (q) {
+      return (
+        <div className="space-y-4">
+          {searchBox}
+          {searchHits.length === 0 ? (
+            <div className="rounded-xl border border-dashed bg-white p-8 text-center" style={{ borderColor: C.line }}>
+              <p className="font-medium" style={{ color: C.ink }}>Nothing in the cellar matches "{cellarSearch}"</p>
+              <p className="mt-1 text-sm text-slate-500">This searches what's pouring, racked and in store. Finished lines live in Empties, and everything you've ever stocked is in the Library.</p>
+            </div>
+          ) : (
+            <>
+              <p className="text-xs text-slate-500">{searchHits.length} match{searchHits.length === 1 ? "" : "es"}</p>
+              {searchGroups.map((g) => (
+                <section key={g.label}>
+                  <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>{g.label} <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {g.items.length}</span></h2>
+                  <div className="mt-2 space-y-1.5">
+                    {g.items.map((l) => <LineRow key={l.id} line={l} context={g.context} beerById={beerById} onOpen={setOpenId} />)}
+                  </div>
+                </section>
+              ))}
+            </>
+          )}
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-4">
+        {searchBox}
         <section>
           <button onClick={() => toggleSection("on")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
             <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Pouring <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {onFilled}/10</span></h2>
@@ -2669,7 +2727,7 @@ function TheCurfewCellarApp() {
         </section>
         <section className="border-t pt-4" style={{ borderColor: C.line }}>
           <button onClick={() => toggleSection("racked")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
-            <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Racked <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {rackedFilled}/6</span></h2>
+            <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Racked <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {rackedCask.length}</span></h2>
             <ChevronDown size={20} className="text-slate-400" style={{ transform: uiPrefs.racked ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
           </button>
           {uiPrefs.racked && (
