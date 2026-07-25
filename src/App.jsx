@@ -1981,7 +1981,7 @@ function TheCurfewCellarApp() {
     const now = new Date().toISOString();
     lastUpdatedRef.current = now;
     setLastUpdated(now);
-  }, [lines, library, hydrated]);
+  }, [lines, library, lineCare, hydrated]);
 
   // Which overlay is topmost, in the order they actually nest in this app (opening one always
   // closes whatever was open before it, verified: Edit details closes CardModal in the same
