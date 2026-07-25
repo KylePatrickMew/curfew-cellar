@@ -1238,6 +1238,16 @@ function TheCurfewCellarApp() {
   // Last-cleaned timestamp per pump slot, e.g. { cask0: "2026-07-20T..." }. Synced like any
   // other cellar data, since a clean done on one phone must be visible on the others.
   const [lineCare, setLineCare] = useState({});
+  // ---- Line cleaning ----
+  // A line with no recorded clean counts as due: better to prompt once for a line you've
+  // actually cleaned than to stay quiet about one that genuinely hasn't been.
+  const lineCleanInfo = (slot) => {
+    const last = lineCare[slot];
+    if (!last) return { never: true, days: null, overdue: true };
+    const days = dayDiff(last, new Date().toISOString());
+    return { never: false, days, overdue: days >= PUB_CONFIG.lineCleanDays };
+  };
+  const linesDueClean = () => ALL_PUMPS.filter((p) => lineCleanInfo(p).overdue).length;
   const [invoiceItems, setInvoiceItems] = useState(null);
   const [invoiceOwner, setInvoiceOwner] = useState("");
   const labelRef = useRef(null);
@@ -2578,16 +2588,6 @@ function TheCurfewCellarApp() {
   const snapshotUndo = (label) => { setUndoState({ lines, library, lineCare, label }); if (undoTimer.current) clearTimeout(undoTimer.current); undoTimer.current = setTimeout(() => setUndoState(null), 7000); };
   const doUndo = () => { if (!undoState) return; setLines(undoState.lines); if (undoState.library) setLibrary(undoState.library); if (undoState.lineCare) setLineCare(undoState.lineCare); setUndoState(null); if (undoTimer.current) clearTimeout(undoTimer.current); };
 
-  // ---- Line cleaning ----
-  // A line with no recorded clean counts as due: better to prompt once for a line you've
-  // actually cleaned than to stay quiet about one that genuinely hasn't been.
-  const lineCleanInfo = (slot) => {
-    const last = lineCare[slot];
-    if (!last) return { never: true, days: null, overdue: true };
-    const days = dayDiff(last, new Date().toISOString());
-    return { never: false, days, overdue: days >= PUB_CONFIG.lineCleanDays };
-  };
-  const linesDueClean = () => ALL_PUMPS.filter((p) => lineCleanInfo(p).overdue).length;
   const markLineCleaned = (slot) => {
     snapshotUndo("Line cleaned");
     setLineCare((m) => ({ ...m, [slot]: new Date().toISOString() }));
