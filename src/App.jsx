@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   Plus, ClipboardList, BookOpen, Beer, Sparkles, Check, CheckCircle2,
-  AlertTriangle, Clock, X, ArrowRight, Trash2, Search, Loader2, Bell, Calendar, History, ChevronDown, Database, Download, Upload, Copy, QrCode, Camera, FileText, Package, MoreHorizontal, BarChart3, Pencil, Printer, RotateCcw, Compass, Lock, Share,
+  Droplet, AlertTriangle, Clock, X, ArrowRight, Trash2, Search, Loader2, Bell, Calendar, History, ChevronDown, Database, Download, Upload, Copy, QrCode, Camera, FileText, Package, MoreHorizontal, BarChart3, Pencil, Printer, RotateCcw, Compass, Lock, Share,
 } from "lucide-react";
 
 // ---------- Brand ----------
@@ -193,11 +193,15 @@ const PUB_CONFIG = {
   pumpNumber: { cask0: 1, cask1: 2, cask2: 3, cask3: 4, keg0: 5, keg1: 6, keg2: 7, cider0: 8, cider1: 9, cider2: 10 },
   // Racked IPA/Pale slots fill by ABV, strongest two go to IPA. Standing decision.
   caskPrefPumps: (cat) => (cat === "IPA" || cat === "Pale") ? ["cask0", "cask1"] : cat === "Bitter" ? ["cask2"] : cat === "Stout/Porter" ? ["cask3"] : [],
+  lineCleanDays: 7, // how often lines are due a clean; seven days is the usual cellar standard
 };
 const PUMPS = PUB_CONFIG.pumps;
 const PUMP_LABELS = PUB_CONFIG.pumpLabels;
 const PUMP_NUMBER = PUB_CONFIG.pumpNumber;
 const caskPrefPumps = PUB_CONFIG.caskPrefPumps;
+// Every pump in bar order, for anything that works across the whole bar rather than one
+// drink type (line cleaning being the obvious case: a line is a line).
+const ALL_PUMPS = [...PUMPS.cask, ...PUMPS.keg, ...PUMPS.cider];
 // Features built with the eventual sellable, multi-pub product in mind, not everything here is
 // right for The Curfew specifically. Each one defaults to whatever's correct for this pub; a
 // future paying tenant would flip theirs on. This only gates the navigation entry points below,
@@ -319,7 +323,7 @@ const GUIDE_SECTIONS = [
 // the system font. The browser dedupes the duplicate @import.
 const FontBoot = () => <style>{`@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=DM+Sans:wght@500;600;700;800&display=swap');
 :root { --font-data: 'Archivo', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; --font-display: 'Archivo', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; --font-brand: 'DM Sans', 'Archivo', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }`}</style>;
-const VIEW_TITLES = { cellar: "Cellar", add: "Add Stock", library: "Library", allergens: "Allergen Sheet", stock: "Stock List", empties: "Empties to Return", stats: "Cellar Stats", guide: "How to Use", notify: "Notifications", backup: "Backup & Restore" };
+const VIEW_TITLES = { cellar: "Cellar", add: "Add Stock", library: "Library", allergens: "Allergen Sheet", stock: "Stock List", empties: "Empties to Return", lines: "Line Cleaning", stats: "Cellar Stats", guide: "How to Use", notify: "Notifications", backup: "Backup & Restore" };
 const SIZE_OPTIONS = ["Bag-in-box 20L"];
 const FRESH_LIMIT = 4; // days on a cask before a quality check is worth a look
 const BB_SOON = 2;     // days before best-before to start flagging
@@ -1231,6 +1235,9 @@ function TheCurfewCellarApp() {
   const [scanProgress, setScanProgress] = useState(null);
   const [batchSource, setBatchSource] = useState("invoice");
   const [distributors, setDistributors] = useState(seedDistributors);
+  // Last-cleaned timestamp per pump slot, e.g. { cask0: "2026-07-20T..." }. Synced like any
+  // other cellar data, since a clean done on one phone must be visible on the others.
+  const [lineCare, setLineCare] = useState({});
   const [invoiceItems, setInvoiceItems] = useState(null);
   const [invoiceOwner, setInvoiceOwner] = useState("");
   const labelRef = useRef(null);
@@ -1285,10 +1292,12 @@ function TheCurfewCellarApp() {
       if (servable && !beer.allergensVerified) out.push({ pri: 2, id: l.id, warn: true, text: `${nm}: allergens not verified` });
       else if (servable && beer.allergens.length === 0) out.push({ pri: 3, id: l.id, warn: true, text: `${nm}: verified with no allergens listed, worth double-checking` });
     });
+    const dueClean = linesDueClean();
+    if (dueClean) out.push({ pri: 6, id: null, lineCare: true, warn: false, text: `${dueClean} line${dueClean === 1 ? "" : "s"} due a clean` });
     const backupAge = prefs.lastBackup ? dayDiff(prefs.lastBackup, new Date().toISOString()) : null;
     if (lines.length > 3 && (backupAge === null || backupAge > 30)) out.push({ pri: 7, id: null, warn: false, backup: true, text: backupAge === null ? "No backup saved yet. Takes ten seconds" : `Last backup ${backupAge} days ago. Worth a fresh one` });
     return out.sort((a, b) => a.pri - b.pri);
-  }, [lines, beerById, prefs.lastBackup]);
+  }, [lines, beerById, prefs.lastBackup, lineCare]);
 
   // ---- Push notifications (managers get a ping when a beer goes on or finishes) ----
   const [pushState, setPushState] = useState("checking"); // checking | unsupported | need-install | blocked | off | on
@@ -1379,6 +1388,7 @@ function TheCurfewCellarApp() {
     if (Array.isArray(data.library)) setLibrary(data.library);
     if (Array.isArray(data.lines)) { const lib = Array.isArray(data.library) ? data.library : library; setLines(assignPumps(data.lines.map((l) => l.status === "en_route" ? { ...l, status: "in_cellar", dates: { ...l.dates, delivered: l.dates && l.dates.delivered ? l.dates.delivered : (l.dates && l.dates.ordered) || new Date().toISOString() } } : l), catFromLib(lib))); }
     if (Array.isArray(data.distributors)) setDistributors(data.distributors);
+    if (data.lineCare && typeof data.lineCare === "object") setLineCare(data.lineCare);
     if (data.prefs && data.prefs.lastBackup) setPrefs((p) => ({ ...p, lastBackup: data.prefs.lastBackup }));
     if (data.lastUpdated) { lastUpdatedRef.current = data.lastUpdated; setLastUpdated(data.lastUpdated); }
   };
@@ -1879,21 +1889,21 @@ function TheCurfewCellarApp() {
       (async () => {
         saveInFlight.current = true;
         try {
-          const r = await store.set(STORE_KEY, JSON.stringify({ library, lines, distributors, prefs, lastUpdated }), false);
+          const r = await store.set(STORE_KEY, JSON.stringify({ library, lines, distributors, lineCare, prefs, lastUpdated }), false);
           if (r && r.conflict) { applyData(migrate(r.remoteValue), true); showToast("Another phone saved changes just before yours. Showing the latest, please redo your last change."); }
         } catch (e) { /* ignore */ }
         finally { saveInFlight.current = false; }
       })();
     }, 500);
     return () => { if (saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = null; } };
-  }, [library, lines, distributors, prefs, lastUpdated, hydrated, storageOk, authed, cloudReady]);
+  }, [library, lines, distributors, lineCare, prefs, lastUpdated, hydrated, storageOk, authed, cloudReady]);
 
   // iOS can suspend or kill a backgrounded tab before the 500ms debounce above fires,
   // so a tap made right before switching apps could be lost. Keep the latest snapshot
   // in a ref and force an immediate (best-effort; no delivery guarantee) write the
   // moment the page is hidden or closed, if a save was still pending.
   const pendingSnapshot = useRef(null);
-  useEffect(() => { pendingSnapshot.current = { library, lines, distributors, prefs, lastUpdated }; }, [library, lines, distributors, prefs, lastUpdated]);
+  useEffect(() => { pendingSnapshot.current = { library, lines, distributors, lineCare, prefs, lastUpdated }; }, [library, lines, distributors, lineCare, prefs, lastUpdated]);
   useEffect(() => {
     if (typeof document === "undefined") return;
     const flush = () => {
@@ -2018,14 +2028,14 @@ function TheCurfewCellarApp() {
     m.setAttribute("content", "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover");
   }, []);
 
-  const exportData = () => JSON.stringify({ app: "thecurfewcellar", version: 1, exportedAt: new Date().toISOString(), library, lines, distributors, prefs }, null, 2);
+  const exportData = () => JSON.stringify({ app: "thecurfewcellar", version: 1, exportedAt: new Date().toISOString(), library, lines, distributors, lineCare, prefs }, null, 2);
   const noteBackupTaken = () => {
     const stamp = new Date().toISOString();
     const nextPrefs = { ...prefs, lastBackup: stamp };
     setPrefs(nextPrefs);
     if (saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = null; }
     if (store && storageOk === true && (!cloudMode || (authed && cloudReady))) {
-      (async () => { try { await store.set(STORE_KEY, JSON.stringify({ library, lines, distributors, prefs: nextPrefs, lastUpdated }), false); } catch (e) { /* ignore */ } })();
+      (async () => { try { await store.set(STORE_KEY, JSON.stringify({ library, lines, distributors, lineCare, prefs: nextPrefs, lastUpdated }), false); } catch (e) { /* ignore */ } })();
     }
   };
   const copyBackup = async () => {
@@ -2048,7 +2058,7 @@ function TheCurfewCellarApp() {
     try {
       const data = JSON.parse(text);
       if (!Array.isArray(data.library) || !Array.isArray(data.lines)) throw new Error("shape");
-      setPendingImport({ library: data.library, lines: data.lines, distributors: data.distributors, prefs: data.prefs });
+      setPendingImport({ library: data.library, lines: data.lines, distributors: data.distributors, lineCare: data.lineCare, prefs: data.prefs });
       setBackupMsg({ type: "ask", text: `Found ${data.library.length} saved items and ${data.lines.length} cellar lines. Importing replaces everything currently in the app.` });
     } catch (e) { setPendingImport(null); setBackupMsg({ type: "warn", text: "That doesn't look like a valid Curfew backup." }); }
   };
@@ -2065,6 +2075,7 @@ function TheCurfewCellarApp() {
     const cleaned = normaliseData({ library: data.library, lines: data.lines });
     setLibrary(cleaned.library); setLines(assignPumps(cleaned.lines, catFromLib(cleaned.library)));
     if (Array.isArray(data.distributors)) setDistributors(data.distributors);
+    if (data.lineCare && typeof data.lineCare === "object") setLineCare(data.lineCare);
     if (data.prefs && typeof data.prefs === "object" && data.prefs.lastBackup) setPrefs((p) => ({ ...p, lastBackup: data.prefs.lastBackup }));
     setOpenId(null); setHistoryOpen({}); setView("cellar");
   };
@@ -2294,7 +2305,19 @@ function TheCurfewCellarApp() {
   // live lines. Deliberately does NOT touch finished ("off") lines: those casks have already
   // been sold and returned, and rewriting their price would retroactively falsify what was
   // actually charged. Past prices are preserved in each beer's history entries.
-  const updateBeerPrice = (id, v) => { setLibrary((lib) => lib.map((b) => (b.id === id ? { ...b, price: v } : b))); setLines((ls) => ls.map((c) => (c.beerId === id && c.status !== "off" ? { ...c, price: v } : c))); };
+  // A price correction has to land in the beer's history too, not just on the beer and its live
+  // lines. latestPrice() reads the most recent history entry, and that drives the carried-forward
+  // price on the next delivery, the Library's "Previous: £x" line and the price history table.
+  // Updating only beer.price left all three showing the pre-correction figure indefinitely.
+  const updateBeerPrice = (id, v) => {
+    setLibrary((lib) => lib.map((b) => {
+      if (b.id !== id) return b;
+      const h = b.history || [];
+      const history = h.length ? [...h.slice(0, -1), { ...h[h.length - 1], price: v }] : h;
+      return { ...b, price: v, history };
+    }));
+    setLines((ls) => ls.map((c) => (c.beerId === id && c.status !== "off" ? { ...c, price: v } : c)));
+  };
   const toggleBeerAllergen = (id, a) => setLibrary((lib) => lib.map((b) => (b.id === id ? { ...b, allergens: b.allergens.includes(a) ? b.allergens.filter((x) => x !== a) : [...b.allergens, a] } : b)));
   const autoFillBeer = async (beer) => {
     if (!beer.name || !beer.name.trim()) { setEditNote({ type: "warn", text: "Add a name first." }); return; }
@@ -2552,8 +2575,30 @@ function TheCurfewCellarApp() {
     chosen.forEach((x) => { if ((x.caskOwner || "").trim()) addDistributor(x.caskOwner.trim()); });
     setInvoiceItems(null); setInvoiceOwner(""); setAddMode("pick"); setFillNote(null); setLibrarySearch(""); setView("cellar");
   };
-  const snapshotUndo = (label) => { setUndoState({ lines, library, label }); if (undoTimer.current) clearTimeout(undoTimer.current); undoTimer.current = setTimeout(() => setUndoState(null), 7000); };
-  const doUndo = () => { if (!undoState) return; setLines(undoState.lines); if (undoState.library) setLibrary(undoState.library); setUndoState(null); if (undoTimer.current) clearTimeout(undoTimer.current); };
+  const snapshotUndo = (label) => { setUndoState({ lines, library, lineCare, label }); if (undoTimer.current) clearTimeout(undoTimer.current); undoTimer.current = setTimeout(() => setUndoState(null), 7000); };
+  const doUndo = () => { if (!undoState) return; setLines(undoState.lines); if (undoState.library) setLibrary(undoState.library); if (undoState.lineCare) setLineCare(undoState.lineCare); setUndoState(null); if (undoTimer.current) clearTimeout(undoTimer.current); };
+
+  // ---- Line cleaning ----
+  // A line with no recorded clean counts as due: better to prompt once for a line you've
+  // actually cleaned than to stay quiet about one that genuinely hasn't been.
+  const lineCleanInfo = (slot) => {
+    const last = lineCare[slot];
+    if (!last) return { never: true, days: null, overdue: true };
+    const days = dayDiff(last, new Date().toISOString());
+    return { never: false, days, overdue: days >= PUB_CONFIG.lineCleanDays };
+  };
+  const linesDueClean = () => ALL_PUMPS.filter((p) => lineCleanInfo(p).overdue).length;
+  const markLineCleaned = (slot) => {
+    snapshotUndo("Line cleaned");
+    setLineCare((m) => ({ ...m, [slot]: new Date().toISOString() }));
+    showToast(`${PUMP_LABELS[slot]} line marked cleaned.`);
+  };
+  const markAllLinesCleaned = () => {
+    snapshotUndo("All lines cleaned");
+    const now = new Date().toISOString();
+    setLineCare(Object.fromEntries(ALL_PUMPS.map((p) => [p, now])));
+    showToast("All lines marked cleaned.");
+  };
   const setCaskOwner = (id, v) => setLines((ls) => ls.map((c) => (c.id === id ? { ...c, caskOwner: v } : c)));
   const markCollected = (id) => { snapshotUndo("Empty marked collected"); setLines((ls) => ls.map((c) => (c.id === id ? { ...c, collected: true } : c))); };
   const markOwnerCollected = (key) => { snapshotUndo("Empties marked collected"); setLines((ls) => ls.map((c) => (IS_EMPTY(c) && ownerKey(c.caskOwner) === key ? { ...c, collected: true } : c))); };
@@ -2669,7 +2714,7 @@ function TheCurfewCellarApp() {
     const searchBox = (
       <div className="relative">
         <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-        <input value={cellarSearch} onChange={(e) => setCellarSearch(e.target.value)} placeholder="Search the cellar…" className="w-full rounded-xl border bg-white py-2.5 pl-10 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
+        <input value={cellarSearch} onChange={(e) => setCellarSearch(e.target.value)} placeholder="Search the cellar…" className="w-full rounded-lg py-2 pl-10 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.stone, color: C.ink }} />
         {cellarSearch && <button onClick={() => setCellarSearch("")} aria-label="Clear search" className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 hover:bg-slate-100"><X size={16} /></button>}
       </div>
     );
@@ -2870,7 +2915,7 @@ function TheCurfewCellarApp() {
             <p className="text-base font-semibold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Add from your library</p>
             <div className="relative mt-3">
               <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input value={addPickSearch} onChange={(e) => setAddPickSearch(e.target.value)} placeholder="Search ales, breweries, styles…" className="w-full rounded-xl border bg-white py-2.5 pl-10 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
+              <input value={addPickSearch} onChange={(e) => setAddPickSearch(e.target.value)} placeholder="Search ales, breweries, styles…" className="w-full rounded-lg py-2 pl-10 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.stone, color: C.ink }} />
               {addPickSearch && <button onClick={() => setAddPickSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 hover:bg-slate-100"><X size={16} /></button>}
             </div>
             {q ? (
@@ -3022,7 +3067,7 @@ function TheCurfewCellarApp() {
       <div className="space-y-3">
         <div className="relative">
           <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input value={librarySearch} onChange={(e) => setLibrarySearch(e.target.value)} placeholder="Search ales, breweries, styles…" className="w-full rounded-xl border bg-white py-2.5 pl-10 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
+          <input value={librarySearch} onChange={(e) => setLibrarySearch(e.target.value)} placeholder="Search ales, breweries, styles…" className="w-full rounded-lg py-2 pl-10 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.stone, color: C.ink }} />
           {librarySearch && <button onClick={() => setLibrarySearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 hover:bg-slate-100"><X size={16} /></button>}
         </div>
 
@@ -3460,6 +3505,61 @@ function TheCurfewCellarApp() {
     } catch (e) {
       showToast("Could not make the PDF just now. Check your connection and try again.");
     } finally { setPdfBusy(false); }
+  };
+
+  const LineCare = () => {
+    const onBySlot = {};
+    lines.filter((l) => l.status === "on" && l.slot).forEach((l) => { onBySlot[l.slot] = l; });
+    const groups = [
+      { label: "Cask", pumps: PUMPS.cask, accent: TYPE_ACCENT.cask },
+      { label: "Keg", pumps: PUMPS.keg, accent: TYPE_ACCENT.keg },
+      { label: "Cider", pumps: PUMPS.cider, accent: TYPE_ACCENT.cider },
+    ];
+    const due = linesDueClean();
+    return (
+      <div className="space-y-4">
+        <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
+          <p className="text-sm" style={{ color: C.inkSoft }}>
+            {due === 0 ? "Every line is up to date." : `${due} line${due === 1 ? "" : "s"} due a clean.`}
+            {" "}Lines are counted as due every {PUB_CONFIG.lineCleanDays} days.
+          </p>
+          {canService && (
+            <button onClick={markAllLinesCleaned} className="mt-3 inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}>
+              <Check size={15} /> Mark all lines cleaned
+            </button>
+          )}
+        </div>
+        {groups.map((g) => (
+          <section key={g.label}>
+            <p className="mb-1.5 flex items-center gap-2 uppercase" style={{ color: g.accent, fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}>
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: g.accent }} />{g.label}
+              <span className="h-px flex-1" style={{ background: "linear-gradient(90deg, rgba(30, 58, 70,0.18), rgba(30, 58, 70,0))" }} />
+            </p>
+            <div className="space-y-1.5">
+              {g.pumps.map((slot) => {
+                const info = lineCleanInfo(slot);
+                const line = onBySlot[slot];
+                const beer = line ? beerById[line.beerId] : null;
+                const status = info.never ? "No clean recorded yet" : info.days === 0 ? "Cleaned today" : `Cleaned ${info.days} day${info.days === 1 ? "" : "s"} ago`;
+                return (
+                  <div key={slot} className="flex items-center gap-2.5 rounded-xl border p-2.5" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: info.overdue ? C.alert : g.accent }}>
+                    <span className="grid shrink-0 place-items-center rounded-md" style={{ width: 22, height: 22, background: "linear-gradient(180deg, #284D5B 0%, #1E3A46 100%)", color: C.brassSoft, fontFamily: "var(--font-data)", fontSize: 10, fontWeight: 700, border: "1px solid rgba(184,134,43,0.45)", boxShadow: "inset 0 1px 0 rgba(209,164,74,0.28), 0 1px 2px rgba(30, 58, 70,0.35)" }}>{String(PUMP_NUMBER[slot]).padStart(2, "0")}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{PUMP_LABELS[slot]}</p>
+                      <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{beer ? `${beer.brewery ? beer.brewery + " " : ""}${beer.name}` : "Nothing on"}</p>
+                      <p className="truncate text-xs" style={{ color: info.overdue ? C.alert : "#96A19B", fontFamily: "var(--font-data)", fontWeight: info.overdue ? 600 : 500 }}>{status}</p>
+                    </div>
+                    {canService && (
+                      <button onClick={() => markLineCleaned(slot)} className="shrink-0 rounded-lg border px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>Cleaned</button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        ))}
+      </div>
+    );
   };
 
   const Empties = () => {
@@ -4070,7 +4170,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
                       <ul className="max-h-80 overflow-y-auto py-1" style={{ overscrollBehaviorY: "none", WebkitOverflowScrolling: "touch", touchAction: "manipulation" }}>
                         {attentionItems.map((a, i) => (
                           <li key={`${a.id}-${i}`}>
-                            <button onClick={() => { setShowAlerts(false); a.backup ? go("backup") : (go("cellar"), setOpenId(a.id)); }} className="flex w-full items-start gap-2 px-3 py-2 text-left text-sm transition hover:bg-slate-50 focus:outline-none" style={{ color: a.warn ? C.alert : C.inkSoft }}>
+                            <button onClick={() => { setShowAlerts(false); a.backup ? go("backup") : a.lineCare ? go("lines") : (go("cellar"), setOpenId(a.id)); }} className="flex w-full items-start gap-2 px-3 py-2 text-left text-sm transition hover:bg-slate-50 focus:outline-none" style={{ color: a.warn ? C.alert : C.inkSoft }}>
                               <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: a.warn ? C.alert : C.brass }} />
                               <span className="min-w-0 flex-1">{a.text}</span>
                             </button>
@@ -4094,7 +4194,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
                 <div className="absolute right-0 top-full z-50 mt-1 w-44 overflow-hidden rounded-lg border bg-white shadow-lg" style={{ borderColor: C.line }}>
-                  {[["guide", "How to Use", Compass], ["library", "Library", BookOpen], ["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ...(TENANT_FEATURES.cellarStats ? [["stats", "Cellar Stats", BarChart3]] : []), ["notify", "Notifications", Bell], ...(canEdit ? [["backup", "Backup & Restore", Database]] : [])].map(([id, label, Icon]) => (
+                  {[["guide", "How to Use", Compass], ["library", "Library", BookOpen], ["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["lines", "Line Cleaning", Droplet], ...(TENANT_FEATURES.cellarStats ? [["stats", "Cellar Stats", BarChart3]] : []), ["notify", "Notifications", Bell], ...(canEdit ? [["backup", "Backup & Restore", Database]] : [])].map(([id, label, Icon]) => (
                     <button key={id} onClick={() => { setMenuOpen(false); go(id); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"><Icon size={15} className="text-slate-400" />{label}</button>
                   ))}
                 </div>
@@ -4122,6 +4222,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
             {view === "allergens" && AllergenSheet()}
             {view === "stock" && StockSheet()}
             {view === "empties" && Empties()}
+            {view === "lines" && LineCare()}
             {view === "stats" && Stats()}
             {view === "guide" && Guide()}
             {view === "notify" && NotifySettings()}
@@ -4159,7 +4260,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
           <div className="cc-sheet absolute inset-x-0 bottom-0 rounded-t-2xl bg-white p-4" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 16px)" }}>
             <div className="mx-auto mb-3 h-1.5 w-10 rounded-full" style={{ background: C.line }} />
             <div className="grid grid-cols-3 gap-2.5">
-              {[["guide", "How to Use", Compass], ["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ...(TENANT_FEATURES.cellarStats ? [["stats", "Cellar Stats", BarChart3]] : []), ["notify", "Notifications", Bell], ...(canEdit ? [["backup", "Backup & Restore", Database]] : [])].map(([id, label, Icon]) => (
+              {[["guide", "How to Use", Compass], ["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["lines", "Line Cleaning", Droplet], ...(TENANT_FEATURES.cellarStats ? [["stats", "Cellar Stats", BarChart3]] : []), ["notify", "Notifications", Bell], ...(canEdit ? [["backup", "Backup & Restore", Database]] : [])].map(([id, label, Icon]) => (
                 <button key={id} onClick={() => { setMenuOpen(false); go(id); }} className="flex flex-col items-center gap-1.5 rounded-xl border p-3 transition active:scale-95" style={{ borderColor: C.line, color: C.ink }}>
                   <Icon size={20} style={{ color: C.brass }} />
                   <span className="text-center text-xs font-medium leading-tight">{label}</span>
