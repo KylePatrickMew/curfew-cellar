@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   Plus, ClipboardList, BookOpen, Beer, Sparkles, Check, CheckCircle2,
-  Droplet, AlertTriangle, Clock, X, ArrowRight, Trash2, Search, Loader2, Bell, Calendar, History, ChevronDown, Database, Download, Upload, Copy, QrCode, Camera, FileText, Package, MoreHorizontal, BarChart3, Pencil, Printer, RotateCcw, Compass, Lock, Share,
+  Droplet, AlertTriangle, Clock, X, ArrowRight, Trash2, Search, Loader2, Bell, Calendar, History, ChevronDown, Database, Download, Upload, Copy, QrCode, Camera, FileText, Package, MoreHorizontal, BarChart3, Pencil, Printer, RotateCcw, Compass, Lock, Share, Wrench,
 } from "lucide-react";
 
 // ---------- Brand ----------
@@ -323,7 +323,7 @@ const GUIDE_SECTIONS = [
 // the system font. The browser dedupes the duplicate @import.
 const FontBoot = () => <style>{`@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=DM+Sans:wght@500;600;700;800&display=swap');
 :root { --font-data: 'Archivo', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; --font-display: 'Archivo', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; --font-brand: 'DM Sans', 'Archivo', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }`}</style>;
-const VIEW_TITLES = { cellar: "Cellar", add: "Add Stock", library: "Library", allergens: "Allergen Sheet", stock: "Stock List", empties: "Empties to Return", lines: "Line Cleaning", stats: "Cellar Stats", guide: "How to Use", notify: "Notifications", backup: "Backup & Restore" };
+const VIEW_TITLES = { cellar: "Cellar", add: "Add Stock", library: "Library", allergens: "Allergen Sheet", stock: "Stock List", empties: "Empties to Return", lines: "Line Cleaning", libtools: "Library Tools", stats: "Cellar Stats", guide: "How to Use", notify: "Notifications", backup: "Backup & Restore" };
 const SIZE_OPTIONS = ["Bag-in-box 20L"];
 const FRESH_LIMIT = 4; // days on a cask before a quality check is worth a look
 const BB_SOON = 2;     // days before best-before to start flagging
@@ -458,6 +458,7 @@ const findDuplicateCandidates = (library) => {
 const findLocationClashes = (library) => {
   const groups = {};
   library.forEach((b) => {
+    if ((b.collabBrewery || "").trim()) return;
     const loc = (b.location || "").trim();
     if (!loc) return;
     const key = breweryCore(b.brewery);
@@ -526,10 +527,11 @@ const isGlutenFree = (beer) => beer.glutenStatus === "Gluten-free" && !glutenCla
 // When a beer's name already starts with its brewery ("Malvern" + "Malvern Gold") printing both
 // gives "Malvern Malvern Gold". Drop the repeated prefix so the weight split still reads as
 // brewery-then-beer without the stutter.
-const splitTitle = (brewery, name) => {
-  const b = (brewery || "").trim(), n = (name || "").trim();
-  if (b && n.toLowerCase().startsWith(b.toLowerCase() + " ")) return { lead: b, rest: n.slice(b.length).trim() };
-  return { lead: b, rest: n };
+const splitTitle = (brewery, name, collabBrewery) => {
+  const b = (brewery || "").trim(), n = (name || "").trim(), c = (collabBrewery || "").trim();
+  const lead = c ? `${b} · ${c}` : b;
+  if (b && n.toLowerCase().startsWith(b.toLowerCase() + " ")) return { lead, rest: n.slice(b.length).trim() };
+  return { lead, rest: n };
 };
 const checkContradictions = (f) => {
   const warnings = [];
@@ -763,7 +765,7 @@ const seedLines = [
 const seedDistributors = ["HB Clark", "LWC", "6 Barrells"];
 
 const emptyForm = {
-  drinkType: "cask", brewery: "", location: "", name: "", style: "", abv: "",
+  drinkType: "cask", brewery: "", location: "", collabBrewery: "", collabLocation: "", name: "", style: "", abv: "",
   clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "",
   allergensVerified: false, category: "Misc", size: "", price: "",
   status: "in_cellar", bestBefore: "", caskOwner: "", sweetness: "",
@@ -850,6 +852,12 @@ const Field = ({ label, children }) => (
 // archiving) stays in the screen that actually needs it, not here.
 const BeerDetailsFields = ({ values, onChange, onAutoFill, busy, note, toggleAllergen }) => {
   const chip = (on) => (on ? { background: C.ink, color: "#fff", borderColor: C.ink } : { borderColor: C.line, color: C.inkSoft });
+  // Collapsed by default: a genuine collaboration is rare, so it shouldn't cost every other
+  // beer a visible field. Expands automatically the moment either collab field actually has
+  // something in it, whether that's the user typing or an existing beer being loaded in, and
+  // never snaps shut again once open, so it can't yank the fields away mid-edit.
+  const [showCollab, setShowCollab] = useState(() => !!(values.collabBrewery || values.collabLocation));
+  useEffect(() => { if (values.collabBrewery || values.collabLocation) setShowCollab(true); }, [values.collabBrewery, values.collabLocation]);
   return (
     <>
       <button onClick={onAutoFill} disabled={busy} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:opacity-60" style={{ borderColor: C.brass, color: C.brass }}>
@@ -866,6 +874,20 @@ const BeerDetailsFields = ({ values, onChange, onAutoFill, busy, note, toggleAll
         <Field label="Producer / brewery"><input className={inputCls} value={values.brewery} onChange={(e) => onChange({ brewery: e.target.value })} placeholder="e.g. Wylam" /></Field>
         <Field label="Location"><input className={inputCls} value={values.location} onChange={(e) => onChange({ location: e.target.value })} placeholder="e.g. Berwick-upon-Tweed" /></Field>
       </div>
+      {showCollab ? (
+        <div className="rounded-lg border p-3" style={{ borderColor: C.line, background: C.stone }}>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: C.inkSoft }}>Brewed as a collaboration</p>
+            <button onClick={() => { setShowCollab(false); onChange({ collabBrewery: "", collabLocation: "" }); }} className="text-xs font-medium text-slate-500 hover:text-slate-700">Remove</button>
+          </div>
+          <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Field label="Second brewery"><input className={inputCls} value={values.collabBrewery} onChange={(e) => onChange({ collabBrewery: e.target.value })} placeholder="e.g. Wild Beer Co" /></Field>
+            <Field label="Its location"><input className={inputCls} value={values.collabLocation} onChange={(e) => onChange({ collabLocation: e.target.value })} placeholder="e.g. Shepton Mallet" /></Field>
+          </div>
+        </div>
+      ) : (
+        <button onClick={() => setShowCollab(true)} className="text-left text-xs font-medium" style={{ color: C.inkSoft }}>+ This was brewed as a collaboration</button>
+      )}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field label="Style"><input className={inputCls} value={values.style} onChange={(e) => onChange({ style: e.target.value })} placeholder="e.g. IPA" /></Field>
         <Field label="ABV %"><input className={inputCls} inputMode="decimal" value={values.abv} onChange={(e) => onChange({ abv: e.target.value })} placeholder="e.g. 5.4" /></Field>
@@ -951,7 +973,7 @@ const LineRow = ({ line, context, beerById, onOpen }) => {
       <div className="min-w-0">
         <div className="flex items-center gap-1.5">
           <CatDot category={beer.category} />
-          <p className="truncate text-sm font-normal leading-tight" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{(() => { const t = splitTitle(beer.brewery, beer.name); return <>{t.lead && <span className="font-semibold" style={{ color: C.ink }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()}</p>
+          <p className="truncate text-sm font-normal leading-tight" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{(() => { const t = splitTitle(beer.brewery, beer.name, beer.collabBrewery); return <>{t.lead && <span className="font-semibold" style={{ color: C.ink }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()}</p>
           {!beer.allergensVerified && <AlertTriangle size={13} className="shrink-0 text-amber-500" />}
         </div>
         <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[beer.style || "", beer.abv ? `${beer.abv}%` : "", line.price ? `£${line.price}` : "no price set", beer.location || ""].filter(Boolean).join("  ·  ")}</p>
@@ -1000,7 +1022,7 @@ const Row = ({ l, stage, beerById }) => {
       <div className="min-w-0">
         <div className="flex items-center gap-1.5">
           <CatDot category={beer.category} />
-          <p className="truncate text-sm font-normal" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{(() => { const t = splitTitle(beer.brewery, beer.name); return <>{t.lead && <span className="font-semibold" style={{ color: C.ink }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()}</p>
+          <p className="truncate text-sm font-normal" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{(() => { const t = splitTitle(beer.brewery, beer.name, beer.collabBrewery); return <>{t.lead && <span className="font-semibold" style={{ color: C.ink }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()}</p>
         </div>
         <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[dt, beer.style || "", extraSweetness(beer), beer.abv ? `${beer.abv}%` : ""].filter(Boolean).join("  ·  ")}</p>
         <p className="truncate text-xs text-slate-500" style={{ fontFamily: "var(--font-data)", minHeight: 16 }}>{beer.location || ""}</p>
@@ -1036,7 +1058,7 @@ const Item = ({ line, beerById }) => {
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-1 gap-1.5">
           <span className="shrink-0" style={{ paddingTop: 9 }}><CatDot category={beer.category} /></span>
-          <p className="min-w-0 text-lg font-normal" style={{ color: C.cream, fontFamily: "var(--font-display)" }}>{(() => { const t = splitTitle(beer.brewery, beer.name); return <>{t.lead && <span className="font-semibold" style={{ color: C.cream }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()}</p>
+          <p className="min-w-0 text-lg font-normal" style={{ color: C.cream, fontFamily: "var(--font-display)" }}>{(() => { const t = splitTitle(beer.brewery, beer.name, beer.collabBrewery); return <>{t.lead && <span className="font-semibold" style={{ color: C.cream }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()}</p>
         </div>
         <p className="shrink-0 text-lg font-semibold" style={{ color: C.brassSoft, fontFamily: "var(--font-display)" }}>{tlp ? tlp.pint : line.price ? `£${line.price}` : "Ask at the bar"}</p>
       </div>
@@ -1110,7 +1132,7 @@ const EditBeer = ({
     ownerTimer.current = setTimeout(() => { ownerTimer.current = null; setCaskOwner(editLine.id, v); }, 500);
   };
   const detailValues = {
-    name: beer.name, brewery: beer.brewery, location: beer.location || "", style: beer.style || "", abv: beer.abv || "",
+    name: beer.name, brewery: beer.brewery, location: beer.location || "", collabBrewery: beer.collabBrewery || "", collabLocation: beer.collabLocation || "", style: beer.style || "", abv: beer.abv || "",
     category: beer.category || "Misc", sweetness: beer.sweetness || "", clarity: beer.clarity || "Clear", glutenStatus: beer.glutenStatus || "Standard",
     vegan: !!beer.vegan, allergens: beer.allergens, allergensVerified: !!beer.allergensVerified, notes: beer.notes || "",
   };
@@ -1122,7 +1144,7 @@ const EditBeer = ({
           <button onClick={close} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400"><X size={18} /></button>
         </div>
         <div className="space-y-3 p-4">
-          <BeerDetailsFields values={detailValues} onChange={(patch) => updateBeer(beer.id, patch)} onAutoFill={() => autoFillBeer(beer)} busy={editBusy} note={editNote} toggleAllergen={(a) => toggleBeerAllergen(beer.id, a)} />
+          <BeerDetailsFields key={beer.id} values={detailValues} onChange={(patch) => updateBeer(beer.id, patch)} onAutoFill={() => autoFillBeer(beer)} busy={editBusy} note={editNote} toggleAllergen={(a) => toggleBeerAllergen(beer.id, a)} />
           <Field label="Price (£ per pint)"><input className={inputCls} inputMode="decimal" value={priceDraft} onChange={(e) => commitPrice(e.target.value)} placeholder="e.g. 4.40" /></Field>
           {editLine && (
             <>
@@ -1214,10 +1236,10 @@ function TheCurfewCellarApp() {
     try {
       if (typeof window !== "undefined" && window.localStorage) {
         const raw = localStorage.getItem("curfew-cellar:ui-prefs:v1");
-        if (raw) return { on: true, racked: true, store: false, empties: {}, libraryTools: false, libRecent: true, libAll: false, libArchived: false, ...JSON.parse(raw) };
+        if (raw) return { on: true, racked: true, store: false, empties: {}, libRecent: true, libAll: false, libArchived: false, ...JSON.parse(raw) };
       }
     } catch (e) { /* ignore, fall through to default */ }
-    return { on: true, racked: true, store: false, empties: {}, libraryTools: false, libRecent: true, libAll: false, libArchived: false };
+    return { on: true, racked: true, store: false, empties: {}, libRecent: true, libAll: false, libArchived: false };
   });
   useEffect(() => {
     try { if (typeof window !== "undefined" && window.localStorage) localStorage.setItem("curfew-cellar:ui-prefs:v1", JSON.stringify(uiPrefs)); } catch (e) { /* ignore */ }
@@ -2244,7 +2266,7 @@ function TheCurfewCellarApp() {
     setConfirmDupe(false);
     const category = form.drinkType === "cask" ? (form.category || categorise(form.style, form.abv)) : (form.category || "Misc");
     const beerFields = {
-      brewery: form.brewery.trim(), location: form.location.trim(), name: form.name.trim(),
+      brewery: form.brewery.trim(), location: form.location.trim(), collabBrewery: form.collabBrewery.trim(), collabLocation: form.collabLocation.trim(), name: form.name.trim(),
       style: form.style.trim(), abv: form.abv.trim(), clarity: form.clarity, glutenStatus: form.glutenStatus,
       vegan: form.vegan, allergens: form.allergens, notes: form.notes.trim(), allergensVerified: form.allergensVerified, category, sweetness: form.sweetness,
       price: form.price.trim(),
@@ -2493,7 +2515,7 @@ function TheCurfewCellarApp() {
   // resets to false: a beer being verified once doesn't mean THIS new delivery has been looked
   // at, ingredients and allergens can change between batches, so every arrival needs its own
   // fresh check regardless of history.
-  const loadBeerIntoForm = (beer) => { setConfirmDupe(false); return setForm({ ...emptyForm, drinkType: beer.pendingDrinkType || "cask", brewery: beer.brewery, location: beer.location, name: beer.name, style: beer.style, abv: beer.abv, clarity: beer.clarity, glutenStatus: beer.glutenStatus, vegan: beer.vegan, allergens: beer.allergens, notes: beer.notes, allergensVerified: false, category: beer.category || categorise(beer.style, beer.abv), sweetness: beer.sweetness || "", price: latestPrice(beer) || beer.pendingPrice || "", bestBefore: beer.pendingBestBefore || "", caskOwner: latestSupplier(beer) || beer.pendingCaskOwner || "" }); };
+  const loadBeerIntoForm = (beer) => { setConfirmDupe(false); return setForm({ ...emptyForm, drinkType: beer.pendingDrinkType || "cask", brewery: beer.brewery, location: beer.location, collabBrewery: beer.collabBrewery || "", collabLocation: beer.collabLocation || "", name: beer.name, style: beer.style, abv: beer.abv, clarity: beer.clarity, glutenStatus: beer.glutenStatus, vegan: beer.vegan, allergens: beer.allergens, notes: beer.notes, allergensVerified: false, category: beer.category || categorise(beer.style, beer.abv), sweetness: beer.sweetness || "", price: latestPrice(beer) || beer.pendingPrice || "", bestBefore: beer.pendingBestBefore || "", caskOwner: latestSupplier(beer) || beer.pendingCaskOwner || "" }); };
   const pickBeer = (beer) => { loadBeerIntoForm(beer); setFillNote({ type: "ok", text: `Loaded "${beer.name}" from your library. Set the best before, then confirm allergens.` }); setAddMode("form"); };
   const startNewBeer = () => { setForm(emptyForm); setFillNote(null); setAddMode("form"); };
   const addLineOfBeer = (beer) => { loadBeerIntoForm(beer); setFillNote({ type: "ok", text: `Loaded "${beer.name}" from your library.` }); setAddMode("form"); setView("add"); };
@@ -2943,7 +2965,7 @@ function TheCurfewCellarApp() {
       const pickRow = (b) => (
         <button key={b.id} onClick={() => pickBeer(b)} className="flex w-full items-center justify-between gap-2 rounded-lg border p-2.5 text-left transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: CAT_ACCENT[b.category] || C.line }}>
           <span className="min-w-0">
-            <span className="block truncate text-sm font-normal" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{(() => { const t = splitTitle(b.brewery, b.name); return <>{t.lead && <span className="font-semibold" style={{ color: C.ink }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()}</span>
+            <span className="block truncate text-sm font-normal" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{(() => { const t = splitTitle(b.brewery, b.name, b.collabBrewery); return <>{t.lead && <span className="font-semibold" style={{ color: C.ink }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()}</span>
             <span className="block truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[b.style || "", b.abv ? `${b.abv}%` : "", extraSweetness(b)].filter(Boolean).join("  ·  ")}</span>
             <span className="block truncate text-xs text-slate-400">{b.location || ""}</span>
           </span>
@@ -3055,7 +3077,6 @@ function TheCurfewCellarApp() {
     const q = librarySearch.trim().toLowerCase();
     const match = (b) => [b.name, b.brewery, b.style, b.category, b.location].some((x) => (x || "").toLowerCase().includes(q));
     const results = q ? library.filter(match) : [];
-    const incomplete = library.filter((b) => !b.archived && (!(b.abv || "").trim() || !(b.style || "").trim() || !(b.location || "").trim() || !(b.notes || "").trim()));
     const archived = library.filter((b) => b.archived).slice().sort((a, b) => (a.brewery || "").localeCompare(b.brewery || "") || (a.name || "").localeCompare(b.name || ""));
     const rest = library.filter((b) => !b.archived).slice().sort((a, b) => {
       if (a.allergensVerified !== b.allergensVerified) return a.allergensVerified ? 1 : -1;
@@ -3074,7 +3095,7 @@ function TheCurfewCellarApp() {
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0 flex-1">
               <button onClick={() => setLibraryOpenId(b.id)} className="block w-full min-w-0 rounded-lg text-left transition focus:outline-none focus:ring-2 focus:ring-amber-300">
-                <p className="truncate text-sm font-normal" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{(() => { const t = splitTitle(b.brewery, b.name); return <>{t.lead && <span className="font-semibold" style={{ color: C.ink }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()} {!b.allergensVerified && <AlertTriangle size={13} className="inline shrink-0 text-amber-500" />}</p>
+                <p className="truncate text-sm font-normal" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{(() => { const t = splitTitle(b.brewery, b.name, b.collabBrewery); return <>{t.lead && <span className="font-semibold" style={{ color: C.ink }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()} {!b.allergensVerified && <AlertTriangle size={13} className="inline shrink-0 text-amber-500" />}</p>
                 <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[b.style || "", b.abv ? `${b.abv}%` : "", extraSweetness(b)].filter(Boolean).join("  ·  ")}</p>
                 <p className="truncate text-xs text-slate-400">{[b.location || "", latestPrice(b) ? `Last £${latestPrice(b)}` : ""].filter(Boolean).join("  ·  ")}</p>
               </button>
@@ -3167,92 +3188,96 @@ function TheCurfewCellarApp() {
             )}
           </>
         )}
+      </div>
+    );
+  };
 
-        {canEdit && (
-          <div className="cc-elev rounded-xl border" style={{ background: C.paper, borderColor: C.line }}>
-            <button onClick={() => setUiPrefs((p) => ({ ...p, libraryTools: !p.libraryTools }))} className="flex w-full items-center justify-between gap-2 p-3.5 text-left focus:outline-none">
-              <span className="text-sm font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Library tools</span>
-              <ChevronDown size={18} className="text-slate-400" style={{ transform: uiPrefs.libraryTools ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
-            </button>
-            {uiPrefs.libraryTools && (
-              <div className="space-y-3 p-3.5 pt-0">
-                <div className="rounded-xl border p-3.5" style={{ borderColor: C.line }}>
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="min-w-0">
-                      <h2 className="text-sm font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Find duplicates</h2>
-                      <p className="mt-0.5 text-xs text-slate-500">Looks for the same beer entered more than once, like "Weston's" and "Westons Cider" both being Old Rosie.</p>
-                    </div>
-                    <button onClick={() => setDuplicateResults(findDuplicateCandidates(library))} className="shrink-0 rounded-lg border px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>Scan</button>
+  const LibraryTools = () => {
+    if (!canEdit) {
+      return (
+        <div className="rounded-2xl border border-dashed bg-white p-10 text-center" style={{ borderColor: C.line }}>
+          <Lock className="mx-auto mb-2" style={{ color: C.brass }} />
+          <p className="font-semibold" style={{ color: C.ink }}>Manager access needed</p>
+          <p className="mt-1 text-sm text-slate-500">Library tools aren't available on this login.</p>
+        </div>
+      );
+    }
+    const incomplete = library.filter((b) => !b.archived && (!(b.abv || "").trim() || !(b.style || "").trim() || !(b.location || "").trim() || !(b.notes || "").trim()));
+    return (
+      <div className="space-y-3">
+        <div className="rounded-xl border p-3.5" style={{ background: C.paper, borderColor: C.line }}>
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <h2 className="text-sm font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Find duplicates</h2>
+              <p className="mt-0.5 text-xs text-slate-500">Looks for the same beer entered more than once, like "Weston's" and "Westons Cider" both being Old Rosie.</p>
+            </div>
+            <button onClick={() => setDuplicateResults(findDuplicateCandidates(library))} className="shrink-0 rounded-lg border px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>Scan</button>
+          </div>
+          {duplicateResults !== null && (
+            duplicateResults.length === 0 ? (
+              <p className="mt-2.5 text-xs text-slate-400">No likely duplicates found.</p>
+            ) : (
+              <div className="mt-2.5 space-y-1.5">
+                {duplicateResults.map((pair, i) => (
+                  <div key={i} className="rounded-lg border p-2" style={{ borderColor: C.line }}>
+                    <p className="text-xs text-slate-600"><span className="font-semibold" style={{ color: C.ink }}>{pair[0].brewery || "?"} - {pair[0].name}</span> and <span className="font-semibold" style={{ color: C.ink }}>{pair[1].brewery || "?"} - {pair[1].name}</span></p>
+                    <button onClick={() => { setCombineCandidate(pair); setCombineKeepId(pair[0].id); }} className="mt-1.5 rounded-md px-2.5 py-1 text-xs font-semibold text-white hover:opacity-90" style={{ background: C.ink }}>Compare &amp; combine</button>
                   </div>
-                  {duplicateResults !== null && (
-                    duplicateResults.length === 0 ? (
-                      <p className="mt-2.5 text-xs text-slate-400">No likely duplicates found.</p>
-                    ) : (
-                      <div className="mt-2.5 space-y-1.5">
-                        {duplicateResults.map((pair, i) => (
-                          <div key={i} className="rounded-lg border p-2" style={{ borderColor: C.line }}>
-                            <p className="text-xs text-slate-600"><span className="font-semibold" style={{ color: C.ink }}>{pair[0].brewery || "?"} - {pair[0].name}</span> and <span className="font-semibold" style={{ color: C.ink }}>{pair[1].brewery || "?"} - {pair[1].name}</span></p>
-                            <button onClick={() => { setCombineCandidate(pair); setCombineKeepId(pair[0].id); }} className="mt-1.5 rounded-md px-2.5 py-1 text-xs font-semibold text-white hover:opacity-90" style={{ background: C.ink }}>Compare &amp; combine</button>
-                          </div>
+                ))}
+              </div>
+            )
+          )}
+        </div>
+
+        <div className="rounded-xl border p-3.5" style={{ background: C.paper, borderColor: C.line }}>
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <h2 className="text-sm font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Brewery details clash</h2>
+              <p className="mt-0.5 text-xs text-slate-500">Looks for the same brewery with different locations on file, like Two By Two showing as both Wallsend and Byker.</p>
+            </div>
+            <button onClick={() => setClashResults(findLocationClashes(library))} className="shrink-0 rounded-lg border px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>Scan</button>
+          </div>
+          {clashResults !== null && (
+            clashResults.length === 0 ? (
+              <p className="mt-2.5 text-xs text-slate-400">No clashes found.</p>
+            ) : (
+              <div className="mt-2.5 space-y-2">
+                {clashResults.map((c, i) => {
+                  const allIds = c.options.flatMap((o) => o.beerIds);
+                  return (
+                    <div key={i} className="rounded-lg border p-2.5" style={{ borderColor: C.line }}>
+                      <p className="text-xs font-semibold" style={{ color: C.ink }}>{c.brewery || "?"}</p>
+                      <div className="mt-1.5 space-y-1">
+                        {c.options.map((o) => (
+                          <button key={o.loc} onClick={() => resolveLocationClash(allIds, o.loc)} className="flex w-full items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-left text-xs transition hover:bg-slate-50" style={{ borderColor: C.line }}>
+                            <span className="text-slate-700">{o.loc}</span>
+                            <span className="shrink-0 text-slate-400">{o.beerIds.length} beer{o.beerIds.length === 1 ? "" : "s"} · use for all</span>
+                          </button>
                         ))}
                       </div>
-                    )
-                  )}
-                </div>
-
-                <div className="rounded-xl border p-3.5" style={{ borderColor: C.line }}>
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="min-w-0">
-                      <h2 className="text-sm font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Brewery details clash</h2>
-                      <p className="mt-0.5 text-xs text-slate-500">Looks for the same brewery with different locations on file, like Two By Two showing as both Wallsend and Byker.</p>
                     </div>
-                    <button onClick={() => setClashResults(findLocationClashes(library))} className="shrink-0 rounded-lg border px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>Scan</button>
-                  </div>
-                  {clashResults !== null && (
-                    clashResults.length === 0 ? (
-                      <p className="mt-2.5 text-xs text-slate-400">No clashes found.</p>
-                    ) : (
-                      <div className="mt-2.5 space-y-2">
-                        {clashResults.map((c, i) => {
-                          const allIds = c.options.flatMap((o) => o.beerIds);
-                          return (
-                            <div key={i} className="rounded-lg border p-2.5" style={{ borderColor: C.line }}>
-                              <p className="text-xs font-semibold" style={{ color: C.ink }}>{c.brewery || "?"}</p>
-                              <div className="mt-1.5 space-y-1">
-                                {c.options.map((o) => (
-                                  <button key={o.loc} onClick={() => resolveLocationClash(allIds, o.loc)} className="flex w-full items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-left text-xs transition hover:bg-slate-50" style={{ borderColor: C.line }}>
-                                    <span className="text-slate-700">{o.loc}</span>
-                                    <span className="shrink-0 text-slate-400">{o.beerIds.length} beer{o.beerIds.length === 1 ? "" : "s"} · use for all</span>
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )
-                  )}
-                </div>
-
-                {incomplete.length > 0 && (
-                  <div className="rounded-xl border p-3.5" style={{ borderColor: C.line }}>
-                    <h2 className="text-sm font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Needs more detail ({incomplete.length})</h2>
-                    <p className="mt-0.5 text-xs text-slate-500">Missing ABV, style, location, or tasting notes.</p>
-                    <div className="mt-2.5 space-y-1.5">
-                      {incomplete.map((b) => {
-                        const missing = [!(b.abv || "").trim() && "ABV", !(b.style || "").trim() && "style", !(b.location || "").trim() && "location", !(b.notes || "").trim() && "tasting notes"].filter(Boolean).join(", ");
-                        return (
-                          <button key={b.id} onClick={() => { setEditBeerId(b.id); setEditBeerLineId(null); }} className="block w-full rounded-lg border p-2 text-left transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>
-                            <span className="block truncate text-sm font-semibold" style={{ color: C.ink }}>{b.brewery || "?"} - {b.name}</span>
-                            <span className="block text-xs text-slate-400">Missing: {missing}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
+                  );
+                })}
               </div>
-            )}
+            )
+          )}
+        </div>
+
+        {incomplete.length > 0 && (
+          <div className="rounded-xl border p-3.5" style={{ background: C.paper, borderColor: C.line }}>
+            <h2 className="text-sm font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Needs more detail ({incomplete.length})</h2>
+            <p className="mt-0.5 text-xs text-slate-500">Missing ABV, style, location, or tasting notes.</p>
+            <div className="mt-2.5 space-y-1.5">
+              {incomplete.map((b) => {
+                const missing = [!(b.abv || "").trim() && "ABV", !(b.style || "").trim() && "style", !(b.location || "").trim() && "location", !(b.notes || "").trim() && "tasting notes"].filter(Boolean).join(", ");
+                return (
+                  <button key={b.id} onClick={() => { setEditBeerId(b.id); setEditBeerLineId(null); }} className="block w-full rounded-lg border p-2 text-left transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>
+                    <span className="block truncate text-sm font-semibold" style={{ color: C.ink }}>{b.brewery || "?"} - {b.name}</span>
+                    <span className="block text-xs text-slate-400">Missing: {missing}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
@@ -3968,7 +3993,7 @@ function TheCurfewCellarApp() {
                           <span className="min-w-0">
                             <span className="flex items-center gap-1.5">
                               <CatDot category={beer.category} />
-                              <span className="font-normal leading-snug" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{(() => { const t = splitTitle(beer.brewery, beer.name); return <>{t.lead && <span className="font-semibold" style={{ color: C.ink }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()}</span>
+                              <span className="font-normal leading-snug" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{(() => { const t = splitTitle(beer.brewery, beer.name, beer.collabBrewery); return <>{t.lead && <span className="font-semibold" style={{ color: C.ink }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()}</span>
                             </span>
                             <span className="block truncate text-sm font-medium text-slate-600">{[beer.style || "", beer.abv ? `${beer.abv}%` : ""].filter(Boolean).join("  ·  ")}</span>
                             <span className="block truncate text-xs text-slate-400">{beer.location || ""}</span>
@@ -4050,7 +4075,7 @@ function TheCurfewCellarApp() {
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <CatDot category={beer.category} />
-                <h2 className="text-xl font-normal leading-snug" style={{ color: C.cream, fontFamily: "var(--font-display)", letterSpacing: "0.01em" }}>{(() => { const t = splitTitle(beer.brewery, beer.name); return <>{t.lead && <span className="font-bold" style={{ color: C.cream }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()}</h2>
+                <h2 className="text-xl font-normal leading-snug" style={{ color: C.cream, fontFamily: "var(--font-display)", letterSpacing: "0.01em" }}>{(() => { const t = splitTitle(beer.brewery, beer.name, beer.collabBrewery); return <>{t.lead && <span className="font-bold" style={{ color: C.cream }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()}</h2>
               </div>
               {beer.location ? <p className="mt-1 text-xs font-semibold uppercase" style={{ color: C.brassSoft, letterSpacing: "0.14em", fontFamily: "var(--font-data)" }}>{beer.location}</p> : null}
             </div>
@@ -4281,7 +4306,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
                 <div className="absolute right-0 top-full z-50 mt-1 w-44 overflow-hidden rounded-lg border bg-white shadow-lg" style={{ borderColor: C.line }}>
-                  {[["guide", "How to Use", Compass], ["library", "Library", BookOpen], ["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["lines", "Line Cleaning", Droplet], ...(TENANT_FEATURES.cellarStats ? [["stats", "Cellar Stats", BarChart3]] : []), ["notify", "Notifications", Bell], ...(canEdit ? [["backup", "Backup & Restore", Database]] : [])].map(([id, label, Icon]) => (
+                  {[["guide", "How to Use", Compass], ["library", "Library", BookOpen], ["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["lines", "Line Cleaning", Droplet], ...(canEdit ? [["libtools", "Library Tools", Wrench]] : []), ...(TENANT_FEATURES.cellarStats ? [["stats", "Cellar Stats", BarChart3]] : []), ["notify", "Notifications", Bell], ...(canEdit ? [["backup", "Backup & Restore", Database]] : [])].map(([id, label, Icon]) => (
                     <button key={id} onClick={() => { setMenuOpen(false); go(id); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"><Icon size={15} className="text-slate-400" />{label}</button>
                   ))}
                 </div>
@@ -4310,6 +4335,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
             {view === "stock" && StockSheet()}
             {view === "empties" && Empties()}
             {view === "lines" && LineCare()}
+            {view === "libtools" && LibraryTools()}
             {view === "stats" && Stats()}
             {view === "guide" && Guide()}
             {view === "notify" && NotifySettings()}
@@ -4352,7 +4378,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
                 // cells, and the two longest labels wrapped while the rest didn't, so rows sat
                 // at different heights. A fixed tile height evens the rows out, and a lone
                 // trailing tile stretches across the row rather than leaving a gap.
-                const menuItems = [["guide", "How to Use", Compass], ["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["lines", "Line Cleaning", Droplet], ...(TENANT_FEATURES.cellarStats ? [["stats", "Cellar Stats", BarChart3]] : []), ["notify", "Notifications", Bell], ...(canEdit ? [["backup", "Backup & Restore", Database]] : [])];
+                const menuItems = [["guide", "How to Use", Compass], ["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["lines", "Line Cleaning", Droplet], ...(canEdit ? [["libtools", "Library Tools", Wrench]] : []), ...(TENANT_FEATURES.cellarStats ? [["stats", "Cellar Stats", BarChart3]] : []), ["notify", "Notifications", Bell], ...(canEdit ? [["backup", "Backup & Restore", Database]] : [])];
                 return menuItems.map(([id, label, Icon], i) => {
                   const lone = i === menuItems.length - 1 && menuItems.length % 3 === 1;
                   return (
