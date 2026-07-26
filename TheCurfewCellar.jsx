@@ -26,7 +26,7 @@ const C = {
 // The five pints under the viaduct, sampled straight from the artwork. Warm colour in this app
 // means beer and nothing else, so these are the only warm values in the whole palette.
 const BEER = { yellow: "#E4C234", gold: "#E39E1A", amber: "#D6771C", red: "#CB4132", brown: "#974A31" };
-const TYPE_ACCENT = { cask: BEER.amber, keg: C.accent, keykeg: C.accent, cider: "#5F8A52" };
+const TYPE_ACCENT = { cask: C.ink, keg: C.accent, keykeg: C.accent, cider: "#4C7C6F" };
 // One definition of each dietary badge's colour, warm and teal-tinted to match the app's
 // own palette. Used everywhere a badge appears, so they can't drift out of sync again.
 const DIET_BADGE_STYLE = {
@@ -889,7 +889,7 @@ const BeerDetailsFields = ({ values, onChange, onAutoFill, busy, note, toggleAll
   useEffect(() => { if (values.collabBrewery || values.collabLocation) setShowCollab(true); }, [values.collabBrewery, values.collabLocation]);
   return (
     <>
-      <button onClick={onAutoFill} disabled={busy} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:opacity-60" style={{ borderColor: C.accent, color: C.accent }}>
+      <button onClick={onAutoFill} disabled={busy} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-teal-300 disabled:opacity-60" style={{ borderColor: C.accent, color: C.accent }}>
         {busy ? <><Loader2 size={16} className="animate-spin" /> Filling in…</> : <><Sparkles size={16} /> Auto-fill</>}
       </button>
       {note && (
@@ -998,12 +998,14 @@ const LineRow = ({ line, context, beerById, onOpen }) => {
   else if (bb && bb.level === "past") badgeText = "BB passed";
   else if (bb && bb.level === "soon") badgeText = daysUntil(line.bestBefore) === 0 ? "BB today" : `BB ${daysUntil(line.bestBefore)}d`;
   return (
-    <button onClick={() => onOpen(line.id)} className="flex h-full w-full flex-col gap-1.5 rounded-xl border px-3 py-2 text-left transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-amber-300 active:scale-95" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[line.drinkType] || C.line, boxShadow: "0 1px 2px rgba(32, 59, 67,0.05), 0 6px 14px -10px rgba(32, 59, 67,0.2)", minHeight: 52 }}>
+    <button onClick={() => onOpen(line.id)} className="relative flex h-full w-full flex-col gap-1.5 overflow-hidden rounded-xl border py-2 pr-3 text-left transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-teal-300 active:scale-95" style={{ background: C.paper, borderColor: C.line, boxShadow: "0 1px 2px rgba(32, 59, 67,0.04), 0 8px 20px -14px rgba(32, 59, 67,0.28)", minHeight: 52, paddingLeft: 18 }}>
+      <span aria-hidden="true" title={beer.category || "Misc"} style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 9, background: C.ink }}>
+        <span style={{ position: "absolute", left: 3, top: 0, bottom: 0, width: 6, background: CAT_ACCENT[beer.category] || CAT_ACCENT.Misc }} />
+      </span>
       <div className="min-w-0">
         <div className="flex items-center gap-1.5">
-          <CatDot category={beer.category} />
           <p className="truncate text-sm font-normal leading-tight" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{(() => { const t = splitTitle(beer.brewery, beer.name, beer.collabBrewery); return <>{t.lead && <span className="font-semibold" style={{ color: C.ink }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()}</p>
-          {!beer.allergensVerified && <AlertTriangle size={13} className="shrink-0 text-amber-500" />}
+          {!beer.allergensVerified && <AlertTriangle size={13} className="shrink-0" style={{ color: C.alert }} />}
         </div>
         <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[beer.style || "", beer.abv ? `${beer.abv}%` : "", line.price ? `£${line.price}` : "no price set", locationDisplay(beer)].filter(Boolean).join("  ·  ")}</p>
       </div>
@@ -1018,8 +1020,8 @@ const LineRow = ({ line, context, beerById, onOpen }) => {
 const NavButton = ({ id, icon: Icon, label, badge, view, go }) => {
   const active = view === id;
   return (
-    <button onClick={() => go(id)} style={active ? { background: C.accent, color: C.ink, fontFamily: "var(--font-data)" } : { color: C.cream, fontFamily: "var(--font-data)" }}
-      className={`flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-semibold transition active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300 ${active ? "" : "hover:opacity-80"}`}>
+    <button onClick={() => go(id)} style={active ? { background: C.accent, color: C.cream, fontFamily: "var(--font-data)" } : { color: C.cream, fontFamily: "var(--font-data)" }}
+      className={`flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-semibold transition active:scale-95 focus:outline-none focus:ring-2 focus:ring-teal-300 ${active ? "" : "hover:opacity-80"}`}>
       <Icon size={16} /> <span className="hidden sm:inline">{label}</span>
       {badge > 0 && <span className="grid place-items-center rounded-full px-1" style={{ height: 15, minWidth: 15, background: active ? C.ink : C.accent, color: active ? C.accentSoft : C.ink, fontSize: 9.5, fontWeight: 700, lineHeight: 1 }}>{badge > 9 ? "9+" : badge}</span>}
     </button>
@@ -1047,10 +1049,12 @@ const Row = ({ l, stage, beerById }) => {
   const bb = fmtBB(l.bestBefore);
   const pump = l.status === "on" && l.slot ? PUMP_LABELS[l.slot] : null;
   return (
-    <div className="mb-1.5 flex items-start justify-between gap-3 rounded-lg border px-2.5 py-2" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[l.drinkType] || C.line }}>
+    <div className="relative mb-1.5 flex items-start justify-between gap-3 overflow-hidden rounded-lg border py-2 pr-2.5" style={{ background: C.paper, borderColor: C.line, paddingLeft: 16 }}>
+      <span aria-hidden="true" title={beer.category || "Misc"} style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 9, background: C.ink }}>
+        <span style={{ position: "absolute", left: 3, top: 0, bottom: 0, width: 6, background: CAT_ACCENT[beer.category] || CAT_ACCENT.Misc }} />
+      </span>
       <div className="min-w-0">
         <div className="flex items-center gap-1.5">
-          <CatDot category={beer.category} />
           <p className="truncate text-sm font-normal" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{(() => { const t = splitTitle(beer.brewery, beer.name, beer.collabBrewery); return <>{t.lead && <span className="font-semibold" style={{ color: C.ink }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()}</p>
         </div>
         <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[dt, beer.style || "", extraSweetness(beer), beer.abv ? `${beer.abv}%` : ""].filter(Boolean).join("  ·  ")}</p>
@@ -1229,7 +1233,7 @@ const EditBeer = ({
               </button>
             )
           ) : null}
-          <button onClick={close} className="mt-1 inline-flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}>Done</button>
+          <button onClick={close} className="mt-1 inline-flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ background: C.ink }}>Done</button>
         </div>
       </div>
     </div>
@@ -2783,7 +2787,7 @@ function TheCurfewCellarApp() {
           {slot.line ? <LineRow line={slot.line} context={urgent ? "on" : "racked"} beerById={beerById} onOpen={setOpenId} /> : (
             !canService ? <div className="flex h-full w-full items-center justify-center gap-2 rounded-xl border border-dashed text-sm font-medium text-slate-400" style={{ borderColor: C.line, minHeight: 52 }}>Empty · {slot.label}</div>
             : urgent
-              ? <button onClick={() => openPump(slot)} className="flex h-full w-full items-center justify-center gap-2 rounded-xl border border-dashed text-sm font-medium transition hover:bg-amber-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ borderColor: "#e2c98a", color: "#b45309", minHeight: 52 }}><Plus size={15} /> Empty · {slot.label}</button>
+              ? <button onClick={() => openPump(slot)} className="flex h-full w-full items-center justify-center gap-2 rounded-xl border border-dashed text-sm font-medium transition hover:bg-amber-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ borderColor: "#e2c98a", color: "#b45309", minHeight: 52 }}><Plus size={15} /> Empty · {slot.label}</button>
               : <button onClick={() => openRack(slot.label)} className="flex h-full w-full items-center justify-center gap-2 rounded-xl border border-dashed text-sm font-medium text-slate-500 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line, minHeight: 52 }}><Plus size={15} /> Rack from store</button>
           )}
         </div>
@@ -2820,7 +2824,7 @@ function TheCurfewCellarApp() {
     const searchBox = (
       <div className="relative">
         <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-        <input value={cellarSearch} onChange={(e) => setCellarSearch(e.target.value)} placeholder="Search the cellar…" className="w-full rounded-lg py-2 pl-10 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.stone, color: C.ink }} />
+        <input value={cellarSearch} onChange={(e) => setCellarSearch(e.target.value)} placeholder="Search the cellar…" className="w-full rounded-lg py-2 pl-10 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ background: C.stone, color: C.ink }} />
         {cellarSearch && <button onClick={() => setCellarSearch("")} aria-label="Clear search" className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 hover:bg-slate-100"><X size={16} /></button>}
       </div>
     );
@@ -2912,7 +2916,7 @@ function TheCurfewCellarApp() {
           </section>
         )}
         {empties.length > 0 && (
-          <button onClick={() => go("empties")} className="flex w-full items-center justify-between gap-2 rounded-xl border px-4 py-3 text-left focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ borderColor: "#e2c98a", background: "#fffbeb" }}>
+          <button onClick={() => go("empties")} className="flex w-full items-center justify-between gap-2 rounded-xl border px-4 py-3 text-left focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ borderColor: "#e2c98a", background: "#fffbeb" }}>
             <span className="flex items-center gap-2 text-sm font-medium" style={{ color: C.ink }}>
               <Package size={16} style={{ color: "#b45309" }} />
               {empties.length} empt{empties.length === 1 ? "y" : "ies"} waiting for collection
@@ -2982,7 +2986,7 @@ function TheCurfewCellarApp() {
             </div>
           </div>
           <div className="flex gap-2">
-            <button onClick={importInvoice} disabled={!count} className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:opacity-50" style={{ background: C.ink }}><Plus size={16} /> Confirm all {count} · add to store</button>
+            <button onClick={importInvoice} disabled={!count} className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-teal-300 disabled:opacity-50" style={{ background: C.ink }}><Plus size={16} /> Confirm all {count} · add to store</button>
             <button onClick={() => { setAddMode("pick"); setInvoiceItems(null); }} className="rounded-lg border px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50" style={{ borderColor: C.line }}>Cancel</button>
           </div>
         </div>
@@ -2994,7 +2998,7 @@ function TheCurfewCellarApp() {
       const results = q ? pickable.filter((b) => [b.name, b.brewery, b.style, b.category].some((x) => (x || "").toLowerCase().includes(q))) : [];
       const recent = pickable.slice(-5).reverse();
       const pickRow = (b) => (
-        <button key={b.id} onClick={() => pickBeer(b)} className="flex w-full items-center justify-between gap-2 rounded-lg border p-2.5 text-left transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: CAT_ACCENT[b.category] || C.line }}>
+        <button key={b.id} onClick={() => pickBeer(b)} className="flex w-full items-center justify-between gap-2 rounded-lg border p-2.5 text-left transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: CAT_ACCENT[b.category] || C.line }}>
           <span className="min-w-0">
             <span className="block truncate text-sm font-normal" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{(() => { const t = splitTitle(b.brewery, b.name, b.collabBrewery); return <>{t.lead && <span className="font-semibold" style={{ color: C.ink }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()}</span>
             <span className="block truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[b.style || "", b.abv ? `${b.abv}%` : "", extraSweetness(b)].filter(Boolean).join("  ·  ")}</span>
@@ -3010,7 +3014,7 @@ function TheCurfewCellarApp() {
           <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
             <p className="text-base font-semibold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Scan it in</p>
             <div className="mt-3 flex flex-wrap gap-2">
-              <button onClick={() => labelRef.current && labelRef.current.click()} disabled={scanning} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:opacity-60" style={{ background: C.ink }}><Camera size={16} /> Scan a cask label / pump clip</button>
+              <button onClick={() => labelRef.current && labelRef.current.click()} disabled={scanning} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-teal-300 disabled:opacity-60" style={{ background: C.ink }}><Camera size={16} /> Scan a cask label / pump clip</button>
               <button onClick={() => invoiceRef.current && invoiceRef.current.click()} disabled={scanning} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-60" style={{ borderColor: C.line }}><FileText size={16} /> Scan an invoice</button>
               <button onClick={startNewBeer} disabled={scanning} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-60" style={{ borderColor: C.line }}><Plus size={16} /> Add manually</button>
             </div>
@@ -3021,7 +3025,7 @@ function TheCurfewCellarApp() {
             <p className="text-base font-semibold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Add from your library</p>
             <div className="relative mt-3">
               <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input value={addPickSearch} onChange={(e) => setAddPickSearch(e.target.value)} placeholder="Search ales, breweries, styles…" className="w-full rounded-lg py-2 pl-10 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.stone, color: C.ink }} />
+              <input value={addPickSearch} onChange={(e) => setAddPickSearch(e.target.value)} placeholder="Search ales, breweries, styles…" className="w-full rounded-lg py-2 pl-10 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ background: C.stone, color: C.ink }} />
               {addPickSearch && <button onClick={() => setAddPickSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 hover:bg-slate-100"><X size={16} /></button>}
             </div>
             {q ? (
@@ -3098,7 +3102,7 @@ function TheCurfewCellarApp() {
         </div>
 
         <div className="flex gap-2">
-          <button onClick={addLine} className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Plus size={16} /> Add to cellar</button>
+          <button onClick={addLine} className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ background: C.ink }}><Plus size={16} /> Add to cellar</button>
           <button onClick={() => { setForm(emptyForm); setFillNote(null); setAddMode("pick"); setView("cellar"); }} className="rounded-lg border px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50" style={{ borderColor: C.line }}>Cancel</button>
         </div>
       </div>
@@ -3126,15 +3130,15 @@ function TheCurfewCellarApp() {
         <div key={b.id} className="rounded-xl border p-2.5" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: CAT_ACCENT[b.category] || C.line }}>
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0 flex-1">
-              <button onClick={() => setLibraryOpenId(b.id)} className="block w-full min-w-0 rounded-lg text-left transition focus:outline-none focus:ring-2 focus:ring-amber-300">
-                <p className="truncate text-sm font-normal" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{(() => { const t = splitTitle(b.brewery, b.name, b.collabBrewery); return <>{t.lead && <span className="font-semibold" style={{ color: C.ink }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()} {!b.allergensVerified && <AlertTriangle size={13} className="inline shrink-0 text-amber-500" />}</p>
+              <button onClick={() => setLibraryOpenId(b.id)} className="block w-full min-w-0 rounded-lg text-left transition focus:outline-none focus:ring-2 focus:ring-teal-300">
+                <p className="truncate text-sm font-normal" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{(() => { const t = splitTitle(b.brewery, b.name, b.collabBrewery); return <>{t.lead && <span className="font-semibold" style={{ color: C.ink }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()} {!b.allergensVerified && <AlertTriangle size={13} className="inline shrink-0" style={{ color: C.alert }} />}</p>
                 <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[b.style || "", b.abv ? `${b.abv}%` : "", extraSweetness(b)].filter(Boolean).join("  ·  ")}</p>
                 <p className="truncate text-xs text-slate-400">{[locationDisplay(b), latestPrice(b) ? `Last £${latestPrice(b)}` : ""].filter(Boolean).join("  ·  ")}</p>
               </button>
               <div className="mt-1 flex flex-wrap items-center gap-1" style={{ minHeight: 22 }}><DietaryMini beer={b} /></div>
             </div>
             <div className="flex shrink-0 items-center gap-1">
-              {canEdit && <button onClick={(e) => { e.stopPropagation(); addLineOfBeer(b); }} title="Add to cellar" className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Plus size={13} /> Add</button>}
+              {canEdit && <button onClick={(e) => { e.stopPropagation(); addLineOfBeer(b); }} title="Add to cellar" className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ background: C.ink }}><Plus size={13} /> Add</button>}
               <button onClick={(e) => { e.stopPropagation(); setHistoryOpen((m) => ({ ...m, [b.id]: !m[b.id] })); }} title="Price & ABV history" className="inline-flex items-center gap-0.5 rounded-lg border p-1.5 text-slate-500 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><History size={14} />{h.length ? <span className="text-xs font-medium">{h.length}</span> : null}</button>
             </div>
           </div>
@@ -3173,7 +3177,7 @@ function TheCurfewCellarApp() {
       <div className="space-y-3">
         <div className="relative">
           <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input value={librarySearch} onChange={(e) => setLibrarySearch(e.target.value)} placeholder="Search ales, breweries, styles…" className="w-full rounded-lg py-2 pl-10 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.stone, color: C.ink }} />
+          <input value={librarySearch} onChange={(e) => setLibrarySearch(e.target.value)} placeholder="Search ales, breweries, styles…" className="w-full rounded-lg py-2 pl-10 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ background: C.stone, color: C.ink }} />
           {librarySearch && <button onClick={() => setLibrarySearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 hover:bg-slate-100"><X size={16} /></button>}
         </div>
 
@@ -3333,7 +3337,7 @@ function TheCurfewCellarApp() {
           )}
           {pushState === "blocked" && <p className="text-sm text-slate-500">Notifications are blocked for this app in your phone settings. Allow them there, then come back and try again.</p>}
           {pushState === "off" && (
-            <button onClick={enablePush} disabled={pushBusy} className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}>{pushBusy ? <Loader2 className="animate-spin" size={15} /> : <Bell size={15} />} Turn on for this phone</button>
+            <button onClick={enablePush} disabled={pushBusy} className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ background: C.ink }}>{pushBusy ? <Loader2 className="animate-spin" size={15} /> : <Bell size={15} />} Turn on for this phone</button>
           )}
           {pushState === "on" && (
             <div className="space-y-3">
@@ -3500,7 +3504,7 @@ function TheCurfewCellarApp() {
           <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Export</h2>
           <p className="mt-0.5 text-xs text-slate-400">{prefs.lastBackup ? `Last backup: ${fmtUpdated(prefs.lastBackup)}` : "No backup taken yet. The cloud keeps no history, so a saved copy is your safety net."}</p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <button onClick={copyBackup} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Copy size={16} /> Copy backup</button>
+            <button onClick={copyBackup} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ background: C.ink }}><Copy size={16} /> Copy backup</button>
             <button onClick={downloadBackup} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><Download size={16} /> Download .json</button>
           </div>
           <textarea readOnly value={exportData()} className={`mt-3 ${taCls}`} onFocus={(e) => e.target.select()} />
@@ -3668,7 +3672,7 @@ function TheCurfewCellarApp() {
             {" "}Lines are counted as due every {PUB_CONFIG.lineCleanDays} days.
           </p>
           {canService && (
-            <button onClick={markAllLinesCleaned} className="mt-3 inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}>
+            <button onClick={markAllLinesCleaned} className="mt-3 inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ background: C.ink }}>
               <Check size={15} /> Mark all lines cleaned
             </button>
           )}
@@ -3726,7 +3730,7 @@ function TheCurfewCellarApp() {
               </div>
             )}
             <div className="mt-2.5 flex gap-2">
-              <input value={newDistributor} onChange={(e) => setNewDistributor(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { addDistributor(newDistributor); setNewDistributor(""); } }} placeholder="Add a distributor" className="flex-1 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.stone, color: C.ink }} />
+              <input value={newDistributor} onChange={(e) => setNewDistributor(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { addDistributor(newDistributor); setNewDistributor(""); } }} placeholder="Add a distributor" className="flex-1 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ background: C.stone, color: C.ink }} />
               <button onClick={() => { addDistributor(newDistributor); setNewDistributor(""); }} disabled={!newDistributor.trim()} className="shrink-0 rounded-lg border px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>Add</button>
             </div>
           </div>
@@ -3763,7 +3767,7 @@ function TheCurfewCellarApp() {
                     const dt = (DRINK_TYPES.find((t) => t.key === l.drinkType) || {}).label || l.drinkType;
                     return (
                       <li key={l.id} className="flex items-start justify-between gap-2 rounded-lg border px-2.5 py-2" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[l.drinkType] || C.line }}>
-                        <button onClick={() => setOpenId(l.id)} className="min-w-0 flex-1 rounded text-left focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ WebkitTapHighlightColor: "transparent" }}>
+                        <button onClick={() => setOpenId(l.id)} className="min-w-0 flex-1 rounded text-left focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ WebkitTapHighlightColor: "transparent" }}>
                           <span className="block truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer ? `${beer.brewery ? beer.brewery + " - " : ""}${beer.name}` : "Unknown"}</span>
                           {beer && <span className="block truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[dt, beer.style || "", beer.abv ? `${beer.abv}%` : ""].filter(Boolean).join("  ·  ")}</span>}
                           {beer && locationDisplay(beer) && <span className="block truncate text-xs text-slate-400" style={{ fontFamily: "var(--font-data)" }}>{locationDisplay(beer)}</span>}
@@ -3794,7 +3798,7 @@ function TheCurfewCellarApp() {
       <div className="space-y-4">
         <div className="no-print flex items-center justify-end gap-2">
           <button onClick={shareAllergenPDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-1.5 py-1.5 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40 focus:outline-none" style={{ color: C.muted }}>{pdfBusy ? <Loader2 className="animate-spin" size={13} /> : <Share size={13} />} Share</button>
-          <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Printer size={15} /> Print</button>
+          <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ background: C.ink }}><Printer size={15} /> Print</button>
         </div>
         <div id="allergen-sheet" className="cc-elev rounded-xl border p-5" style={{ background: C.paper, borderColor: C.line }}>
           <h1 className="text-xl font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>What's on: allergen and dietary guide</h1>
@@ -3852,7 +3856,7 @@ function TheCurfewCellarApp() {
       <div className="space-y-4">
         <div className="no-print flex items-center justify-end gap-2">
           <button onClick={sharePDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-1.5 py-1.5 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40 focus:outline-none" style={{ color: C.muted }}>{pdfBusy ? <Loader2 className="animate-spin" size={13} /> : <Share size={13} />} Share</button>
-          <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Printer size={15} /> Print</button>
+          <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ background: C.ink }}><Printer size={15} /> Print</button>
         </div>
         <div className="cc-elev rounded-xl border p-5" style={{ background: C.paper, borderColor: C.line }}>
           {fmtUpdated(lastUpdated) && <p className="text-xs text-slate-400">Last updated: {fmtUpdated(lastUpdated)}</p>}
@@ -4000,7 +4004,7 @@ function TheCurfewCellarApp() {
                 </div>
               </div>
               <div className="sticky bottom-0 border-t bg-white p-4" style={{ borderColor: C.line }}>
-                {canService && <button onClick={() => doSwap(previewLine.id, swap.oldId, swap.slot)} className="flex w-full items-center justify-center gap-1.5 rounded-lg px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Check size={16} /> {swap.toRack ? "Rack this cask" : "Put on"}</button>}
+                {canService && <button onClick={() => doSwap(previewLine.id, swap.oldId, swap.slot)} className="flex w-full items-center justify-center gap-1.5 rounded-lg px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ background: C.ink }}><Check size={16} /> {swap.toRack ? "Rack this cask" : "Put on"}</button>}
               </div>
             </>
           ) : (
@@ -4021,7 +4025,7 @@ function TheCurfewCellarApp() {
                       if (!beer) return null;
                       const when = dateForStatus(l);
                       return (
-                        <button key={l.id} onClick={() => setSwapPreviewId(l.id)} className="flex w-full items-center justify-between gap-2 rounded-xl border p-3 text-left transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[swap.drink] || C.line }}>
+                        <button key={l.id} onClick={() => setSwapPreviewId(l.id)} className="flex w-full items-center justify-between gap-2 rounded-xl border p-3 text-left transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[swap.drink] || C.line }}>
                           <span className="min-w-0">
                             <span className="flex items-center gap-1.5">
                               <CatDot category={beer.category} />
@@ -4112,8 +4116,8 @@ function TheCurfewCellarApp() {
               {locationDisplay(beer) ? <p className="mt-1 text-xs font-semibold uppercase" style={{ color: C.accentSoft, letterSpacing: "0.14em", fontFamily: "var(--font-data)" }}>{locationDisplay(beer)}</p> : null}
             </div>
             <div className="flex shrink-0 items-center gap-1">
-              <button onClick={() => copyBeerName(beer)} title="Copy brewery and beer name" className="rounded-lg p-1.5 transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ color: "rgba(243,239,230,0.75)" }}><Copy size={16} /></button>
-              <button onClick={close} className="rounded-lg p-1.5 transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ color: "rgba(243,239,230,0.75)" }}><X size={18} /></button>
+              <button onClick={() => copyBeerName(beer)} title="Copy brewery and beer name" className="rounded-lg p-1.5 transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ color: "rgba(243,239,230,0.75)" }}><Copy size={16} /></button>
+              <button onClick={close} className="rounded-lg p-1.5 transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ color: "rgba(243,239,230,0.75)" }}><X size={18} /></button>
             </div>
           </div>
           <div className="space-y-5 p-5">
@@ -4177,9 +4181,9 @@ function TheCurfewCellarApp() {
                 <div className="mt-3 flex gap-2">
                   {stageIdx > 0 && <button onClick={() => goBack(openLine.id)} className="inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-lg border bg-white px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><ArrowRight size={15} className="rotate-180" /> Back to {flow[stageIdx - 1] === "tapped" ? "Tapped" : STATUS_BY_KEY[flow[stageIdx - 1]].label}</button>}
                   {openLine.status === "on"
-                    ? <button onClick={() => finishAndChoose(openLine)} className="inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Check size={16} /> Line finished</button>
+                    ? <button onClick={() => finishAndChoose(openLine)} className="inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ background: C.ink }}><Check size={16} /> Line finished</button>
                     : stageIdx < flow.length - 1
-                      ? <button onClick={() => advance(openLine.id)} className="inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}>Advance to {flow[stageIdx + 1] === "tapped" ? "Tapped" : STATUS_BY_KEY[flow[stageIdx + 1]].label} <ArrowRight size={15} /></button>
+                      ? <button onClick={() => advance(openLine.id)} className="inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ background: C.ink }}>Advance to {flow[stageIdx + 1] === "tapped" ? "Tapped" : STATUS_BY_KEY[flow[stageIdx + 1]].label} <ArrowRight size={15} /></button>
                       : null}
                 </div>
                 )}
@@ -4216,7 +4220,7 @@ function TheCurfewCellarApp() {
             <p className="text-center text-sm" style={{ color: C.accentSoft }}>Checking…</p>
           ) : !authed ? (
             <div className="space-y-3">
-              <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") doLogin(); }} placeholder="Pub password" autoFocus className="w-full rounded-lg px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: "rgba(255,255,255,0.08)", color: C.cream, border: `1px solid ${C.accent}` }} />
+              <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") doLogin(); }} placeholder="Pub password" autoFocus className="w-full rounded-lg px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ background: "rgba(255,255,255,0.08)", color: C.cream, border: `1px solid ${C.accent}` }} />
               {authErr && <p className="text-xs" style={{ color: "#f3b4b4" }}>{authErr}</p>}
               <button onClick={doLogin} disabled={authBusy || !pw.trim()} className="w-full rounded-lg px-4 py-3 text-sm font-semibold transition active:scale-95 disabled:opacity-50" style={{ background: C.accent, color: C.ink }}>{authBusy ? "Signing in…" : "Unlock"}</button>
             </div>
@@ -4285,13 +4289,17 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
 .bg-slate-100{background-color:#EAE3DC!important}.hover\:bg-slate-50:hover{background-color:#F3EEE9!important}
 .hover\:text-slate-600:hover{color:#3B4A4E!important}.hover\:text-slate-700:hover{color:#2E3A3D!important}
 .focus\:ring-slate-300:focus{--tw-ring-color:#CFC7BF!important}
-.focus\:ring-slate-400:focus{--tw-ring-color:#5A7077!important}`}</style>
+.focus\:ring-slate-400:focus{--tw-ring-color:#5A7077!important}
+.focus\:ring-teal-300:focus{--tw-ring-color:#8ACFCE!important}
+.text-amber-500{color:#B23A2C!important}.text-amber-700{color:#8E3426!important}
+.text-amber-800{color:#7A2D21!important}.text-amber-900{color:#66261C!important}
+.bg-amber-50{background-color:#FBF0ED!important}.border-amber-200{border-color:#EFD3CC!important}`}</style>
       {view === "taplist" ? TapList() : (<>
       <header className="no-print relative z-40 border-b" style={{ background: "linear-gradient(180deg, #274852 0%, #203B43 100%)", borderColor: "rgba(138, 207, 206,0.35)", boxShadow: "0 1px 0 rgba(138, 207, 206,0.22), 0 10px 26px -18px rgba(0,0,0,0.65)", paddingTop: "env(safe-area-inset-top)" }}>
         <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 py-2.5">
           <div className="flex items-center gap-2.5">
             <div className="relative">
-              <button onClick={() => setShowAlerts((v) => !v)} className="relative flex items-center rounded-lg p-0.5 transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-amber-300" aria-label={`Needs attention: ${attentionItems.length}`}>
+              <button onClick={() => setShowAlerts((v) => !v)} className="relative flex items-center rounded-lg p-0.5 transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-teal-300" aria-label={`Needs attention: ${attentionItems.length}`}>
                 <Bell size={19} style={{ color: attentionItems.length ? C.accentSoft : "rgba(209,164,74,0.6)", flexShrink: 0 }} />
                 {attentionItems.length > 0 && (
                   <span className="absolute -right-1 -top-1 grid place-items-center rounded-full px-1" style={{ height: 16, minWidth: 16, background: C.alert, color: "#fff", fontFamily: "var(--font-data)", fontSize: 10, fontWeight: 700, lineHeight: 1 }}>{attentionItems.length > 9 ? "9+" : attentionItems.length}</span>
@@ -4333,7 +4341,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
             <NavButton id="cellar" icon={ClipboardList} label="Cellar" view={view} go={go} />
             {canEdit && <NavButton id="add" icon={Plus} label="Add" view={view} go={go} />}
             <NavButton id="empties" icon={Package} label="Empties" view={view} go={go} />
-            <button onClick={() => setMenuOpen((v) => !v)} style={{ color: C.cream }} className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-amber-300"><MoreHorizontal size={16} /><span className="hidden sm:inline">More</span></button>
+            <button onClick={() => setMenuOpen((v) => !v)} style={{ color: C.cream }} className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-teal-300"><MoreHorizontal size={16} /><span className="hidden sm:inline">More</span></button>
             {menuOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
