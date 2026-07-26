@@ -816,25 +816,29 @@ const CatDot = ({ category }) => {
 // well-made but generic beer list. Fixed palette, not the live category colours, since this is
 // branding, not a reflection of what's currently on tap.
 const BridgeMotif = () => {
-  // The festival poster's motif is a viaduct whose arches ARE the pint glasses: a dome-topped
-  // opening with straight sides, filled with beer, the dark piers showing between them. The
-  // first attempt drew flat-topped rectangles with separate arcs floating above, which read as
-  // croquet hoops over colour swatches rather than a bridge. Each glass is now a single arched
-  // shape, and the gaps between them do the work of the piers against the dark background.
+  // Proportions measured off the T-shirt artwork rather than guessed: each glass there is
+  // 2.75x taller than it is wide, with foam filling the top 16%. The first build had them at
+  // 1.12 and 57%, which is why they read as squat blocks with far too much head rather than
+  // a row of pints. The dome IS the arch, so the foam curve follows the arch top exactly,
+  // and the dark gaps between glasses do the work of the viaduct piers.
   const colors = [BEER.yellow, BEER.gold, BEER.amber, BEER.red, BEER.brown];
-  const unit = 56, gap = 8, H = 54, foamH = 7;
-  const w = unit - gap, r = w / 2;
-  const totalW = colors.length * unit;
+  const w = 30, gap = 12, H = 72, foamH = Math.round(H * 0.16);
+  const unit = w + gap, r = w / 2;
+  const totalW = colors.length * unit - gap;
   const arch = (x) => `M ${x} ${H} L ${x} ${r} A ${r} ${r} 0 0 1 ${x + w} ${r} L ${x + w} ${H} Z`;
-  const foam = (x) => `M ${x} ${r} A ${r} ${r} 0 0 1 ${x + w} ${r} L ${x + w} ${r + foamH} L ${x} ${r + foamH} Z`;
   return (
-    <svg viewBox={`0 0 ${totalW} ${H}`} preserveAspectRatio="xMidYMax meet" style={{ width: "100%", maxWidth: 300, height: 58, display: "block", margin: "0 auto" }} aria-hidden="true">
+    <svg viewBox={`0 0 ${totalW} ${H}`} preserveAspectRatio="xMidYMax meet" style={{ width: "100%", maxWidth: 236, height: 78, display: "block", margin: "0 auto" }} aria-hidden="true">
+      <defs>
+        {colors.map((_, i) => (
+          <clipPath key={i} id={`ccglass${i}`}><path d={arch(i * unit)} /></clipPath>
+        ))}
+      </defs>
       {colors.map((c, i) => {
-        const x = i * unit + gap / 2;
+        const x = i * unit;
         return (
-          <g key={i}>
-            <path d={arch(x)} fill={c} />
-            <path d={foam(x)} fill="#F6EDE5" opacity="0.92" />
+          <g key={i} clipPath={`url(#ccglass${i})`}>
+            <rect x={x} y={0} width={w} height={H} fill={c} />
+            <rect x={x} y={0} width={w} height={foamH} fill={C.cream} />
           </g>
         );
       })}
@@ -998,9 +1002,9 @@ const LineRow = ({ line, context, beerById, onOpen }) => {
   else if (bb && bb.level === "past") badgeText = "BB passed";
   else if (bb && bb.level === "soon") badgeText = daysUntil(line.bestBefore) === 0 ? "BB today" : `BB ${daysUntil(line.bestBefore)}d`;
   return (
-    <button onClick={() => onOpen(line.id)} className="relative flex h-full w-full flex-col gap-1.5 overflow-hidden rounded-xl border py-2 pr-3 text-left transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-teal-300 active:scale-95" style={{ background: C.paper, borderColor: C.line, boxShadow: "0 1px 2px rgba(32, 59, 67,0.04), 0 8px 20px -14px rgba(32, 59, 67,0.28)", minHeight: 52, paddingLeft: 18 }}>
-      <span aria-hidden="true" title={beer.category || "Misc"} style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 9, background: C.ink }}>
-        <span style={{ position: "absolute", left: 3, top: 0, bottom: 0, width: 6, background: CAT_ACCENT[beer.category] || CAT_ACCENT.Misc }} />
+    <button onClick={() => onOpen(line.id)} className="relative flex h-full w-full flex-col gap-1.5 overflow-hidden rounded-xl border py-2 pr-3 text-left transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-teal-300 active:scale-95" style={{ background: C.paper, borderColor: C.line, boxShadow: "0 1px 2px rgba(32, 59, 67,0.04), 0 8px 20px -14px rgba(32, 59, 67,0.28)", minHeight: 52, paddingLeft: 22 }}>
+      <span aria-hidden="true" title={beer.category || "Misc"} style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 14, background: C.ink }}>
+        <span style={{ position: "absolute", left: 3, top: 0, bottom: 0, width: 11, background: CAT_ACCENT[beer.category] || CAT_ACCENT.Misc }} />
       </span>
       <div className="min-w-0">
         <div className="flex items-center gap-1.5">
@@ -1049,9 +1053,9 @@ const Row = ({ l, stage, beerById }) => {
   const bb = fmtBB(l.bestBefore);
   const pump = l.status === "on" && l.slot ? PUMP_LABELS[l.slot] : null;
   return (
-    <div className="relative mb-1.5 flex items-start justify-between gap-3 overflow-hidden rounded-lg border py-2 pr-2.5" style={{ background: C.paper, borderColor: C.line, paddingLeft: 16 }}>
-      <span aria-hidden="true" title={beer.category || "Misc"} style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 9, background: C.ink }}>
-        <span style={{ position: "absolute", left: 3, top: 0, bottom: 0, width: 6, background: CAT_ACCENT[beer.category] || CAT_ACCENT.Misc }} />
+    <div className="relative mb-1.5 flex items-start justify-between gap-3 overflow-hidden rounded-lg border py-2 pr-2.5" style={{ background: C.paper, borderColor: C.line, paddingLeft: 20 }}>
+      <span aria-hidden="true" title={beer.category || "Misc"} style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 14, background: C.ink }}>
+        <span style={{ position: "absolute", left: 3, top: 0, bottom: 0, width: 11, background: CAT_ACCENT[beer.category] || CAT_ACCENT.Misc }} />
       </span>
       <div className="min-w-0">
         <div className="flex items-center gap-1.5">
@@ -1093,12 +1097,13 @@ const Item = ({ line, beerById }) => {
           <span className="shrink-0" style={{ paddingTop: 9 }}><CatDot category={beer.category} /></span>
           <p className="min-w-0 text-lg font-normal" style={{ color: C.cream, fontFamily: "var(--font-display)" }}>{(() => { const t = splitTitle(beer.brewery, beer.name, beer.collabBrewery); return <>{t.lead && <span className="font-semibold" style={{ color: C.cream }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()}</p>
         </div>
-        <p className="shrink-0 text-lg font-semibold" style={{ color: C.accentSoft, fontFamily: "var(--font-display)" }}>{tlp ? tlp.pint : line.price ? `£${line.price}` : "Ask at the bar"}</p>
+        <div className="shrink-0 text-right">
+          <p className="text-lg font-semibold leading-tight" style={{ color: C.accentSoft, fontFamily: "var(--font-display)" }}>{tlp ? tlp.pint : line.price ? `£${line.price}` : "Ask at the bar"}</p>
+          {tlp && <p className="text-xs leading-tight" style={{ color: "rgba(243,239,230,0.55)" }}>Half {tlp.half}</p>}
+          {tlp && <p className="text-xs leading-tight" style={{ color: "rgba(243,239,230,0.55)" }}>Schooner {tlp.schooner}</p>}
+        </div>
       </div>
-      <div className="flex items-baseline justify-between gap-3">
-        <p className="text-sm font-medium" style={{ color: "rgba(243,239,230,0.85)" }}>{beer.style}{extraSweetness(beer) ? ` · ${extraSweetness(beer)}` : ""} · {beer.abv}%{beer.clarity === "Hazy" ? " · Hazy" : ""}</p>
-        {tlp && <p className="shrink-0 text-xs" style={{ color: "rgba(243,239,230,0.55)" }}>Half {tlp.half} · Schooner {tlp.schooner}</p>}
-      </div>
+      <p className="text-sm font-medium" style={{ color: "rgba(243,239,230,0.85)" }}>{beer.style}{extraSweetness(beer) ? ` · ${extraSweetness(beer)}` : ""} · {beer.abv}%{beer.clarity === "Hazy" ? " · Hazy" : ""}</p>
       {locationDisplay(beer) && <p className="text-xs" style={{ color: "rgba(243,239,230,0.5)" }}>{locationDisplay(beer)}</p>}
       {beer.notes && <ul className="mt-1 space-y-0.5">{splitNote(beer.notes).map((line, i) => <li key={i} className="flex gap-1.5 text-sm italic" style={{ color: faint }}><span>·</span><span>{line}.</span></li>)}</ul>}
       <div className="mt-1.5">
@@ -1843,7 +1848,7 @@ function TheCurfewCellarApp() {
         });
         y += 1;
       }
-      if (keg.length) { sectionHead("Keg"); keg.forEach((l) => beerLine(l, hex(TYPE_ACCENT[l.drinkType] || "#3E8C82"))); y += 1; }
+      if (keg.length) { sectionHead("Keg"); keg.forEach((l) => beerLine(l, hex(TYPE_ACCENT[l.drinkType] || "#1F6B6A"))); y += 1; }
       if (cider.length) { sectionHead("Draught cider"); cider.forEach((l) => beerLine(l, hex(TYPE_ACCENT.cider))); y += 1; }
       if (!onL.length) { doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(gray[0], gray[1], gray[2]); doc.text("Nothing on right now.", M, y); }
 
@@ -4107,10 +4112,9 @@ function TheCurfewCellarApp() {
     return (
       <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(32, 59, 67,0.45)" }} onClick={close}>
         <div className="w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white sm:rounded-2xl cc-pop" style={{ maxHeight: "92vh", overscrollBehaviorY: "none", WebkitOverflowScrolling: "touch", touchAction: "manipulation" }} onClick={(e) => e.stopPropagation()}>
-          <div className="sticky top-0 z-10 flex items-start justify-between gap-3 p-4 pl-5" style={{ background: "linear-gradient(180deg, #274852 0%, #203B43 100%)", borderLeft: `4px solid ${(openLine && TYPE_ACCENT[openLine.drinkType]) || C.accent}`, boxShadow: "0 1px 0 rgba(138, 207, 206,0.28)" }}>
+          <div className="sticky top-0 z-10 flex items-start justify-between gap-3 p-4 pl-5" style={{ background: "linear-gradient(180deg, #274852 0%, #203B43 100%)", borderLeft: `4px solid ${CAT_ACCENT[beer.category] || CAT_ACCENT.Misc}`, boxShadow: "0 1px 0 rgba(138, 207, 206,0.28)" }}>
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <CatDot category={beer.category} />
+              <div>
                 <h2 className="text-xl font-normal leading-snug" style={{ color: C.cream, fontFamily: "var(--font-display)", letterSpacing: "0.01em" }}>{(() => { const t = splitTitle(beer.brewery, beer.name, beer.collabBrewery); return <>{t.lead && <span className="font-bold" style={{ color: C.cream }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()}</h2>
               </div>
               {locationDisplay(beer) ? <p className="mt-1 text-xs font-semibold uppercase" style={{ color: C.accentSoft, letterSpacing: "0.14em", fontFamily: "var(--font-data)" }}>{locationDisplay(beer)}</p> : null}
