@@ -2963,7 +2963,10 @@ function TheCurfewCellarApp() {
             <div className="mt-3 space-y-2">
               {items.length === 0 && <p className="py-3 text-center text-sm text-slate-400">Nothing found.</p>}
               {items.map((x, idx) => (
-                <div key={x.id} className="rounded-lg border p-2.5" style={{ borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[x.drinkType] || C.line }}>
+                <div key={x.id} className="relative overflow-hidden rounded-lg border py-2.5 pr-2.5" style={{ borderColor: C.line, paddingLeft: 20 }}>
+                  <span aria-hidden="true" style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 14, background: C.ink }}>
+                    <span style={{ position: "absolute", left: 3, top: 0, bottom: 0, width: 11, background: CAT_ACCENT[x.category] || CAT_ACCENT.Misc }} />
+                  </span>
                   <div className="flex items-center gap-2">
                     <input type="checkbox" checked={x.include} onChange={(e) => updateInvoice(idx, { include: e.target.checked })} className="h-4 w-4" />
                     <input value={x.name} onChange={(e) => updateInvoice(idx, { name: e.target.value })} placeholder="Name" className={cellChk} style={{ borderColor: C.line }} />
@@ -3784,9 +3787,12 @@ function TheCurfewCellarApp() {
                     const beer = beerById[l.beerId];
                     const dt = (DRINK_TYPES.find((t) => t.key === l.drinkType) || {}).label || l.drinkType;
                     return (
-                      <li key={l.id} className="flex items-start justify-between gap-2 rounded-lg border px-2.5 py-2" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[l.drinkType] || C.line }}>
+                      <li key={l.id} className="relative flex items-start justify-between gap-2 overflow-hidden rounded-lg border py-2 pr-2.5" style={{ background: C.paper, borderColor: C.line, paddingLeft: 20 }}>
+                        <span aria-hidden="true" title={(beer && beer.category) || "Misc"} style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 14, background: C.ink }}>
+                          <span style={{ position: "absolute", left: 3, top: 0, bottom: 0, width: 11, background: CAT_ACCENT[beer && beer.category] || CAT_ACCENT.Misc }} />
+                        </span>
                         <button onClick={() => setOpenId(l.id)} className="min-w-0 flex-1 rounded text-left focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ WebkitTapHighlightColor: "transparent" }}>
-                          <span className="block truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer ? `${beer.brewery ? beer.brewery + " - " : ""}${beer.name}` : "Unknown"}</span>
+                          <span className="block truncate text-sm font-normal" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer ? (() => { const t = splitTitle(beer.brewery, beer.name, beer.collabBrewery); return <>{t.lead && <span className="font-semibold" style={{ color: C.ink }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })() : "Unknown"}</span>
                           {beer && <span className="block truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[dt, beer.style || "", beer.abv ? `${beer.abv}%` : ""].filter(Boolean).join("  ·  ")}</span>}
                           {beer && locationDisplay(beer) && <span className="block truncate text-xs text-slate-400" style={{ fontFamily: "var(--font-data)" }}>{locationDisplay(beer)}</span>}
                           <span className="block truncate text-xs text-slate-500" style={{ fontFamily: "var(--font-data)" }}>{l.size ? `${l.size} · ` : ""}finished {l.dates.off ? fmtDate(l.dates.off.slice(0, 10)) : "--"}</span>
@@ -4043,7 +4049,10 @@ function TheCurfewCellarApp() {
                       if (!beer) return null;
                       const when = dateForStatus(l);
                       return (
-                        <button key={l.id} onClick={() => setSwapPreviewId(l.id)} className="flex w-full items-center justify-between gap-2 rounded-xl border p-3 text-left transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[swap.drink] || C.line }}>
+                        <button key={l.id} onClick={() => setSwapPreviewId(l.id)} className="relative flex w-full items-center justify-between gap-2 overflow-hidden rounded-xl border py-3 pr-3 text-left transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ background: C.paper, borderColor: C.line, paddingLeft: 20 }}>
+                          <span aria-hidden="true" style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 14, background: C.ink }}>
+                            <span style={{ position: "absolute", left: 3, top: 0, bottom: 0, width: 11, background: CAT_ACCENT[beer && beer.category] || CAT_ACCENT.Misc }} />
+                          </span>
                           <span className="min-w-0">
                             <span className="flex items-center gap-1.5">
                               <CatDot category={beer.category} />
