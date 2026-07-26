@@ -1,16 +1,32 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   Plus, ClipboardList, BookOpen, Beer, Sparkles, Check, CheckCircle2,
-  AlertTriangle, Clock, X, ArrowRight, Trash2, Search, Loader2, Bell, Calendar, History, ChevronDown, Database, Download, Upload, Copy, QrCode, Camera, FileText, Package, MoreHorizontal, BarChart3, Pencil, Printer, RotateCcw, Compass, Lock, Share,
+  Droplet, AlertTriangle, Clock, X, ArrowRight, Trash2, Search, Loader2, Bell, Calendar, History, ChevronDown, Database, Download, Upload, Copy, QrCode, Camera, FileText, Package, MoreHorizontal, BarChart3, Pencil, Printer, RotateCcw, Compass, Lock, Share, Wrench,
 } from "lucide-react";
 
 // ---------- Brand ----------
+// Taken directly from The Curfew's own T-shirt artwork (both CMYK masters), not estimated
+// from photographs. The Front artwork is 100% a single ink, #203B43, and the Reverse uses that
+// same ink for the tower, the viaduct and all type. The brand runs cool: dark teal, a light
+// teal sky, and cream. Every warm colour in the artwork is beer, never chrome, which is the
+// rule this palette follows too: the interface is teal and cream, and warmth only ever comes
+// from the drink itself.
 const C = {
-  ink: "#1E3A46", inkSoft: "#2E4E57", brass: "#B8862B", brassSoft: "#D1A44A",
-  stone: "#E8E7E2", surface: "#FCFBF9", line: "#DBD8D0", cream: "#F3EFE6",
-  paper: "#FBF8F2", alert: "#A23B3B",
+  ink: "#203B43",        // the brand ink, exact
+  inkSoft: "#376673",    // same hue, lifted, for secondary text (5.5:1 on cream)
+  accent: "#1F6B6A",     // the brand's teal hue at 179deg, deepened so it carries on cream (5.4:1)
+  accentSoft: "#8ACFCE", // the light teal at the top of the sky gradient, exact, for dark surfaces
+  cream: "#F6EDE5",      // the cream the gradient resolves into, and the foam on every pint, exact
+  paper: "#F9F6F3",      // cards, a touch lighter than the page
+  stone: "#ECE6E2",      // recessed fields
+  line: "#E0DAD4",       // hairlines
+  muted: "#566F76",      // quiet text, still readable at 4.6:1
+  alert: "#B23A2C",      // the artwork's red, deepened enough to read as text
 };
-const TYPE_ACCENT = { cask: "#B8862B", keg: "#3E8C82", keykeg: "#3E8C82", cider: "#5E8C4F" };
+// The five pints under the viaduct, sampled straight from the artwork. Warm colour in this app
+// means beer and nothing else, so these are the only warm values in the whole palette.
+const BEER = { yellow: "#E4C234", gold: "#E39E1A", amber: "#D6771C", red: "#CB4132", brown: "#974A31" };
+const TYPE_ACCENT = { cask: BEER.amber, keg: C.accent, keykeg: C.accent, cider: "#5F8A52" };
 // One definition of each dietary badge's colour, warm and teal-tinted to match the app's
 // own palette. Used everywhere a badge appears, so they can't drift out of sync again.
 const DIET_BADGE_STYLE = {
@@ -18,7 +34,7 @@ const DIET_BADGE_STYLE = {
   gluten: { background: "#E8F2F1", color: "#1F5C54", borderColor: "#BFDDD9" },
   hazy: { background: "#F7E9E7", color: C.alert, borderColor: "#E8CCC8" },
 };
-const CAT_ACCENT = { IPA: "#E3A93E", Pale: "#F2CC45", Bitter: "#D6823C", "Stout/Porter": "#6E4A32", Stout: "#6E4A32", Porter: "#6E4A32", Cider: "#5E8C4F", Sour: "#C4553F", Misc: "#96A19B" };
+const CAT_ACCENT = { IPA: BEER.gold, Pale: BEER.yellow, Bitter: BEER.amber, "Stout/Porter": BEER.brown, Stout: BEER.brown, Porter: BEER.brown, Cider: "#5F8A52", Sour: BEER.red, Misc: "#7C8F96" };
 const STORE_KEY = "curfew-cellar:data:v1";
 const MODEL = "claude-sonnet-4-6";
 // Updated by hand every time a new App.jsx is handed over. Check this against what you were
@@ -182,6 +198,11 @@ const flowFor = (drinkType) => (drinkType === "cask" ? CASK_FLOW : SHORT_FLOW);
 // Also NOT included: the racked-preview six-slot mix (2 IPA, 2 Pale, 1 Bitter, 1 Stout). It's
 // tightly interleaved with which of two shared IPA/Pale candidates lands in which slot, not a
 // simple lookup, so folding it in here risked an off-by-one for no real benefit this session.
+// The Curfew's actual logo mark (tower, clock, flag), embedded directly so it travels with
+// this one file rather than needing a separate asset uploaded to the repo. Its own background
+// is a solid fill, not transparent, and that fill is the genuine brand teal, see the C.ink note
+// below for why that matters.
+const PUB_LOGO = "data:image/png;base64,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";
 const PUB_CONFIG = {
   name: "The Curfew",             // short display name: header, tap list, allergen sheet, PDF titles
   fullName: "The Curfew Micropub", // long form: PDF subtitle taglines, rendered upper-case there
@@ -193,11 +214,15 @@ const PUB_CONFIG = {
   pumpNumber: { cask0: 1, cask1: 2, cask2: 3, cask3: 4, keg0: 5, keg1: 6, keg2: 7, cider0: 8, cider1: 9, cider2: 10 },
   // Racked IPA/Pale slots fill by ABV, strongest two go to IPA. Standing decision.
   caskPrefPumps: (cat) => (cat === "IPA" || cat === "Pale") ? ["cask0", "cask1"] : cat === "Bitter" ? ["cask2"] : cat === "Stout/Porter" ? ["cask3"] : [],
+  lineCleanDays: 7, // how often lines are due a clean; seven days is the usual cellar standard
 };
 const PUMPS = PUB_CONFIG.pumps;
 const PUMP_LABELS = PUB_CONFIG.pumpLabels;
 const PUMP_NUMBER = PUB_CONFIG.pumpNumber;
 const caskPrefPumps = PUB_CONFIG.caskPrefPumps;
+// Every pump in bar order, for anything that works across the whole bar rather than one
+// drink type (line cleaning being the obvious case: a line is a line).
+const ALL_PUMPS = [...PUMPS.cask, ...PUMPS.keg, ...PUMPS.cider];
 // Features built with the eventual sellable, multi-pub product in mind, not everything here is
 // right for The Curfew specifically. Each one defaults to whatever's correct for this pub; a
 // future paying tenant would flip theirs on. This only gates the navigation entry points below,
@@ -319,7 +344,7 @@ const GUIDE_SECTIONS = [
 // the system font. The browser dedupes the duplicate @import.
 const FontBoot = () => <style>{`@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=DM+Sans:wght@500;600;700;800&display=swap');
 :root { --font-data: 'Archivo', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; --font-display: 'Archivo', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; --font-brand: 'DM Sans', 'Archivo', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }`}</style>;
-const VIEW_TITLES = { cellar: "Cellar", add: "Add Stock", library: "Library", allergens: "Allergen Sheet", stock: "Stock List", empties: "Empties to Return", stats: "Cellar Stats", guide: "How to Use", notify: "Notifications", backup: "Backup & Restore" };
+const VIEW_TITLES = { cellar: "Cellar", add: "Add Stock", library: "Library", allergens: "Allergen Sheet", stock: "Stock List", empties: "Empties to Return", lines: "Line Cleaning", libtools: "Library Tools", stats: "Cellar Stats", guide: "How to Use", notify: "Notifications", backup: "Backup & Restore" };
 const SIZE_OPTIONS = ["Bag-in-box 20L"];
 const FRESH_LIMIT = 4; // days on a cask before a quality check is worth a look
 const BB_SOON = 2;     // days before best-before to start flagging
@@ -412,7 +437,7 @@ const cleanBrewery = (name) => {
   if (!name) return "";
   let out = String(name).trim();
   for (let i = 0; i < 4; i++) {
-    const next = out.replace(/[\s,]+(?:limited|ltd\.?|co\.?|company|brewery|brewing|brewhouse|breweries|brewers|brew\s*co\.?|cider|ciders|cidery|cider\s*co\.?|perry|perries|plc)$/i, "").trim();
+    const next = out.replace(/[\s,]+(?:limited|ltd\.?|co\.?|company|brewery|brewing|brewhouse|breweries|brewers|brew\s*co\.?|ales|beers|beer\s*co\.?|cider|ciders|cidery|cider\s*co\.?|perry|perries|plc)$/i, "").trim();
     if (next === out) break;
     out = next;
   }
@@ -444,6 +469,31 @@ const findDuplicateCandidates = (library) => {
     }
   });
   return pairs;
+};
+// A brewery has exactly one real location, unlike its ABV or style, which genuinely differ
+// beer to beer. More than one distinct location on file for the same brewery (fuzzy-matched
+// the same way duplicate beers are) is always a data error, never a legitimate difference, so
+// unlike findDuplicateCandidates this doesn't need a second signal to avoid false positives.
+// Groups by whichever location is most common, so the option Kyle is most likely to want to
+// keep is offered first.
+const findLocationClashes = (library) => {
+  const groups = {};
+  library.forEach((b) => {
+    if ((b.collabBrewery || "").trim()) return;
+    const loc = (b.location || "").trim();
+    if (!loc) return;
+    const key = breweryCore(b.brewery);
+    if (!key) return;
+    const g = (groups[key] = groups[key] || { brewery: b.brewery, byLoc: new Map() });
+    if (!g.brewery && b.brewery) g.brewery = b.brewery;
+    const lk = loc.toLowerCase();
+    const entry = g.byLoc.get(lk) || { loc, beerIds: [] };
+    entry.beerIds.push(b.id);
+    g.byLoc.set(lk, entry);
+  });
+  return Object.values(groups)
+    .filter((g) => g.byLoc.size > 1)
+    .map((g) => ({ brewery: g.brewery, options: [...g.byLoc.values()].sort((a, b) => b.beerIds.length - a.beerIds.length) }));
 };
 // Both autofill paths (Add Stock and Edit beer details) share this. Kept in one place so the
 // two can never drift apart. Wrong details cost real time behind the bar, so the model is told
@@ -488,6 +538,30 @@ JSON only.`;
 // internally inconsistent combinations that can slip past even a well-sourced AI answer, e.g.
 // marked vegan while isinglass (a fish product) is listed as an allergen. Returns plain-English
 // warnings, or an empty array if nothing looks contradictory.
+const GLUTEN_GRAINS = ["Barley (gluten)", "Wheat (gluten)", "Oats (gluten)", "Rye (gluten)"];
+// Never present "Gluten-free" as a claim while a gluten grain is also listed as an allergen.
+// One of the two is wrong, and on something a coeliac customer reads, the safe direction is to
+// drop the reassuring claim rather than the warning. The allergen list still shows in full, and
+// the attention bell tells Kyle so the underlying data can be corrected.
+const glutenClaimConflict = (beer) => beer.glutenStatus === "Gluten-free" && (beer.allergens || []).some((a) => GLUTEN_GRAINS.includes(a));
+const isGlutenFree = (beer) => beer.glutenStatus === "Gluten-free" && !glutenClaimConflict(beer);
+// When a beer's name already starts with its brewery ("Malvern" + "Malvern Gold") printing both
+// gives "Malvern Malvern Gold". Drop the repeated prefix so the weight split still reads as
+// brewery-then-beer without the stutter.
+const splitTitle = (brewery, name, collabBrewery) => {
+  const b = (brewery || "").trim(), n = (name || "").trim(), c = (collabBrewery || "").trim();
+  const lead = c ? `${b} X ${c}` : b;
+  if (b && n.toLowerCase().startsWith(b.toLowerCase() + " ")) return { lead, rest: n.slice(b.length).trim() };
+  return { lead, rest: n };
+};
+// A collaboration has two homes, not one. Shown as "Location X Second location" wherever a
+// beer's location appears, the same X convention as the brewery names above, so a card reads
+// as one obviously joint beer rather than one brewery with an unexplained second address.
+const locationDisplay = (b) => {
+  const loc = (b.location || "").trim(), collabLoc = (b.collabLocation || "").trim();
+  if (!collabLoc) return loc;
+  return loc ? `${loc} X ${collabLoc}` : collabLoc;
+};
 const checkContradictions = (f) => {
   const warnings = [];
   const allergens = Array.isArray(f.allergens) ? f.allergens : [];
@@ -720,7 +794,7 @@ const seedLines = [
 const seedDistributors = ["HB Clark", "LWC", "6 Barrells"];
 
 const emptyForm = {
-  drinkType: "cask", brewery: "", location: "", name: "", style: "", abv: "",
+  drinkType: "cask", brewery: "", location: "", collabBrewery: "", collabLocation: "", name: "", style: "", abv: "",
   clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "",
   allergensVerified: false, category: "Misc", size: "", price: "",
   status: "in_cellar", bestBefore: "", caskOwner: "", sweetness: "",
@@ -734,7 +808,7 @@ const emptyForm = {
 // the louder dietary/allergen colours (Ve/GF/Hazy) that share the same card.
 const CatDot = ({ category }) => {
   const c = CAT_ACCENT[category] || CAT_ACCENT.Misc;
-  return <span className="inline-block shrink-0 rounded-full" style={{ width: 9, height: 9, background: c, boxShadow: "inset 0 0 0 1.25px rgba(30, 58, 70,0.35)" }} title={category || "Misc"} />;
+  return <span className="inline-block shrink-0 rounded-full" style={{ width: 9, height: 9, background: c, boxShadow: "inset 0 0 0 1.25px rgba(32, 59, 67,0.35)" }} title={category || "Misc"} />;
 };
 // The Curfew's own signature graphic (the festival poster and banner): a row of pint glasses,
 // yellow through to brown, sitting beneath a viaduct of arches. Reused here at the foot of the
@@ -742,22 +816,28 @@ const CatDot = ({ category }) => {
 // well-made but generic beer list. Fixed palette, not the live category colours, since this is
 // branding, not a reflection of what's currently on tap.
 const BridgeMotif = () => {
-  const colors = ["#F2CC45", "#E3A93E", "#D6823C", "#C4553F", "#6E4A32"];
-  const unit = 60;
-  const glassTop = 26;
-  const glassH = 46;
+  // The festival poster's motif is a viaduct whose arches ARE the pint glasses: a dome-topped
+  // opening with straight sides, filled with beer, the dark piers showing between them. The
+  // first attempt drew flat-topped rectangles with separate arcs floating above, which read as
+  // croquet hoops over colour swatches rather than a bridge. Each glass is now a single arched
+  // shape, and the gaps between them do the work of the piers against the dark background.
+  const colors = [BEER.yellow, BEER.gold, BEER.amber, BEER.red, BEER.brown];
+  const unit = 56, gap = 8, H = 54, foamH = 7;
+  const w = unit - gap, r = w / 2;
   const totalW = colors.length * unit;
+  const arch = (x) => `M ${x} ${H} L ${x} ${r} A ${r} ${r} 0 0 1 ${x + w} ${r} L ${x + w} ${H} Z`;
+  const foam = (x) => `M ${x} ${r} A ${r} ${r} 0 0 1 ${x + w} ${r} L ${x + w} ${r + foamH} L ${x} ${r + foamH} Z`;
   return (
-    <svg viewBox={`0 0 ${totalW} ${glassTop + glassH}`} preserveAspectRatio="xMidYMax meet" style={{ width: "100%", maxWidth: 320, height: 56, display: "block", margin: "0 auto" }} aria-hidden="true">
-      {colors.map((c, i) => (
-        <rect key={i} x={i * unit + 6} y={glassTop} width={unit - 12} height={glassH} rx={5} fill={c} />
-      ))}
-      {colors.map((_, i) => (
-        <rect key={`foam${i}`} x={i * unit + 6} y={glassTop} width={unit - 12} height={8} rx={5} fill="#F3EFE6" opacity="0.85" />
-      ))}
-      {colors.map((_, i) => (
-        <path key={`arch${i}`} d={`M ${i * unit + 2} ${glassTop + 4} A ${unit / 2 - 6} ${unit / 2 - 6} 0 0 1 ${i * unit + unit - 2} ${glassTop + 4}`} fill="none" stroke="rgba(184,134,43,0.55)" strokeWidth="1.5" />
-      ))}
+    <svg viewBox={`0 0 ${totalW} ${H}`} preserveAspectRatio="xMidYMax meet" style={{ width: "100%", maxWidth: 300, height: 58, display: "block", margin: "0 auto" }} aria-hidden="true">
+      {colors.map((c, i) => {
+        const x = i * unit + gap / 2;
+        return (
+          <g key={i}>
+            <path d={arch(x)} fill={c} />
+            <path d={foam(x)} fill="#F6EDE5" opacity="0.92" />
+          </g>
+        );
+      })}
     </svg>
   );
 };
@@ -767,7 +847,7 @@ const Badge = ({ className = "", style, children }) => (
 const DietaryBadges = ({ beer }) => (
   <div className="flex flex-wrap gap-1.5">
     {beer.vegan && <Badge style={DIET_BADGE_STYLE.vegan}>Vegan</Badge>}
-    {beer.glutenStatus === "Gluten-free" && <Badge style={DIET_BADGE_STYLE.gluten}>Gluten-free</Badge>}
+    {isGlutenFree(beer) && <Badge style={DIET_BADGE_STYLE.gluten}>Gluten-free</Badge>}
     {beer.glutenStatus === "Low gluten" && <Badge style={DIET_BADGE_STYLE.gluten}>Low gluten, &lt;20ppm</Badge>}
     {beer.clarity === "Hazy" && <Badge style={DIET_BADGE_STYLE.hazy}>Hazy</Badge>}
   </div>
@@ -775,7 +855,7 @@ const DietaryBadges = ({ beer }) => (
 const DietaryMini = ({ beer }) => {
   const items = [];
   if (beer.vegan) items.push(["VG", "Vegan", DIET_BADGE_STYLE.vegan]);
-  if (beer.glutenStatus === "Gluten-free") items.push(["GF", "Gluten-free", DIET_BADGE_STYLE.gluten]);
+  if (isGlutenFree(beer)) items.push(["GF", "Gluten-free", DIET_BADGE_STYLE.gluten]);
   else if (beer.glutenStatus === "Low gluten") items.push(["<20ppm", "Low gluten, under 20ppm", DIET_BADGE_STYLE.gluten]);
   if (beer.clarity === "Hazy") items.push(["Hazy", "Hazy", DIET_BADGE_STYLE.hazy]);
   if (!items.length) return null;
@@ -801,9 +881,15 @@ const Field = ({ label, children }) => (
 // archiving) stays in the screen that actually needs it, not here.
 const BeerDetailsFields = ({ values, onChange, onAutoFill, busy, note, toggleAllergen }) => {
   const chip = (on) => (on ? { background: C.ink, color: "#fff", borderColor: C.ink } : { borderColor: C.line, color: C.inkSoft });
+  // Collapsed by default: a genuine collaboration is rare, so it shouldn't cost every other
+  // beer a visible field. Expands automatically the moment either collab field actually has
+  // something in it, whether that's the user typing or an existing beer being loaded in, and
+  // never snaps shut again once open, so it can't yank the fields away mid-edit.
+  const [showCollab, setShowCollab] = useState(() => !!(values.collabBrewery || values.collabLocation));
+  useEffect(() => { if (values.collabBrewery || values.collabLocation) setShowCollab(true); }, [values.collabBrewery, values.collabLocation]);
   return (
     <>
-      <button onClick={onAutoFill} disabled={busy} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:opacity-60" style={{ borderColor: C.brass, color: C.brass }}>
+      <button onClick={onAutoFill} disabled={busy} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:opacity-60" style={{ borderColor: C.accent, color: C.accent }}>
         {busy ? <><Loader2 size={16} className="animate-spin" /> Filling in…</> : <><Sparkles size={16} /> Auto-fill</>}
       </button>
       {note && (
@@ -817,6 +903,20 @@ const BeerDetailsFields = ({ values, onChange, onAutoFill, busy, note, toggleAll
         <Field label="Producer / brewery"><input className={inputCls} value={values.brewery} onChange={(e) => onChange({ brewery: e.target.value })} placeholder="e.g. Wylam" /></Field>
         <Field label="Location"><input className={inputCls} value={values.location} onChange={(e) => onChange({ location: e.target.value })} placeholder="e.g. Berwick-upon-Tweed" /></Field>
       </div>
+      {showCollab ? (
+        <div className="rounded-lg border p-3" style={{ borderColor: C.line, background: C.stone }}>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: C.inkSoft }}>Brewed as a collaboration</p>
+            <button onClick={() => { setShowCollab(false); onChange({ collabBrewery: "", collabLocation: "" }); }} className="text-xs font-medium text-slate-500 hover:text-slate-700">Remove</button>
+          </div>
+          <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Field label="Second Brewery"><input className={inputCls} value={values.collabBrewery} onChange={(e) => onChange({ collabBrewery: e.target.value })} placeholder="e.g. Wild Beer Co" /></Field>
+            <Field label="Second Location"><input className={inputCls} value={values.collabLocation} onChange={(e) => onChange({ collabLocation: e.target.value })} placeholder="e.g. Shepton Mallet" /></Field>
+          </div>
+        </div>
+      ) : (
+        <button onClick={() => setShowCollab(true)} className="text-left text-xs font-medium" style={{ color: C.inkSoft }}>+ This was brewed as a collaboration</button>
+      )}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field label="Style"><input className={inputCls} value={values.style} onChange={(e) => onChange({ style: e.target.value })} placeholder="e.g. IPA" /></Field>
         <Field label="ABV %"><input className={inputCls} inputMode="decimal" value={values.abv} onChange={(e) => onChange({ abv: e.target.value })} placeholder="e.g. 5.4" /></Field>
@@ -862,7 +962,7 @@ const BeerDetailsFields = ({ values, onChange, onAutoFill, busy, note, toggleAll
 };
 const Eyebrow = ({ children, count }) => (
   <div className="mb-2 flex items-center gap-2">
-    <h3 className="text-xs font-semibold uppercase tracking-widest" style={{ color: C.brass }}>{children}</h3>
+    <h3 className="text-xs font-semibold uppercase tracking-widest" style={{ color: C.accent }}>{children}</h3>
     <span className="h-px flex-1" style={{ background: C.line }} />
     {count != null && <span className="text-xs font-medium text-slate-400">{count}</span>}
   </div>
@@ -898,14 +998,14 @@ const LineRow = ({ line, context, beerById, onOpen }) => {
   else if (bb && bb.level === "past") badgeText = "BB passed";
   else if (bb && bb.level === "soon") badgeText = daysUntil(line.bestBefore) === 0 ? "BB today" : `BB ${daysUntil(line.bestBefore)}d`;
   return (
-    <button onClick={() => onOpen(line.id)} className="flex h-full w-full flex-col gap-1.5 rounded-xl border px-3 py-2 text-left transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-amber-300 active:scale-95" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[line.drinkType] || C.line, boxShadow: "0 1px 2px rgba(30, 58, 70,0.05), 0 6px 14px -10px rgba(30, 58, 70,0.2)", minHeight: 52 }}>
+    <button onClick={() => onOpen(line.id)} className="flex h-full w-full flex-col gap-1.5 rounded-xl border px-3 py-2 text-left transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-amber-300 active:scale-95" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[line.drinkType] || C.line, boxShadow: "0 1px 2px rgba(32, 59, 67,0.05), 0 6px 14px -10px rgba(32, 59, 67,0.2)", minHeight: 52 }}>
       <div className="min-w-0">
         <div className="flex items-center gap-1.5">
           <CatDot category={beer.category} />
-          <p className="truncate text-sm font-normal leading-tight" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer.brewery && <span className="font-semibold" style={{ color: C.ink }}>{beer.brewery}</span>} {beer.name}</p>
+          <p className="truncate text-sm font-normal leading-tight" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{(() => { const t = splitTitle(beer.brewery, beer.name, beer.collabBrewery); return <>{t.lead && <span className="font-semibold" style={{ color: C.ink }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()}</p>
           {!beer.allergensVerified && <AlertTriangle size={13} className="shrink-0 text-amber-500" />}
         </div>
-        <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[beer.style || "", beer.abv ? `${beer.abv}%` : "", line.price ? `£${line.price}` : "no price set", beer.location || ""].filter(Boolean).join("  ·  ")}</p>
+        <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[beer.style || "", beer.abv ? `${beer.abv}%` : "", line.price ? `£${line.price}` : "no price set", locationDisplay(beer)].filter(Boolean).join("  ·  ")}</p>
       </div>
       <div className="flex flex-wrap items-center gap-1" style={{ minHeight: 22 }}>
         <DietaryMini beer={beer} />
@@ -918,10 +1018,10 @@ const LineRow = ({ line, context, beerById, onOpen }) => {
 const NavButton = ({ id, icon: Icon, label, badge, view, go }) => {
   const active = view === id;
   return (
-    <button onClick={() => go(id)} style={active ? { background: C.brass, color: C.ink, fontFamily: "var(--font-data)" } : { color: C.cream, fontFamily: "var(--font-data)" }}
+    <button onClick={() => go(id)} style={active ? { background: C.accent, color: C.ink, fontFamily: "var(--font-data)" } : { color: C.cream, fontFamily: "var(--font-data)" }}
       className={`flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-semibold transition active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300 ${active ? "" : "hover:opacity-80"}`}>
       <Icon size={16} /> <span className="hidden sm:inline">{label}</span>
-      {badge > 0 && <span className="grid place-items-center rounded-full px-1" style={{ height: 15, minWidth: 15, background: active ? C.ink : C.brass, color: active ? C.brassSoft : C.ink, fontSize: 9.5, fontWeight: 700, lineHeight: 1 }}>{badge > 9 ? "9+" : badge}</span>}
+      {badge > 0 && <span className="grid place-items-center rounded-full px-1" style={{ height: 15, minWidth: 15, background: active ? C.ink : C.accent, color: active ? C.accentSoft : C.ink, fontSize: 9.5, fontWeight: 700, lineHeight: 1 }}>{badge > 9 ? "9+" : badge}</span>}
     </button>
   );
 };
@@ -929,10 +1029,10 @@ const NavButton = ({ id, icon: Icon, label, badge, view, go }) => {
 const BottomTab = ({ id, icon: Icon, label, onClick, badge, view, go }) => {
   const active = view === id;
   return (
-    <button onClick={onClick || (() => go(id))} className="flex flex-1 flex-col items-center justify-center gap-0.5 py-2 transition active:scale-95 focus:outline-none" style={{ color: active ? C.brass : C.inkSoft }}>
+    <button onClick={onClick || (() => go(id))} className="flex flex-1 flex-col items-center justify-center gap-0.5 py-2 transition active:scale-95 focus:outline-none" style={{ color: active ? C.accent : C.inkSoft }}>
       <span className="relative inline-flex">
         <Icon size={21} />
-        {badge > 0 && <span className="absolute grid place-items-center rounded-full px-1" style={{ top: -4, right: -8, height: 14, minWidth: 14, background: C.brass, color: C.ink, fontFamily: "var(--font-data)", fontSize: 9, fontWeight: 700, lineHeight: 1 }}>{badge > 9 ? "9+" : badge}</span>}
+        {badge > 0 && <span className="absolute grid place-items-center rounded-full px-1" style={{ top: -4, right: -8, height: 14, minWidth: 14, background: C.accent, color: C.ink, fontFamily: "var(--font-data)", fontSize: 9, fontWeight: 700, lineHeight: 1 }}>{badge > 9 ? "9+" : badge}</span>}
       </span>
       <span className="text-xs font-semibold" style={{ fontFamily: "var(--font-data)" }}>{label}</span>
     </button>
@@ -951,15 +1051,15 @@ const Row = ({ l, stage, beerById }) => {
       <div className="min-w-0">
         <div className="flex items-center gap-1.5">
           <CatDot category={beer.category} />
-          <p className="truncate text-sm font-normal" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer.brewery && <span className="font-semibold" style={{ color: C.ink }}>{beer.brewery}</span>} {beer.name}</p>
+          <p className="truncate text-sm font-normal" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{(() => { const t = splitTitle(beer.brewery, beer.name, beer.collabBrewery); return <>{t.lead && <span className="font-semibold" style={{ color: C.ink }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()}</p>
         </div>
         <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[dt, beer.style || "", extraSweetness(beer), beer.abv ? `${beer.abv}%` : ""].filter(Boolean).join("  ·  ")}</p>
-        {beer.location && <p className="truncate text-xs text-slate-500" style={{ fontFamily: "var(--font-data)" }}>{beer.location}</p>}
-        {(l.caskOwner && l.drinkType !== "cider" && l.drinkType !== "keykeg") && <p className="truncate text-xs text-slate-500" style={{ fontFamily: "var(--font-data)" }}>Delivered by: {l.caskOwner}</p>}
-        <div className="mt-1 flex flex-wrap items-center gap-1"><DietaryMini beer={beer} /></div>
+        <p className="truncate text-xs text-slate-500" style={{ fontFamily: "var(--font-data)", minHeight: 16 }}>{locationDisplay(beer)}</p>
+        <p className="truncate text-xs text-slate-500" style={{ fontFamily: "var(--font-data)", minHeight: 16 }}>{(l.caskOwner && l.drinkType !== "cider" && l.drinkType !== "keykeg") ? `Delivered by: ${l.caskOwner}` : ""}</p>
+        <div className="mt-1 flex flex-wrap items-center gap-1" style={{ minHeight: 22 }}><DietaryMini beer={beer} /></div>
       </div>
       <div className="shrink-0 text-right" style={{ fontFamily: "var(--font-data)" }}>
-        {pump && <p className="text-xs font-semibold" style={{ color: C.brass }}>{pump}</p>}
+        {pump && <p className="text-xs font-semibold" style={{ color: C.accent }}>{pump}</p>}
         {stage && <p className="text-xs text-slate-500">{stage}</p>}
         {bb && <p className="text-xs text-slate-400">BB {bb}</p>}
       </div>
@@ -968,7 +1068,7 @@ const Row = ({ l, stage, beerById }) => {
 };
 const Section = ({ title, items, withStage, beerById }) => items.length ? (
   <div className="mt-4">
-    <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: C.brass }}>{title} · {items.length}</h3>
+    <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: C.accent }}>{title} · {items.length}</h3>
     <div className="mt-1">{items.map((l) => <Row key={l.id} l={l} stage={withStage ? (STATUS_BY_KEY[l.status] && STATUS_BY_KEY[l.status].label) : null} beerById={beerById} />)}</div>
   </div>
 ) : null;
@@ -980,25 +1080,25 @@ const Item = ({ line, beerById }) => {
   const faint = "rgba(243,239,230,0.68)";
   const diet = [];
   if (beer.vegan) diet.push("Vegan");
-  if (beer.glutenStatus === "Gluten-free") diet.push("Gluten-free");
+  if (isGlutenFree(beer)) diet.push("Gluten-free");
   else if (beer.glutenStatus === "Low gluten") diet.push("Low gluten, <20ppm");
   return (
     <div className="py-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-1 gap-1.5">
           <span className="shrink-0" style={{ paddingTop: 9 }}><CatDot category={beer.category} /></span>
-          <p className="min-w-0 text-lg font-normal" style={{ color: C.cream, fontFamily: "var(--font-display)" }}>{beer.brewery && <span className="font-semibold" style={{ color: C.cream }}>{beer.brewery}</span>} {beer.name}</p>
+          <p className="min-w-0 text-lg font-normal" style={{ color: C.cream, fontFamily: "var(--font-display)" }}>{(() => { const t = splitTitle(beer.brewery, beer.name, beer.collabBrewery); return <>{t.lead && <span className="font-semibold" style={{ color: C.cream }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()}</p>
         </div>
-        <div className="shrink-0 text-right">
-          <p className="text-lg font-semibold" style={{ color: C.brassSoft, fontFamily: "var(--font-display)" }}>{tlp ? tlp.pint : line.price ? `£${line.price}` : "Ask at the bar"}</p>
-          {tlp && <p className="text-xs" style={{ color: "rgba(243,239,230,0.55)" }}>Half {tlp.half} · Schooner {tlp.schooner}</p>}
-        </div>
+        <p className="shrink-0 text-lg font-semibold" style={{ color: C.accentSoft, fontFamily: "var(--font-display)" }}>{tlp ? tlp.pint : line.price ? `£${line.price}` : "Ask at the bar"}</p>
       </div>
-      <p className="text-sm font-medium" style={{ color: "rgba(243,239,230,0.85)" }}>{beer.style}{extraSweetness(beer) ? ` · ${extraSweetness(beer)}` : ""} · {beer.abv}%{beer.clarity === "Hazy" ? " · Hazy" : ""}</p>
-      {beer.location && <p className="text-xs" style={{ color: "rgba(243,239,230,0.5)" }}>{beer.location}</p>}
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="text-sm font-medium" style={{ color: "rgba(243,239,230,0.85)" }}>{beer.style}{extraSweetness(beer) ? ` · ${extraSweetness(beer)}` : ""} · {beer.abv}%{beer.clarity === "Hazy" ? " · Hazy" : ""}</p>
+        {tlp && <p className="shrink-0 text-xs" style={{ color: "rgba(243,239,230,0.55)" }}>Half {tlp.half} · Schooner {tlp.schooner}</p>}
+      </div>
+      {locationDisplay(beer) && <p className="text-xs" style={{ color: "rgba(243,239,230,0.5)" }}>{locationDisplay(beer)}</p>}
       {beer.notes && <ul className="mt-1 space-y-0.5">{splitNote(beer.notes).map((line, i) => <li key={i} className="flex gap-1.5 text-sm italic" style={{ color: faint }}><span>·</span><span>{line}.</span></li>)}</ul>}
       <div className="mt-1.5">
-        {diet.length > 0 && <p className="flex flex-wrap gap-x-3 text-xs font-semibold uppercase tracking-wide" style={{ color: C.brassSoft }}>{diet.map((d) => <span key={d}>{d}</span>)}</p>}
+        {diet.length > 0 && <p className="flex flex-wrap gap-x-3 text-xs font-semibold uppercase tracking-wide" style={{ color: C.accentSoft }}>{diet.map((d) => <span key={d}>{d}</span>)}</p>}
         <p className="mt-1 text-xs" style={{ color: "rgba(243,239,230,0.45)" }}>{beer.allergensVerified ? (beer.allergens.length ? `Contains: ${beer.allergens.join(", ")}` : "No declared allergens") : "Allergens: please ask at the bar"}</p>
       </div>
     </div>
@@ -1061,19 +1161,19 @@ const EditBeer = ({
     ownerTimer.current = setTimeout(() => { ownerTimer.current = null; setCaskOwner(editLine.id, v); }, 500);
   };
   const detailValues = {
-    name: beer.name, brewery: beer.brewery, location: beer.location || "", style: beer.style || "", abv: beer.abv || "",
+    name: beer.name, brewery: beer.brewery, location: beer.location || "", collabBrewery: beer.collabBrewery || "", collabLocation: beer.collabLocation || "", style: beer.style || "", abv: beer.abv || "",
     category: beer.category || "Misc", sweetness: beer.sweetness || "", clarity: beer.clarity || "Clear", glutenStatus: beer.glutenStatus || "Standard",
     vegan: !!beer.vegan, allergens: beer.allergens, allergensVerified: !!beer.allergensVerified, notes: beer.notes || "",
   };
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(30, 58, 70,0.45)" }} onClick={close}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(32, 59, 67,0.45)" }} onClick={close}>
       <div className="w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white sm:rounded-2xl cc-pop" style={{ maxHeight: "92vh", overscrollBehaviorY: "none", WebkitOverflowScrolling: "touch", touchAction: "manipulation" }} onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 flex items-center justify-between gap-2 border-b bg-white p-4" style={{ borderColor: C.line }}>
           <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Edit beer details</h2>
           <button onClick={close} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400"><X size={18} /></button>
         </div>
         <div className="space-y-3 p-4">
-          <BeerDetailsFields values={detailValues} onChange={(patch) => updateBeer(beer.id, patch)} onAutoFill={() => autoFillBeer(beer)} busy={editBusy} note={editNote} toggleAllergen={(a) => toggleBeerAllergen(beer.id, a)} />
+          <BeerDetailsFields key={beer.id} values={detailValues} onChange={(patch) => updateBeer(beer.id, patch)} onAutoFill={() => autoFillBeer(beer)} busy={editBusy} note={editNote} toggleAllergen={(a) => toggleBeerAllergen(beer.id, a)} />
           <Field label="Price (£ per pint)"><input className={inputCls} inputMode="decimal" value={priceDraft} onChange={(e) => commitPrice(e.target.value)} placeholder="e.g. 4.40" /></Field>
           {editLine && (
             <>
@@ -1165,10 +1265,10 @@ function TheCurfewCellarApp() {
     try {
       if (typeof window !== "undefined" && window.localStorage) {
         const raw = localStorage.getItem("curfew-cellar:ui-prefs:v1");
-        if (raw) return { on: true, racked: true, store: false, empties: {}, libraryTools: false, libRecent: true, libAll: false, libArchived: false, ...JSON.parse(raw) };
+        if (raw) return { on: true, racked: true, store: false, empties: {}, libRecent: true, libAll: false, libArchived: false, ...JSON.parse(raw) };
       }
     } catch (e) { /* ignore, fall through to default */ }
-    return { on: true, racked: true, store: false, empties: {}, libraryTools: false, libRecent: true, libAll: false, libArchived: false };
+    return { on: true, racked: true, store: false, empties: {}, libRecent: true, libAll: false, libArchived: false };
   });
   useEffect(() => {
     try { if (typeof window !== "undefined" && window.localStorage) localStorage.setItem("curfew-cellar:ui-prefs:v1", JSON.stringify(uiPrefs)); } catch (e) { /* ignore */ }
@@ -1194,9 +1294,11 @@ function TheCurfewCellarApp() {
   const toggleSection = (k) => setUiPrefs((p) => ({ ...p, [k]: !p[k] }));
   const [loading, setLoading] = useState(false);
   const [librarySearch, setLibrarySearch] = useState("");
+  const [cellarSearch, setCellarSearch] = useState("");
   const [duplicateResults, setDuplicateResults] = useState(null);
   const [combineCandidate, setCombineCandidate] = useState(null);
   const [combineKeepId, setCombineKeepId] = useState(null);
+  const [clashResults, setClashResults] = useState(null);
   const [newDistributor, setNewDistributor] = useState("");
   const [historyOpen, setHistoryOpen] = useState({});
   const [confirmDupe, setConfirmDupe] = useState(false);
@@ -1230,6 +1332,19 @@ function TheCurfewCellarApp() {
   const [scanProgress, setScanProgress] = useState(null);
   const [batchSource, setBatchSource] = useState("invoice");
   const [distributors, setDistributors] = useState(seedDistributors);
+  // Last-cleaned timestamp per pump slot, e.g. { cask0: "2026-07-20T..." }. Synced like any
+  // other cellar data, since a clean done on one phone must be visible on the others.
+  const [lineCare, setLineCare] = useState({});
+  // ---- Line cleaning ----
+  // A line with no recorded clean counts as due: better to prompt once for a line you've
+  // actually cleaned than to stay quiet about one that genuinely hasn't been.
+  const lineCleanInfo = (slot) => {
+    const last = lineCare[slot];
+    if (!last) return { never: true, days: null, overdue: true };
+    const days = dayDiff(last, new Date().toISOString());
+    return { never: false, days, overdue: days >= PUB_CONFIG.lineCleanDays };
+  };
+  const linesDueClean = () => ALL_PUMPS.filter((p) => lineCleanInfo(p).overdue).length;
   const [invoiceItems, setInvoiceItems] = useState(null);
   const [invoiceOwner, setInvoiceOwner] = useState("");
   const labelRef = useRef(null);
@@ -1261,24 +1376,35 @@ function TheCurfewCellarApp() {
 
   // "Needs attention": things a publican should see at a glance, computed from data the app
   // already tracks. Shared by the header notification bell and its dropdown.
+  // Everything the bell can raise, each with a triage priority (lower = more urgent). Without
+  // this the list came out in line-iteration order, so a passed best-before on a cask you're
+  // actively serving could sit below a dozen slower-burn notices.
+  // Allergen checks are deliberately scoped to what's servable now (on) or about to be
+  // (tapped), not all live stock. An unverified cask in the cellar is housekeeping, not a live
+  // risk, and it's already surfaced three other ways: the Verify button in the swap picker when
+  // you choose what goes on, the same button in the card modal, and the amber icon on its
+  // Library row. Warning on every line instead just buried the urgent ones.
   const attentionItems = useMemo(() => {
     const out = [];
     lines.filter((l) => l.status !== "off").forEach((l) => {
       const beer = beerById[l.beerId]; if (!beer) return;
       const nm = `${beer.brewery ? beer.brewery + " - " : ""}${beer.name}`;
+      const servable = l.status === "on" || l.status === "tapped";
       const bb = bbStatus(l);
-      if (bb && bb.level === "past") out.push({ id: l.id, warn: true, text: `${nm}: best before has passed` });
-      else if (bb && bb.level === "soon") out.push({ id: l.id, warn: true, text: `${nm}: best before ${daysUntil(l.bestBefore) === 0 ? "today" : `in ${daysUntil(l.bestBefore)}d`}` });
+      if (bb && bb.level === "past") out.push({ pri: 1, id: l.id, warn: true, text: `${nm}: best before has passed` });
+      else if (bb && bb.level === "soon") out.push({ pri: 4, id: l.id, warn: true, text: `${nm}: best before ${daysUntil(l.bestBefore) === 0 ? "today" : `in ${daysUntil(l.bestBefore)}d`}` });
       const f = freshness(l);
-      if (l.status === "on" && f && f.level === "check") out.push({ id: l.id, warn: false, text: `${nm}: on for ${daysOn(l)} days, check quality` });
-      if (l.status === "vented" && l.dates.vented && dayDiff(l.dates.vented, new Date().toISOString()) >= 2) out.push({ id: l.id, warn: false, text: `${nm}: vented ${dayDiff(l.dates.vented, new Date().toISOString())}d ago, ready to tap` });
-      if (!beer.allergensVerified) out.push({ id: l.id, warn: true, text: `${nm}: allergens not verified` });
-      else if (beer.allergens.length === 0) out.push({ id: l.id, warn: true, text: `${nm}: verified with no allergens listed, worth double-checking` });
+      if (l.status === "on" && f && f.level === "check") out.push({ pri: 6, id: l.id, warn: false, text: `${nm}: on for ${daysOn(l)} days, check quality` });
+      if (l.status === "vented" && l.dates.vented && dayDiff(l.dates.vented, new Date().toISOString()) >= 2) out.push({ pri: 5, id: l.id, warn: false, text: `${nm}: vented ${dayDiff(l.dates.vented, new Date().toISOString())}d ago, ready to tap` });
+      if (servable && !beer.allergensVerified) out.push({ pri: 2, id: l.id, warn: true, text: `${nm}: allergens not verified` });
+      else if (servable && beer.allergens.length === 0) out.push({ pri: 3, id: l.id, warn: true, text: `${nm}: verified with no allergens listed, worth double-checking` });
     });
+    const dueClean = linesDueClean();
+    if (dueClean) out.push({ pri: 6, id: null, lineCare: true, warn: false, text: `${dueClean} line${dueClean === 1 ? "" : "s"} due a clean` });
     const backupAge = prefs.lastBackup ? dayDiff(prefs.lastBackup, new Date().toISOString()) : null;
-    if (lines.length > 3 && (backupAge === null || backupAge > 30)) out.push({ id: null, warn: false, backup: true, text: backupAge === null ? "No backup saved yet. Takes ten seconds" : `Last backup ${backupAge} days ago. Worth a fresh one` });
-    return out;
-  }, [lines, beerById, prefs.lastBackup]);
+    if (lines.length > 3 && (backupAge === null || backupAge > 30)) out.push({ pri: 7, id: null, warn: false, backup: true, text: backupAge === null ? "No backup saved yet. Takes ten seconds" : `Last backup ${backupAge} days ago. Worth a fresh one` });
+    return out.sort((a, b) => a.pri - b.pri);
+  }, [lines, beerById, prefs.lastBackup, lineCare]);
 
   // ---- Push notifications (managers get a ping when a beer goes on or finishes) ----
   const [pushState, setPushState] = useState("checking"); // checking | unsupported | need-install | blocked | off | on
@@ -1369,6 +1495,7 @@ function TheCurfewCellarApp() {
     if (Array.isArray(data.library)) setLibrary(data.library);
     if (Array.isArray(data.lines)) { const lib = Array.isArray(data.library) ? data.library : library; setLines(assignPumps(data.lines.map((l) => l.status === "en_route" ? { ...l, status: "in_cellar", dates: { ...l.dates, delivered: l.dates && l.dates.delivered ? l.dates.delivered : (l.dates && l.dates.ordered) || new Date().toISOString() } } : l), catFromLib(lib))); }
     if (Array.isArray(data.distributors)) setDistributors(data.distributors);
+    if (data.lineCare && typeof data.lineCare === "object") setLineCare(data.lineCare);
     if (data.prefs && data.prefs.lastBackup) setPrefs((p) => ({ ...p, lastBackup: data.prefs.lastBackup }));
     if (data.lastUpdated) { lastUpdatedRef.current = data.lastUpdated; setLastUpdated(data.lastUpdated); }
   };
@@ -1500,7 +1627,7 @@ function TheCurfewCellarApp() {
       const doc = new JsPDF({ unit: "mm", format: "a4" });
       const W = 210, H = 297, M = 14; let y = M;
       const hex = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
-      const ink = [28, 54, 54], brass = [153, 111, 35], brassSoft = [199, 154, 62], gray = [110, 118, 115], lineCol = [225, 222, 215], paleBg = [250, 249, 246];
+      const ink = [32, 59, 67], accent = [31, 107, 106], accentSoft = [86, 139, 137], gray = [86, 111, 118], lineCol = [224, 218, 212], paleBg = [249, 246, 243];
       const ensure = (need) => { if (y + need > H - M) { doc.addPage(); y = M; } };
       const fmtD = (d) => { if (!d) return ""; try { return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" }); } catch (e) { return ""; } };
       const cmpBB = (a, b) => { const da = a.bestBefore ? new Date(a.bestBefore).getTime() : Infinity; const db = b.bestBefore ? new Date(b.bestBefore).getTime() : Infinity; return da - db; };
@@ -1510,7 +1637,7 @@ function TheCurfewCellarApp() {
       doc.setFillColor(ink[0], ink[1], ink[2]); doc.rect(0, 0, W, 28, "F");
       doc.setFont("helvetica", "bold"); doc.setFontSize(19); doc.setTextColor(243, 239, 230);
       doc.text(PUB_CONFIG.name, M, 14);
-      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(brassSoft[0], brassSoft[1], brassSoft[2]);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(accentSoft[0], accentSoft[1], accentSoft[2]);
       doc.text(`${PUB_CONFIG.typeLabel.toUpperCase()} · STOCK LIST`, M, 20.5);
       doc.setFontSize(8.5); doc.setTextColor(200, 196, 186);
       doc.text(new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }), W - M, 14, { align: "right" });
@@ -1521,14 +1648,14 @@ function TheCurfewCellarApp() {
       const sectionHead = (t, n) => {
         ensure(16);
         y += 4;
-        doc.setFillColor(brass[0], brass[1], brass[2]); doc.rect(M, y - 4, 2.2, 5.2, "F");
+        doc.setFillColor(accent[0], accent[1], accent[2]); doc.rect(M, y - 4, 2.2, 5.2, "F");
         doc.setFont("helvetica", "bold"); doc.setFontSize(11.5); doc.setTextColor(ink[0], ink[1], ink[2]);
         doc.text(t, M + 4.5, y);
         doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(gray[0], gray[1], gray[2]);
         doc.text(String(n), W - M, y, { align: "right" });
         y += 5.5;
       };
-      const subHead = (t) => { ensure(11); y += 3.5; doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor(brass[0], brass[1], brass[2]); doc.text(t.toUpperCase(), M, y); y += 4.8; };
+      const subHead = (t) => { ensure(11); y += 3.5; doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor(accent[0], accent[1], accent[2]); doc.text(t.toUpperCase(), M, y); y += 4.8; };
       const catHead = (t) => { ensure(9); y += 2.4; doc.setFont("helvetica", "italic"); doc.setFontSize(7.5); doc.setTextColor(gray[0], gray[1], gray[2]); doc.text(t, M + 3, y); y += 4.2; };
 
       // One stock line as a card row: accent bar, name, meta, and a right column with
@@ -1538,7 +1665,7 @@ function TheCurfewCellarApp() {
         const b = beerById[l.beerId]; if (!b) return;
         const name = `${b.brewery ? b.brewery + " - " : ""}${b.name || ""}`;
         const dt = (DRINK_TYPES.find((t) => t.key === l.drinkType) || {}).label || l.drinkType;
-        const meta = [dt, b.style, b.abv ? b.abv + "%" : "", b.location || "", (l.caskOwner && l.drinkType !== "cider" && l.drinkType !== "keykeg") ? `Delivered by: ${l.caskOwner}` : ""].filter(Boolean).join("  ·  ");
+        const meta = [dt, b.style, b.abv ? b.abv + "%" : "", locationDisplay(b), (l.caskOwner && l.drinkType !== "cider" && l.drinkType !== "keykeg") ? `Delivered by: ${l.caskOwner}` : ""].filter(Boolean).join("  ·  ");
         doc.setFont("helvetica", "bold"); doc.setFontSize(9.5);
         const nameLines = doc.splitTextToSize(name, W - 2 * M - 38);
         doc.setFont("helvetica", "normal"); doc.setFontSize(7.8);
@@ -1580,12 +1707,12 @@ function TheCurfewCellarApp() {
 
       if (onL.length) {
         sectionHead("On", onL.length);
-        onL.forEach((l) => beerLine(l, TYPE_ACCENT[l.drinkType] || "#B8862B", { pill: (l.status === "on" && l.slot) ? PUMP_LABELS[l.slot] : null }));
+        onL.forEach((l) => beerLine(l, TYPE_ACCENT[l.drinkType] || "#1F6B6A", { pill: (l.status === "on" && l.slot) ? PUMP_LABELS[l.slot] : null }));
         y += 1.5;
       }
       if (prep.length) {
         sectionHead("In cellar", prep.length);
-        prep.forEach((l) => beerLine(l, TYPE_ACCENT[l.drinkType] || "#B8862B", { pill: (STATUS_BY_KEY[l.status] && STATUS_BY_KEY[l.status].label) || null }));
+        prep.forEach((l) => beerLine(l, TYPE_ACCENT[l.drinkType] || "#1F6B6A", { pill: (STATUS_BY_KEY[l.status] && STATUS_BY_KEY[l.status].label) || null }));
         y += 1.5;
       }
       if (storeL.length) {
@@ -1596,10 +1723,10 @@ function TheCurfewCellarApp() {
           subHead(label);
           if (dt === "cask") {
             caskCategoryGroups(items, (l) => (beerById[l.beerId] && beerById[l.beerId].category) || "Misc").forEach(({ cat, items: sub }) => {
-              catHead(cat); sub.slice().sort(cmpBB).forEach((l) => beerLine(l, CAT_ACCENT[cat] || "#96A19B", {}));
+              catHead(cat); sub.slice().sort(cmpBB).forEach((l) => beerLine(l, CAT_ACCENT[cat] || "#7C8F96", {}));
             });
           } else {
-            items.slice().sort(cmpBB).forEach((l) => beerLine(l, TYPE_ACCENT[l.drinkType] || "#B8862B", {}));
+            items.slice().sort(cmpBB).forEach((l) => beerLine(l, TYPE_ACCENT[l.drinkType] || "#1F6B6A", {}));
           }
           y += 1;
         });
@@ -1642,28 +1769,28 @@ function TheCurfewCellarApp() {
       if (!JsPDF) throw new Error("no pdf lib");
       const doc = new JsPDF({ unit: "mm", format: "a4" });
       const W = 210, H = 297, M = 14; let y = M;
-      const ink = [28, 54, 54], brass = [153, 111, 35], brassSoft = [199, 154, 62], gray = [110, 118, 115], lineCol = [225, 222, 215], paleBg = [250, 249, 246];
+      const ink = [32, 59, 67], accent = [31, 107, 106], accentSoft = [86, 139, 137], gray = [86, 111, 118], lineCol = [224, 218, 212], paleBg = [249, 246, 243];
       const hex = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
       const ensure = (need) => { if (y + need > H - M) { doc.addPage(); y = M; } };
 
       doc.setFillColor(ink[0], ink[1], ink[2]); doc.rect(0, 0, W, 28, "F");
       doc.setFont("helvetica", "bold"); doc.setFontSize(19); doc.setTextColor(243, 239, 230);
       doc.text(PUB_CONFIG.name, M, 14);
-      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(brassSoft[0], brassSoft[1], brassSoft[2]);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(accentSoft[0], accentSoft[1], accentSoft[2]);
       doc.text(`${PUB_CONFIG.typeLabel.toUpperCase()} · WHAT'S ON TODAY`, M, 20.5);
       doc.setFontSize(8.5); doc.setTextColor(200, 196, 186);
       doc.text(new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }), W - M, 14, { align: "right" });
       y = 36;
 
-      const sectionHead = (t) => { ensure(16); y += 4; doc.setFillColor(brass[0], brass[1], brass[2]); doc.rect(M, y - 4, 2.2, 5.2, "F"); doc.setFont("helvetica", "bold"); doc.setFontSize(11.5); doc.setTextColor(ink[0], ink[1], ink[2]); doc.text(t, M + 4.5, y); y += 5.5; };
+      const sectionHead = (t) => { ensure(16); y += 4; doc.setFillColor(accent[0], accent[1], accent[2]); doc.rect(M, y - 4, 2.2, 5.2, "F"); doc.setFont("helvetica", "bold"); doc.setFontSize(11.5); doc.setTextColor(ink[0], ink[1], ink[2]); doc.text(t, M + 4.5, y); y += 5.5; };
       const catHead = (t) => { ensure(9); y += 2.4; doc.setFont("helvetica", "italic"); doc.setFontSize(7.5); doc.setTextColor(gray[0], gray[1], gray[2]); doc.text(t, M + 3, y); y += 4.2; };
 
       const beerLine = (l, accentRGB) => {
         const b = beerById[l.beerId]; if (!b) return;
         const name = `${b.brewery ? b.brewery + " - " : ""}${b.name || ""}`;
         const tlp = priceTriple(l.price);
-        const meta = [b.style, b.abv ? b.abv + "%" : "", b.clarity === "Hazy" ? "Hazy" : "", b.location || ""].filter(Boolean).join("  ·  ");
-        const diet = [b.vegan ? "Vegan" : "", b.glutenStatus === "Gluten-free" ? "Gluten-free" : b.glutenStatus === "Low gluten" ? "Low gluten, <20ppm" : ""].filter(Boolean).join("  ·  ");
+        const meta = [b.style, b.abv ? b.abv + "%" : "", b.clarity === "Hazy" ? "Hazy" : "", locationDisplay(b)].filter(Boolean).join("  ·  ");
+        const diet = [b.vegan ? "Vegan" : "", isGlutenFree(b) ? "Gluten-free" : b.glutenStatus === "Low gluten" ? "Low gluten, <20ppm" : ""].filter(Boolean).join("  ·  ");
         const allergenLine = b.allergensVerified ? (b.allergens.length ? `Contains: ${b.allergens.join(", ")}` : "No declared allergens") : "Allergens: please ask at the bar";
         doc.setFont("helvetica", "bold"); doc.setFontSize(9.5);
         const nameLines = doc.splitTextToSize(name, W - 2 * M - 38);
@@ -1686,13 +1813,13 @@ function TheCurfewCellarApp() {
         doc.setFont("helvetica", "normal"); doc.setFontSize(7.8); doc.setTextColor(gray[0], gray[1], gray[2]);
         doc.text(metaLines, M + 4.5, ty); ty += lhMeta * metaLines.length;
         if (noteLines.length) { doc.setFont("helvetica", "italic"); doc.setFontSize(7.6); doc.setTextColor(110, 110, 110); doc.text(noteLines, M + 4.5, ty); ty += lhNote * noteLines.length; }
-        if (diet) { doc.setFont("helvetica", "bold"); doc.setFontSize(7.4); doc.setTextColor(brass[0], brass[1], brass[2]); doc.text(diet, M + 4.5, ty); ty += lhDiet; }
+        if (diet) { doc.setFont("helvetica", "bold"); doc.setFontSize(7.4); doc.setTextColor(accent[0], accent[1], accent[2]); doc.text(diet, M + 4.5, ty); ty += lhDiet; }
         doc.setFont("helvetica", "normal"); doc.setFontSize(7); doc.setTextColor(150, 150, 150);
         doc.text(allergenLines, M + 4.5, ty);
 
         if (tlp) {
           const rx = W - M - 3;
-          doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(brass[0], brass[1], brass[2]);
+          doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(accent[0], accent[1], accent[2]);
           doc.text(tlp.pint, rx, y + 5.5, { align: "right" });
           doc.setFont("helvetica", "normal"); doc.setFontSize(7); doc.setTextColor(gray[0], gray[1], gray[2]);
           doc.text(`Half ${tlp.half} · Schooner ${tlp.schooner}`, rx, y + 9, { align: "right" });
@@ -1708,7 +1835,7 @@ function TheCurfewCellarApp() {
       if (cask.length) {
         sectionHead("Cask ale");
         caskCategoryGroups(cask, (l) => (beerById[l.beerId] && beerById[l.beerId].category) || "Misc").forEach(({ cat, items }) => {
-          catHead(cat); items.forEach((l) => beerLine(l, hex(CAT_ACCENT[cat] || "#96A19B")));
+          catHead(cat); items.forEach((l) => beerLine(l, hex(CAT_ACCENT[cat] || "#7C8F96")));
         });
         y += 1;
       }
@@ -1741,13 +1868,13 @@ function TheCurfewCellarApp() {
       if (!JsPDF) throw new Error("no pdf lib");
       const doc = new JsPDF({ unit: "mm", format: "a4" });
       const W = 210, H = 297, M = 14; let y = M;
-      const ink = [28, 54, 54], brassSoft = [199, 154, 62], gray = [110, 118, 115];
+      const ink = [32, 59, 67], accentSoft = [86, 139, 137], gray = [86, 111, 118];
       const ensure = (need) => { if (y + need > H - M) { doc.addPage(); y = M; } };
 
       doc.setFillColor(ink[0], ink[1], ink[2]); doc.rect(0, 0, W, 28, "F");
       doc.setFont("helvetica", "bold"); doc.setFontSize(17); doc.setTextColor(243, 239, 230);
       doc.text("How to Use The Curfew Cellar", M, 13);
-      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(brassSoft[0], brassSoft[1], brassSoft[2]);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(accentSoft[0], accentSoft[1], accentSoft[2]);
       doc.text(`${PUB_CONFIG.fullName.toUpperCase()} · STAFF GUIDE`, M, 20.5);
       doc.setFontSize(8.5); doc.setTextColor(200, 196, 186);
       doc.text(new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }), W - M, 13, { align: "right" });
@@ -1757,7 +1884,7 @@ function TheCurfewCellarApp() {
         ensure(18);
         doc.setFont("helvetica", "bold"); doc.setFontSize(12.5); doc.setTextColor(ink[0], ink[1], ink[2]);
         doc.text(sec.title, M, y); y += 2.5;
-        doc.setDrawColor(brassSoft[0], brassSoft[1], brassSoft[2]); doc.setLineWidth(0.5);
+        doc.setDrawColor(accentSoft[0], accentSoft[1], accentSoft[2]); doc.setLineWidth(0.5);
         doc.line(M, y, M + 10, y); y += 5;
         sec.steps.forEach(([h, t]) => {
           const lines = doc.splitTextToSize(t, W - M * 2 - 4);
@@ -1784,25 +1911,25 @@ function TheCurfewCellarApp() {
       if (!JsPDF) throw new Error("no pdf lib");
       const doc = new JsPDF({ unit: "mm", format: "a4" });
       const W = 210, H = 297, M = 14; let y = M;
-      const ink = [28, 54, 54], brass = [153, 111, 35], brassSoft = [199, 154, 62], gray = [110, 118, 115], lineCol = [225, 222, 215], paleBg = [250, 249, 246];
+      const ink = [32, 59, 67], accent = [31, 107, 106], accentSoft = [86, 139, 137], gray = [86, 111, 118], lineCol = [224, 218, 212], paleBg = [249, 246, 243];
       const hex = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
       const ensure = (need) => { if (y + need > H - M) { doc.addPage(); y = M; } };
 
       doc.setFillColor(ink[0], ink[1], ink[2]); doc.rect(0, 0, W, 28, "F");
       doc.setFont("helvetica", "bold"); doc.setFontSize(17); doc.setTextColor(243, 239, 230);
       doc.text("Allergen and Dietary Guide", M, 13);
-      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(brassSoft[0], brassSoft[1], brassSoft[2]);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(accentSoft[0], accentSoft[1], accentSoft[2]);
       doc.text(`${PUB_CONFIG.fullName.toUpperCase()} · PLEASE CONFIRM WITH STAFF BEFORE ORDERING`, M, 20.5);
       doc.setFontSize(8.5); doc.setTextColor(200, 196, 186);
       doc.text(new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }), W - M, 13, { align: "right" });
       y = 36;
 
-      const sectionHead = (t) => { ensure(16); y += 4; doc.setFillColor(brass[0], brass[1], brass[2]); doc.rect(M, y - 4, 2.2, 5.2, "F"); doc.setFont("helvetica", "bold"); doc.setFontSize(11.5); doc.setTextColor(ink[0], ink[1], ink[2]); doc.text(t, M + 4.5, y); y += 5.5; };
+      const sectionHead = (t) => { ensure(16); y += 4; doc.setFillColor(accent[0], accent[1], accent[2]); doc.rect(M, y - 4, 2.2, 5.2, "F"); doc.setFont("helvetica", "bold"); doc.setFontSize(11.5); doc.setTextColor(ink[0], ink[1], ink[2]); doc.text(t, M + 4.5, y); y += 5.5; };
 
       const beerLine = (l, accentRGB) => {
         const b = beerById[l.beerId]; if (!b) return;
         const name = `${b.brewery ? b.brewery + " - " : ""}${b.name || ""}`;
-        const diet = [b.vegan ? "Vegan" : "", b.glutenStatus === "Gluten-free" ? "Gluten-free" : b.glutenStatus === "Low gluten" ? "Low gluten, <20ppm" : ""].filter(Boolean).join("  ·  ");
+        const diet = [b.vegan ? "Vegan" : "", isGlutenFree(b) ? "Gluten-free" : b.glutenStatus === "Low gluten" ? "Low gluten, <20ppm" : ""].filter(Boolean).join("  ·  ");
         const allergenText = (b.allergensVerified ? (b.allergens.length ? `Contains: ${b.allergens.join(", ")}` : "No declared allergens") : "Allergens: please ask at the bar") + (b.allergensVerified ? "" : "  ·  not staff verified");
         doc.setFont("helvetica", "bold"); doc.setFontSize(9.5);
         const nameLines = doc.splitTextToSize(name, W - 2 * M - 40);
@@ -1823,7 +1950,7 @@ function TheCurfewCellarApp() {
         const rx = W - M - 3;
         doc.setFont("helvetica", "normal"); doc.setFontSize(7.8); doc.setTextColor(gray[0], gray[1], gray[2]);
         doc.text(`${b.abv ? b.abv + "%" : ""}`, rx, y + topPad, { align: "right" });
-        if (dietLines.length) { doc.setFont("helvetica", "bold"); doc.setFontSize(7.6); doc.setTextColor(brass[0], brass[1], brass[2]); doc.text(dietLines, M + 4.5, ty); ty += lhDiet * dietLines.length; }
+        if (dietLines.length) { doc.setFont("helvetica", "bold"); doc.setFontSize(7.6); doc.setTextColor(accent[0], accent[1], accent[2]); doc.text(dietLines, M + 4.5, ty); ty += lhDiet * dietLines.length; }
         doc.setFont("helvetica", "normal"); doc.setFontSize(7.4);
         if (b.allergensVerified) doc.setTextColor(130, 130, 130); else doc.setTextColor(180, 110, 50);
         doc.text(allergenLines, M + 4.5, ty);
@@ -1838,7 +1965,7 @@ function TheCurfewCellarApp() {
         const items = onL.filter((l) => dts.includes(l.drinkType));
         if (!items.length) return;
         sectionHead(label);
-        items.forEach((l) => beerLine(l, hex(TYPE_ACCENT[l.drinkType] || "#B8862B")));
+        items.forEach((l) => beerLine(l, hex(TYPE_ACCENT[l.drinkType] || "#1F6B6A")));
       });
       if (!onL.length) { doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(gray[0], gray[1], gray[2]); doc.text("Nothing on right now.", M, y); }
 
@@ -1869,21 +1996,21 @@ function TheCurfewCellarApp() {
       (async () => {
         saveInFlight.current = true;
         try {
-          const r = await store.set(STORE_KEY, JSON.stringify({ library, lines, distributors, prefs, lastUpdated }), false);
+          const r = await store.set(STORE_KEY, JSON.stringify({ library, lines, distributors, lineCare, prefs, lastUpdated }), false);
           if (r && r.conflict) { applyData(migrate(r.remoteValue), true); showToast("Another phone saved changes just before yours. Showing the latest, please redo your last change."); }
         } catch (e) { /* ignore */ }
         finally { saveInFlight.current = false; }
       })();
     }, 500);
     return () => { if (saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = null; } };
-  }, [library, lines, distributors, prefs, lastUpdated, hydrated, storageOk, authed, cloudReady]);
+  }, [library, lines, distributors, lineCare, prefs, lastUpdated, hydrated, storageOk, authed, cloudReady]);
 
   // iOS can suspend or kill a backgrounded tab before the 500ms debounce above fires,
   // so a tap made right before switching apps could be lost. Keep the latest snapshot
   // in a ref and force an immediate (best-effort; no delivery guarantee) write the
   // moment the page is hidden or closed, if a save was still pending.
   const pendingSnapshot = useRef(null);
-  useEffect(() => { pendingSnapshot.current = { library, lines, distributors, prefs, lastUpdated }; }, [library, lines, distributors, prefs, lastUpdated]);
+  useEffect(() => { pendingSnapshot.current = { library, lines, distributors, lineCare, prefs, lastUpdated }; }, [library, lines, distributors, lineCare, prefs, lastUpdated]);
   useEffect(() => {
     if (typeof document === "undefined") return;
     const flush = () => {
@@ -1930,7 +2057,7 @@ function TheCurfewCellarApp() {
     const now = new Date().toISOString();
     lastUpdatedRef.current = now;
     setLastUpdated(now);
-  }, [lines, library, hydrated]);
+  }, [lines, library, lineCare, hydrated]);
 
   // Which overlay is topmost, in the order they actually nest in this app (opening one always
   // closes whatever was open before it, verified: Edit details closes CardModal in the same
@@ -2008,14 +2135,14 @@ function TheCurfewCellarApp() {
     m.setAttribute("content", "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover");
   }, []);
 
-  const exportData = () => JSON.stringify({ app: "thecurfewcellar", version: 1, exportedAt: new Date().toISOString(), library, lines, distributors, prefs }, null, 2);
+  const exportData = () => JSON.stringify({ app: "thecurfewcellar", version: 1, exportedAt: new Date().toISOString(), library, lines, distributors, lineCare, prefs }, null, 2);
   const noteBackupTaken = () => {
     const stamp = new Date().toISOString();
     const nextPrefs = { ...prefs, lastBackup: stamp };
     setPrefs(nextPrefs);
     if (saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = null; }
     if (store && storageOk === true && (!cloudMode || (authed && cloudReady))) {
-      (async () => { try { await store.set(STORE_KEY, JSON.stringify({ library, lines, distributors, prefs: nextPrefs, lastUpdated }), false); } catch (e) { /* ignore */ } })();
+      (async () => { try { await store.set(STORE_KEY, JSON.stringify({ library, lines, distributors, lineCare, prefs: nextPrefs, lastUpdated }), false); } catch (e) { /* ignore */ } })();
     }
   };
   const copyBackup = async () => {
@@ -2038,7 +2165,7 @@ function TheCurfewCellarApp() {
     try {
       const data = JSON.parse(text);
       if (!Array.isArray(data.library) || !Array.isArray(data.lines)) throw new Error("shape");
-      setPendingImport({ library: data.library, lines: data.lines, distributors: data.distributors, prefs: data.prefs });
+      setPendingImport({ library: data.library, lines: data.lines, distributors: data.distributors, lineCare: data.lineCare, prefs: data.prefs });
       setBackupMsg({ type: "ask", text: `Found ${data.library.length} saved items and ${data.lines.length} cellar lines. Importing replaces everything currently in the app.` });
     } catch (e) { setPendingImport(null); setBackupMsg({ type: "warn", text: "That doesn't look like a valid Curfew backup." }); }
   };
@@ -2055,6 +2182,7 @@ function TheCurfewCellarApp() {
     const cleaned = normaliseData({ library: data.library, lines: data.lines });
     setLibrary(cleaned.library); setLines(assignPumps(cleaned.lines, catFromLib(cleaned.library)));
     if (Array.isArray(data.distributors)) setDistributors(data.distributors);
+    if (data.lineCare && typeof data.lineCare === "object") setLineCare(data.lineCare);
     if (data.prefs && typeof data.prefs === "object" && data.prefs.lastBackup) setPrefs((p) => ({ ...p, lastBackup: data.prefs.lastBackup }));
     setOpenId(null); setHistoryOpen({}); setView("cellar");
   };
@@ -2167,7 +2295,7 @@ function TheCurfewCellarApp() {
     setConfirmDupe(false);
     const category = form.drinkType === "cask" ? (form.category || categorise(form.style, form.abv)) : (form.category || "Misc");
     const beerFields = {
-      brewery: form.brewery.trim(), location: form.location.trim(), name: form.name.trim(),
+      brewery: form.brewery.trim(), location: form.location.trim(), collabBrewery: form.collabBrewery.trim(), collabLocation: form.collabLocation.trim(), name: form.name.trim(),
       style: form.style.trim(), abv: form.abv.trim(), clarity: form.clarity, glutenStatus: form.glutenStatus,
       vegan: form.vegan, allergens: form.allergens, notes: form.notes.trim(), allergensVerified: form.allergensVerified, category, sweetness: form.sweetness,
       price: form.price.trim(),
@@ -2178,7 +2306,9 @@ function TheCurfewCellarApp() {
     if (saved) { beerId = saved.id; setLibrary((lib) => lib.map((b) => (b.id === saved.id ? { ...b, ...beerFields, history: [...(b.history || []), entry], pendingBestBefore: "", pendingCaskOwner: "", pendingPrice: "", pendingDrinkType: "" } : b))); }
     else { beerId = uid(); setLibrary((lib) => [...lib, { id: beerId, ...beerFields, history: [entry] }]); }
     const dates = { ordered: null, delivered: null, racked: null, vented: null, tapped: null, on: null, off: null };
-    dates[STATUSES[STATUS_INDEX[form.status]].dateKey] = new Date().toISOString();
+    const addedAt = new Date().toISOString();
+    dates.delivered = addedAt;
+    dates[STATUSES[STATUS_INDEX[form.status]].dateKey] = addedAt;
     const id = uid();
     setLines((ls) => [...ls, { id, beerId, drinkType: form.drinkType, size: form.size, price: form.price.trim(), status: form.status, caskOwner: form.caskOwner.trim() || form.brewery.trim(), collected: false, bestBefore: form.bestBefore, dates }]);
     if (form.caskOwner.trim()) addDistributor(form.caskOwner.trim());
@@ -2284,7 +2414,19 @@ function TheCurfewCellarApp() {
   // live lines. Deliberately does NOT touch finished ("off") lines: those casks have already
   // been sold and returned, and rewriting their price would retroactively falsify what was
   // actually charged. Past prices are preserved in each beer's history entries.
-  const updateBeerPrice = (id, v) => { setLibrary((lib) => lib.map((b) => (b.id === id ? { ...b, price: v } : b))); setLines((ls) => ls.map((c) => (c.beerId === id && c.status !== "off" ? { ...c, price: v } : c))); };
+  // A price correction has to land in the beer's history too, not just on the beer and its live
+  // lines. latestPrice() reads the most recent history entry, and that drives the carried-forward
+  // price on the next delivery, the Library's "Previous: £x" line and the price history table.
+  // Updating only beer.price left all three showing the pre-correction figure indefinitely.
+  const updateBeerPrice = (id, v) => {
+    setLibrary((lib) => lib.map((b) => {
+      if (b.id !== id) return b;
+      const h = b.history || [];
+      const history = h.length ? [...h.slice(0, -1), { ...h[h.length - 1], price: v }] : h;
+      return { ...b, price: v, history };
+    }));
+    setLines((ls) => ls.map((c) => (c.beerId === id && c.status !== "off" ? { ...c, price: v } : c)));
+  };
   const toggleBeerAllergen = (id, a) => setLibrary((lib) => lib.map((b) => (b.id === id ? { ...b, allergens: b.allergens.includes(a) ? b.allergens.filter((x) => x !== a) : [...b.allergens, a] } : b)));
   const autoFillBeer = async (beer) => {
     if (!beer.name || !beer.name.trim()) { setEditNote({ type: "warn", text: "Add a name first." }); return; }
@@ -2383,6 +2525,13 @@ function TheCurfewCellarApp() {
     setCombineKeepId(null);
     showToast("Combined. Stock history moved across.");
   };
+  const resolveLocationClash = (allBeerIds, chosenLocation) => {
+    if (!allBeerIds || !allBeerIds.length || !chosenLocation) return;
+    snapshotUndo("Location fixed");
+    setLibrary((lib) => lib.map((b) => (allBeerIds.includes(b.id) ? { ...b, location: chosenLocation } : b)));
+    setClashResults(null);
+    showToast(`Updated to ${chosenLocation} across all matching beers.`);
+  };
   const addDistributor = (name) => {
     const clean = (name || "").trim();
     if (!clean) return;
@@ -2397,11 +2546,11 @@ function TheCurfewCellarApp() {
   // resets to false: a beer being verified once doesn't mean THIS new delivery has been looked
   // at, ingredients and allergens can change between batches, so every arrival needs its own
   // fresh check regardless of history.
-  const loadBeerIntoForm = (beer) => { setConfirmDupe(false); return setForm({ ...emptyForm, drinkType: beer.pendingDrinkType || "cask", brewery: beer.brewery, location: beer.location, name: beer.name, style: beer.style, abv: beer.abv, clarity: beer.clarity, glutenStatus: beer.glutenStatus, vegan: beer.vegan, allergens: beer.allergens, notes: beer.notes, allergensVerified: false, category: beer.category || categorise(beer.style, beer.abv), sweetness: beer.sweetness || "", price: latestPrice(beer) || beer.pendingPrice || "", bestBefore: beer.pendingBestBefore || "", caskOwner: latestSupplier(beer) || beer.pendingCaskOwner || "" }); };
+  const loadBeerIntoForm = (beer) => { setConfirmDupe(false); return setForm({ ...emptyForm, drinkType: beer.pendingDrinkType || "cask", brewery: beer.brewery, location: beer.location, collabBrewery: beer.collabBrewery || "", collabLocation: beer.collabLocation || "", name: beer.name, style: beer.style, abv: beer.abv, clarity: beer.clarity, glutenStatus: beer.glutenStatus, vegan: beer.vegan, allergens: beer.allergens, notes: beer.notes, allergensVerified: false, category: beer.category || categorise(beer.style, beer.abv), sweetness: beer.sweetness || "", price: latestPrice(beer) || beer.pendingPrice || "", bestBefore: beer.pendingBestBefore || "", caskOwner: latestSupplier(beer) || beer.pendingCaskOwner || "" }); };
   const pickBeer = (beer) => { loadBeerIntoForm(beer); setFillNote({ type: "ok", text: `Loaded "${beer.name}" from your library. Set the best before, then confirm allergens.` }); setAddMode("form"); };
   const startNewBeer = () => { setForm(emptyForm); setFillNote(null); setAddMode("form"); };
   const addLineOfBeer = (beer) => { loadBeerIntoForm(beer); setFillNote({ type: "ok", text: `Loaded "${beer.name}" from your library.` }); setAddMode("form"); setView("add"); };
-  const go = (v) => { if (v === "add") { setAddMode("pick"); setAddPickSearch(""); setForm(emptyForm); setFillNote(null); } if (v === "empties") setUiPrefs((p) => ({ ...p, empties: {} })); setView(v); if (scrollAreaRef.current) scrollAreaRef.current.scrollTo({ top: 0, behavior: "smooth" }); };
+  const go = (v) => { if (v === "add") { setAddMode("pick"); setAddPickSearch(""); setForm(emptyForm); setFillNote(null); } if (v === "empties") setUiPrefs((p) => ({ ...p, empties: {} })); setCellarSearch(""); setView(v); if (scrollAreaRef.current) scrollAreaRef.current.scrollTo({ top: 0, behavior: "smooth" }); };
 
   const fileToBase64 = (file) => new Promise((resolve, reject) => {
     const r = new FileReader();
@@ -2542,8 +2691,20 @@ function TheCurfewCellarApp() {
     chosen.forEach((x) => { if ((x.caskOwner || "").trim()) addDistributor(x.caskOwner.trim()); });
     setInvoiceItems(null); setInvoiceOwner(""); setAddMode("pick"); setFillNote(null); setLibrarySearch(""); setView("cellar");
   };
-  const snapshotUndo = (label) => { setUndoState({ lines, library, label }); if (undoTimer.current) clearTimeout(undoTimer.current); undoTimer.current = setTimeout(() => setUndoState(null), 7000); };
-  const doUndo = () => { if (!undoState) return; setLines(undoState.lines); if (undoState.library) setLibrary(undoState.library); setUndoState(null); if (undoTimer.current) clearTimeout(undoTimer.current); };
+  const snapshotUndo = (label) => { setUndoState({ lines, library, lineCare, label }); if (undoTimer.current) clearTimeout(undoTimer.current); undoTimer.current = setTimeout(() => setUndoState(null), 7000); };
+  const doUndo = () => { if (!undoState) return; setLines(undoState.lines); if (undoState.library) setLibrary(undoState.library); if (undoState.lineCare) setLineCare(undoState.lineCare); setUndoState(null); if (undoTimer.current) clearTimeout(undoTimer.current); };
+
+  const markLineCleaned = (slot) => {
+    snapshotUndo("Line cleaned");
+    setLineCare((m) => ({ ...m, [slot]: new Date().toISOString() }));
+    showToast(`${PUMP_LABELS[slot]} line marked cleaned.`);
+  };
+  const markAllLinesCleaned = () => {
+    snapshotUndo("All lines cleaned");
+    const now = new Date().toISOString();
+    setLineCare(Object.fromEntries(ALL_PUMPS.map((p) => [p, now])));
+    showToast("All lines marked cleaned.");
+  };
   const setCaskOwner = (id, v) => setLines((ls) => ls.map((c) => (c.id === id ? { ...c, caskOwner: v } : c)));
   const markCollected = (id) => { snapshotUndo("Empty marked collected"); setLines((ls) => ls.map((c) => (c.id === id ? { ...c, collected: true } : c))); };
   const markOwnerCollected = (key) => { snapshotUndo("Empties marked collected"); setLines((ls) => ls.map((c) => (IS_EMPTY(c) && ownerKey(c.caskOwner) === key ? { ...c, collected: true } : c))); };
@@ -2600,7 +2761,6 @@ function TheCurfewCellarApp() {
       { label: "Bitter", line: rBitter[0] || null },
       { label: "Stout", line: rStout[0] || null },
     ];
-    const rackedFilled = rackedSlots.filter((s) => s.line).length;
     const placed = new Set(rackedSlots.map((s) => s.line && s.line.id).filter(Boolean));
     const rackedOverflow = rackedCask.filter((l) => !placed.has(l.id)).sort(byBB);
 
@@ -2613,9 +2773,9 @@ function TheCurfewCellarApp() {
     ].filter((g) => g.items.length);
 
     const renderSlot = (slot, k, urgent) => (
-      <div key={k} className={urgent ? "flex items-center gap-2" : "flex h-full flex-col"}>
+      <div key={k} className={urgent ? "flex items-start gap-2" : "flex h-full flex-col"}>
         {urgent ? (
-          <span className="grid shrink-0 place-items-center rounded-md" style={{ width: 22, height: 22, background: "linear-gradient(180deg, #284D5B 0%, #1E3A46 100%)", color: C.brassSoft, fontFamily: "var(--font-data)", fontSize: 10, fontWeight: 700, border: "1px solid rgba(184,134,43,0.45)", boxShadow: "inset 0 1px 0 rgba(209,164,74,0.28), 0 1px 2px rgba(30, 58, 70,0.35)" }}>{String(PUMP_NUMBER[slot.slot]).padStart(2, "0")}</span>
+          <span className="grid shrink-0 place-items-center rounded-md" style={{ width: 22, height: 22, marginTop: 6, background: "linear-gradient(180deg, #2C5460 0%, #203B43 100%)", color: C.accentSoft, fontFamily: "var(--font-data)", fontSize: 10, fontWeight: 700, border: "1px solid rgba(138,207,206,0.40)", boxShadow: "inset 0 1px 0 rgba(138,207,206,0.22), 0 1px 2px rgba(32, 59, 67,0.35)" }}>{String(PUMP_NUMBER[slot.slot]).padStart(2, "0")}</span>
         ) : (
           <p className="mb-0.5 text-xs font-semibold uppercase tracking-wide text-slate-400">{slot.label}</p>
         )}
@@ -2633,7 +2793,7 @@ function TheCurfewCellarApp() {
     if (!lines.length) {
       return (
         <div className="rounded-2xl border border-dashed bg-white p-10 text-center" style={{ borderColor: C.line }}>
-          <Bell className="mx-auto mb-2" style={{ color: C.brass }} />
+          <Bell className="mx-auto mb-2" style={{ color: C.accent }} />
           <p className="font-semibold" style={{ color: C.ink }}>The cellar's empty</p>
           {canEdit && (
           <div className="mt-4 flex flex-col items-center gap-2">
@@ -2643,25 +2803,74 @@ function TheCurfewCellarApp() {
         </div>
       );
     }
+    const q = cellarSearch.trim().toLowerCase();
+    const matchLine = (l) => {
+      const b = beerById[l.beerId];
+      if (!b) return false;
+      return [b.name, b.brewery, b.style, b.category, b.location].some((x) => (x || "").toLowerCase().includes(q));
+    };
+    const searchHits = q ? live.filter(matchLine) : [];
+    const bySlot = (a, b) => (PUMP_NUMBER[a.slot] || 99) - (PUMP_NUMBER[b.slot] || 99);
+    const searchGroups = [
+      { label: "Pouring", context: "on", items: searchHits.filter((l) => l.status === "on").sort(bySlot) },
+      { label: "Racked", context: "racked", items: searchHits.filter((l) => l.status === "racked" || l.status === "vented" || l.status === "tapped").sort(byBB) },
+      { label: "In Store", context: "store", items: searchHits.filter((l) => l.status === "in_cellar").sort(byBB) },
+    ].filter((g) => g.items.length);
+
+    const searchBox = (
+      <div className="relative">
+        <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <input value={cellarSearch} onChange={(e) => setCellarSearch(e.target.value)} placeholder="Search the cellar…" className="w-full rounded-lg py-2 pl-10 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.stone, color: C.ink }} />
+        {cellarSearch && <button onClick={() => setCellarSearch("")} aria-label="Clear search" className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 hover:bg-slate-100"><X size={16} /></button>}
+      </div>
+    );
+
+    if (q) {
+      return (
+        <div className="space-y-4">
+          {searchBox}
+          {searchHits.length === 0 ? (
+            <div className="rounded-xl border border-dashed bg-white p-8 text-center" style={{ borderColor: C.line }}>
+              <p className="font-medium" style={{ color: C.ink }}>Nothing in the cellar matches "{cellarSearch}"</p>
+              <p className="mt-1 text-sm text-slate-500">This searches what's pouring, racked and in store. Finished lines live in Empties, and everything you've ever stocked is in the Library.</p>
+            </div>
+          ) : (
+            <>
+              <p className="text-xs text-slate-500">{searchHits.length} match{searchHits.length === 1 ? "" : "es"}</p>
+              {searchGroups.map((g) => (
+                <section key={g.label}>
+                  <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>{g.label} <span className="text-sm" style={{ color: C.muted, fontFamily: "var(--font-data)" }}>· {g.items.length}</span></h2>
+                  <div className="mt-2 space-y-1.5">
+                    {g.items.map((l) => <LineRow key={l.id} line={l} context={g.context} beerById={beerById} onOpen={setOpenId} />)}
+                  </div>
+                </section>
+              ))}
+            </>
+          )}
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-4">
+        {searchBox}
         <section>
           <button onClick={() => toggleSection("on")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
-            <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Pouring <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {onFilled}/10</span></h2>
+            <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Pouring <span className="text-sm" style={{ color: C.muted, fontFamily: "var(--font-data)" }}>· {onFilled}/10</span></h2>
             <ChevronDown size={20} className="text-slate-400" style={{ transform: uiPrefs.on ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
           </button>
           {uiPrefs.on && (
             <div className="mt-2 space-y-3">
               <div>
-                <p className="mb-1.5 flex items-center gap-2 uppercase" style={{ color: TYPE_ACCENT.cask, fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}><span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: TYPE_ACCENT.cask }} />Cask<span className="h-px flex-1" style={{ background: "linear-gradient(90deg, rgba(30, 58, 70,0.18), rgba(30, 58, 70,0))" }} /></p>
+                <p className="mb-1.5 flex items-center gap-2 uppercase" style={{ color: TYPE_ACCENT.cask, fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}><span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: TYPE_ACCENT.cask }} />Cask<span className="h-px flex-1" style={{ background: "linear-gradient(90deg, rgba(32, 59, 67,0.18), rgba(32, 59, 67,0))" }} /></p>
                 <div className="cc-stagger grid grid-cols-1 gap-1.5 sm:grid-cols-2">{onCaskSlots.map((s, i) => renderSlot(s, `oc${i}`, true))}</div>
               </div>
               <div className="border-t pt-3" style={{ borderColor: C.line }}>
-                <p className="mb-1.5 flex items-center gap-2 uppercase" style={{ color: TYPE_ACCENT.keg, fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}><span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: TYPE_ACCENT.keg }} />Keg<span className="h-px flex-1" style={{ background: "linear-gradient(90deg, rgba(30, 58, 70,0.18), rgba(30, 58, 70,0))" }} /></p>
+                <p className="mb-1.5 flex items-center gap-2 uppercase" style={{ color: TYPE_ACCENT.keg, fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}><span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: TYPE_ACCENT.keg }} />Keg<span className="h-px flex-1" style={{ background: "linear-gradient(90deg, rgba(32, 59, 67,0.18), rgba(32, 59, 67,0))" }} /></p>
                 <div className="cc-stagger grid grid-cols-1 gap-1.5 sm:grid-cols-2">{onKegSlots.map((s, i) => renderSlot(s, `ok${i}`, true))}</div>
               </div>
               <div className="border-t pt-3" style={{ borderColor: C.line }}>
-                <p className="mb-1.5 flex items-center gap-2 uppercase" style={{ color: TYPE_ACCENT.cider, fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}><span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: TYPE_ACCENT.cider }} />Cider<span className="h-px flex-1" style={{ background: "linear-gradient(90deg, rgba(30, 58, 70,0.18), rgba(30, 58, 70,0))" }} /></p>
+                <p className="mb-1.5 flex items-center gap-2 uppercase" style={{ color: TYPE_ACCENT.cider, fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}><span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: TYPE_ACCENT.cider }} />Cider<span className="h-px flex-1" style={{ background: "linear-gradient(90deg, rgba(32, 59, 67,0.18), rgba(32, 59, 67,0))" }} /></p>
                 <div className="cc-stagger grid grid-cols-1 gap-1.5 sm:grid-cols-2">{onCiderSlots.map((s, i) => renderSlot(s, `od${i}`, true))}</div>
               </div>
             </div>
@@ -2669,7 +2878,7 @@ function TheCurfewCellarApp() {
         </section>
         <section className="border-t pt-4" style={{ borderColor: C.line }}>
           <button onClick={() => toggleSection("racked")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
-            <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Racked <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {rackedFilled}/6</span></h2>
+            <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Racked <span className="text-sm" style={{ color: C.muted, fontFamily: "var(--font-data)" }}>· {rackedCask.length}</span></h2>
             <ChevronDown size={20} className="text-slate-400" style={{ transform: uiPrefs.racked ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
           </button>
           {uiPrefs.racked && (
@@ -2687,7 +2896,7 @@ function TheCurfewCellarApp() {
         {store.length > 0 && (
           <section className="border-t pt-4" style={{ borderColor: C.line }}>
             <button onClick={() => toggleSection("store")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
-              <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>In Store <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {store.length}</span></h2>
+              <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>In Store <span className="text-sm" style={{ color: C.muted, fontFamily: "var(--font-data)" }}>· {store.length}</span></h2>
               <ChevronDown size={20} className="text-slate-400" style={{ transform: uiPrefs.store ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
             </button>
             {uiPrefs.store && (
@@ -2719,7 +2928,7 @@ function TheCurfewCellarApp() {
     if (!canEdit) {
       return (
         <div className="rounded-2xl border border-dashed bg-white p-10 text-center" style={{ borderColor: C.line }}>
-          <Lock className="mx-auto mb-2" style={{ color: C.brass }} />
+          <Lock className="mx-auto mb-2" style={{ color: C.accent }} />
           <p className="font-semibold" style={{ color: C.ink }}>Manager access needed</p>
           <p className="mt-1 text-sm text-slate-500">Adding stock isn't available on this login.</p>
         </div>
@@ -2754,7 +2963,7 @@ function TheCurfewCellarApp() {
                   {(() => {
                     const known = x.brewery.trim() && x.name.trim() ? findSavedBeer(x.brewery, x.name) : null;
                     const carried = known ? latestPrice(known) : "";
-                    return !!carried && x.price.trim() === carried.trim() && <p className="mt-1.5 text-xs font-medium" style={{ color: C.brass }}>Previous price. Please confirm.</p>;
+                    return !!carried && x.price.trim() === carried.trim() && <p className="mt-1.5 text-xs font-medium" style={{ color: C.accent }}>Previous price. Please confirm.</p>;
                   })()}
                   {batchSource === "labels" && (
                     (x.drinkType === "cider" || x.drinkType === "keykeg") ? (
@@ -2787,9 +2996,9 @@ function TheCurfewCellarApp() {
       const pickRow = (b) => (
         <button key={b.id} onClick={() => pickBeer(b)} className="flex w-full items-center justify-between gap-2 rounded-lg border p-2.5 text-left transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: CAT_ACCENT[b.category] || C.line }}>
           <span className="min-w-0">
-            <span className="block truncate text-sm font-normal" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{b.brewery && <span className="font-semibold" style={{ color: C.ink }}>{b.brewery}</span>} {b.name}</span>
+            <span className="block truncate text-sm font-normal" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{(() => { const t = splitTitle(b.brewery, b.name, b.collabBrewery); return <>{t.lead && <span className="font-semibold" style={{ color: C.ink }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()}</span>
             <span className="block truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[b.style || "", b.abv ? `${b.abv}%` : "", extraSweetness(b)].filter(Boolean).join("  ·  ")}</span>
-            <span className="block truncate text-xs text-slate-400">{b.location || ""}</span>
+            <span className="block truncate text-xs text-slate-400">{locationDisplay(b)}</span>
           </span>
           <span className="shrink-0 text-xs text-slate-400">{latestPrice(b) ? `last £${latestPrice(b)} ` : ""}→</span>
         </button>
@@ -2812,7 +3021,7 @@ function TheCurfewCellarApp() {
             <p className="text-base font-semibold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Add from your library</p>
             <div className="relative mt-3">
               <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input value={addPickSearch} onChange={(e) => setAddPickSearch(e.target.value)} placeholder="Search ales, breweries, styles…" className="w-full rounded-xl border bg-white py-2.5 pl-10 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
+              <input value={addPickSearch} onChange={(e) => setAddPickSearch(e.target.value)} placeholder="Search ales, breweries, styles…" className="w-full rounded-lg py-2 pl-10 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.stone, color: C.ink }} />
               {addPickSearch && <button onClick={() => setAddPickSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 hover:bg-slate-100"><X size={16} /></button>}
             </div>
             {q ? (
@@ -2871,20 +3080,21 @@ function TheCurfewCellarApp() {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="Price (£ per pint)">
               <input className={inputCls} inputMode="decimal" value={form.price} onChange={(e) => setF({ price: e.target.value })} placeholder="e.g. 4.40" />
-              {priceNeedsConfirm && <p className="mt-1 text-xs font-medium" style={{ color: C.brass }}>Previous price. Please confirm.</p>}
+              {priceNeedsConfirm && <p className="mt-1 text-xs font-medium" style={{ color: C.accent }}>Previous price. Please confirm.</p>}
             </Field>
             {form.drinkType === "cider" && <Field label="Container"><select className={inputCls} value={form.size} onChange={(e) => setF({ size: e.target.value })}>{SIZE_OPTIONS.map((s) => <option key={s}>{s}</option>)}</select></Field>}
           </div>
           {form.drinkType !== "cider" && form.drinkType !== "keykeg" && (
             <Field label="Delivered by">
               <input className={inputCls} value={form.caskOwner} onChange={(e) => setF({ caskOwner: e.target.value })} placeholder={form.brewery ? `Defaults to ${form.brewery}` : "Defaults to the brewery"} />
-              {supplierNeedsConfirm && <p className="mt-1 text-xs font-medium" style={{ color: C.brass }}>Previous delivery. Please confirm.</p>}
+              {supplierNeedsConfirm && <p className="mt-1 text-xs font-medium" style={{ color: C.accent }}>Previous delivery. Please confirm.</p>}
             </Field>
           )}
           <Field label="Best before">
             <input type="date" className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" value={form.bestBefore} onChange={(e) => setF({ bestBefore: e.target.value })} style={{ WebkitAppearance: "none", appearance: "none", fontSize: 14, colorScheme: "light" }} />
           </Field>
           <Field label="Status"><select className={inputCls} value={form.status} onChange={(e) => setF({ status: e.target.value })}>{STATUSES.map((s) => { const full = s.key === "on" && lines.filter((l) => l.status === "on" && PUMP_DRINK(l.drinkType) === PUMP_DRINK(form.drinkType)).length >= PUMPS[PUMP_DRINK(form.drinkType)].length; return <option key={s.key} value={s.key} disabled={full}>{s.label}{full ? " (pumps full)" : ""}</option>; })}</select></Field>
+          {form.status === "off" && <p className="text-xs text-slate-500">For stock that's already done, damaged, spoiled, or otherwise never going on. It's logged and finished straight away, not added to what's currently in the cellar.</p>}
         </div>
 
         <div className="flex gap-2">
@@ -2899,7 +3109,6 @@ function TheCurfewCellarApp() {
     const q = librarySearch.trim().toLowerCase();
     const match = (b) => [b.name, b.brewery, b.style, b.category, b.location].some((x) => (x || "").toLowerCase().includes(q));
     const results = q ? library.filter(match) : [];
-    const incomplete = library.filter((b) => !b.archived && (!(b.abv || "").trim() || !(b.style || "").trim() || !(b.location || "").trim() || !(b.notes || "").trim()));
     const archived = library.filter((b) => b.archived).slice().sort((a, b) => (a.brewery || "").localeCompare(b.brewery || "") || (a.name || "").localeCompare(b.name || ""));
     const rest = library.filter((b) => !b.archived).slice().sort((a, b) => {
       if (a.allergensVerified !== b.allergensVerified) return a.allergensVerified ? 1 : -1;
@@ -2918,11 +3127,11 @@ function TheCurfewCellarApp() {
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0 flex-1">
               <button onClick={() => setLibraryOpenId(b.id)} className="block w-full min-w-0 rounded-lg text-left transition focus:outline-none focus:ring-2 focus:ring-amber-300">
-                <p className="truncate text-sm font-normal" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{b.brewery && <span className="font-semibold" style={{ color: C.ink }}>{b.brewery}</span>} {b.name} {!b.allergensVerified && <AlertTriangle size={13} className="inline shrink-0 text-amber-500" />}</p>
+                <p className="truncate text-sm font-normal" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{(() => { const t = splitTitle(b.brewery, b.name, b.collabBrewery); return <>{t.lead && <span className="font-semibold" style={{ color: C.ink }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()} {!b.allergensVerified && <AlertTriangle size={13} className="inline shrink-0 text-amber-500" />}</p>
                 <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[b.style || "", b.abv ? `${b.abv}%` : "", extraSweetness(b)].filter(Boolean).join("  ·  ")}</p>
-                <p className="truncate text-xs text-slate-400">{b.location || ""}{latestPrice(b) ? ` · Previous: £${latestPrice(b)}` : ""}{latestSupplier(b) ? ` · from ${latestSupplier(b)}` : ""}</p>
+                <p className="truncate text-xs text-slate-400">{[locationDisplay(b), latestPrice(b) ? `Last £${latestPrice(b)}` : ""].filter(Boolean).join("  ·  ")}</p>
               </button>
-              <div className="mt-1 flex flex-wrap items-center gap-1"><DietaryMini beer={b} /></div>
+              <div className="mt-1 flex flex-wrap items-center gap-1" style={{ minHeight: 22 }}><DietaryMini beer={b} /></div>
             </div>
             <div className="flex shrink-0 items-center gap-1">
               {canEdit && <button onClick={(e) => { e.stopPropagation(); addLineOfBeer(b); }} title="Add to cellar" className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Plus size={13} /> Add</button>}
@@ -2964,7 +3173,7 @@ function TheCurfewCellarApp() {
       <div className="space-y-3">
         <div className="relative">
           <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input value={librarySearch} onChange={(e) => setLibrarySearch(e.target.value)} placeholder="Search ales, breweries, styles…" className="w-full rounded-xl border bg-white py-2.5 pl-10 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
+          <input value={librarySearch} onChange={(e) => setLibrarySearch(e.target.value)} placeholder="Search ales, breweries, styles…" className="w-full rounded-lg py-2 pl-10 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.stone, color: C.ink }} />
           {librarySearch && <button onClick={() => setLibrarySearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 hover:bg-slate-100"><X size={16} /></button>}
         </div>
 
@@ -2985,7 +3194,7 @@ function TheCurfewCellarApp() {
             {recentAdded.length > 0 && (
               <section>
                 <button onClick={() => toggleSection("libRecent")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
-                  <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Recently added <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {recentAdded.length}</span></h2>
+                  <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Recently added <span className="text-sm" style={{ color: C.muted, fontFamily: "var(--font-data)" }}>· {recentAdded.length}</span></h2>
                   <ChevronDown size={20} className="text-slate-400" style={{ transform: uiPrefs.libRecent ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
                 </button>
                 {uiPrefs.libRecent && <div className="mt-2 space-y-2">{recentAdded.map(libRow)}</div>}
@@ -2994,7 +3203,7 @@ function TheCurfewCellarApp() {
             {rest.length > 0 && (
               <section className="border-t pt-4" style={{ borderColor: C.line }}>
                 <button onClick={() => toggleSection("libAll")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
-                  <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>All beers <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {rest.length}</span></h2>
+                  <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>All beers <span className="text-sm" style={{ color: C.muted, fontFamily: "var(--font-data)" }}>· {rest.length}</span></h2>
                   <ChevronDown size={20} className="text-slate-400" style={{ transform: uiPrefs.libAll ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
                 </button>
                 {uiPrefs.libAll && <div className="mt-2 space-y-2">{rest.map(libRow)}</div>}
@@ -3003,7 +3212,7 @@ function TheCurfewCellarApp() {
             {archived.length > 0 && (
               <section className="border-t pt-4" style={{ borderColor: C.line }}>
                 <button onClick={() => toggleSection("libArchived")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
-                  <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Archived <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {archived.length}</span></h2>
+                  <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Archived <span className="text-sm" style={{ color: C.muted, fontFamily: "var(--font-data)" }}>· {archived.length}</span></h2>
                   <ChevronDown size={20} className="text-slate-400" style={{ transform: uiPrefs.libArchived ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
                 </button>
                 {uiPrefs.libArchived && <div className="mt-2 space-y-2" style={{ opacity: 0.75 }}>{archived.map(libRow)}</div>}
@@ -3011,58 +3220,96 @@ function TheCurfewCellarApp() {
             )}
           </>
         )}
+      </div>
+    );
+  };
 
-        {canEdit && (
-          <div className="cc-elev rounded-xl border" style={{ background: C.paper, borderColor: C.line }}>
-            <button onClick={() => setUiPrefs((p) => ({ ...p, libraryTools: !p.libraryTools }))} className="flex w-full items-center justify-between gap-2 p-3.5 text-left focus:outline-none">
-              <span className="text-sm font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Library tools</span>
-              <ChevronDown size={18} className="text-slate-400" style={{ transform: uiPrefs.libraryTools ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
-            </button>
-            {uiPrefs.libraryTools && (
-              <div className="space-y-3 p-3.5 pt-0">
-                <div className="rounded-xl border p-3.5" style={{ borderColor: C.line }}>
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="min-w-0">
-                      <h2 className="text-sm font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Find duplicates</h2>
-                      <p className="mt-0.5 text-xs text-slate-500">Looks for the same beer entered more than once, like "Weston's" and "Westons Cider" both being Old Rosie.</p>
-                    </div>
-                    <button onClick={() => setDuplicateResults(findDuplicateCandidates(library))} className="shrink-0 rounded-lg border px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>Scan</button>
+  const LibraryTools = () => {
+    if (!canEdit) {
+      return (
+        <div className="rounded-2xl border border-dashed bg-white p-10 text-center" style={{ borderColor: C.line }}>
+          <Lock className="mx-auto mb-2" style={{ color: C.accent }} />
+          <p className="font-semibold" style={{ color: C.ink }}>Manager access needed</p>
+          <p className="mt-1 text-sm text-slate-500">Library tools aren't available on this login.</p>
+        </div>
+      );
+    }
+    const incomplete = library.filter((b) => !b.archived && (!(b.abv || "").trim() || !(b.style || "").trim() || !(b.location || "").trim() || !(b.notes || "").trim()));
+    return (
+      <div className="space-y-3">
+        <div className="rounded-xl border p-3.5" style={{ background: C.paper, borderColor: C.line }}>
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <h2 className="text-sm font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Find duplicates</h2>
+              <p className="mt-0.5 text-xs text-slate-500">Looks for the same beer entered more than once, like "Weston's" and "Westons Cider" both being Old Rosie.</p>
+            </div>
+            <button onClick={() => setDuplicateResults(findDuplicateCandidates(library))} className="shrink-0 rounded-lg border px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>Scan</button>
+          </div>
+          {duplicateResults !== null && (
+            duplicateResults.length === 0 ? (
+              <p className="mt-2.5 text-xs text-slate-400">No likely duplicates found.</p>
+            ) : (
+              <div className="mt-2.5 space-y-1.5">
+                {duplicateResults.map((pair, i) => (
+                  <div key={i} className="rounded-lg border p-2" style={{ borderColor: C.line }}>
+                    <p className="text-xs text-slate-600"><span className="font-semibold" style={{ color: C.ink }}>{pair[0].brewery || "?"} - {pair[0].name}</span> and <span className="font-semibold" style={{ color: C.ink }}>{pair[1].brewery || "?"} - {pair[1].name}</span></p>
+                    <button onClick={() => { setCombineCandidate(pair); setCombineKeepId(pair[0].id); }} className="mt-1.5 rounded-md px-2.5 py-1 text-xs font-semibold text-white hover:opacity-90" style={{ background: C.ink }}>Compare &amp; combine</button>
                   </div>
-                  {duplicateResults !== null && (
-                    duplicateResults.length === 0 ? (
-                      <p className="mt-2.5 text-xs text-slate-400">No likely duplicates found.</p>
-                    ) : (
-                      <div className="mt-2.5 space-y-1.5">
-                        {duplicateResults.map((pair, i) => (
-                          <div key={i} className="rounded-lg border p-2" style={{ borderColor: C.line }}>
-                            <p className="text-xs text-slate-600"><span className="font-semibold" style={{ color: C.ink }}>{pair[0].brewery || "?"} - {pair[0].name}</span> and <span className="font-semibold" style={{ color: C.ink }}>{pair[1].brewery || "?"} - {pair[1].name}</span></p>
-                            <button onClick={() => { setCombineCandidate(pair); setCombineKeepId(pair[0].id); }} className="mt-1.5 rounded-md px-2.5 py-1 text-xs font-semibold text-white hover:opacity-90" style={{ background: C.ink }}>Compare &amp; combine</button>
-                          </div>
+                ))}
+              </div>
+            )
+          )}
+        </div>
+
+        <div className="rounded-xl border p-3.5" style={{ background: C.paper, borderColor: C.line }}>
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <h2 className="text-sm font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Brewery details clash</h2>
+              <p className="mt-0.5 text-xs text-slate-500">Looks for the same brewery with different locations on file, like Two By Two showing as both Wallsend and Byker.</p>
+            </div>
+            <button onClick={() => setClashResults(findLocationClashes(library))} className="shrink-0 rounded-lg border px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>Scan</button>
+          </div>
+          {clashResults !== null && (
+            clashResults.length === 0 ? (
+              <p className="mt-2.5 text-xs text-slate-400">No clashes found.</p>
+            ) : (
+              <div className="mt-2.5 space-y-2">
+                {clashResults.map((c, i) => {
+                  const allIds = c.options.flatMap((o) => o.beerIds);
+                  return (
+                    <div key={i} className="rounded-lg border p-2.5" style={{ borderColor: C.line }}>
+                      <p className="text-xs font-semibold" style={{ color: C.ink }}>{c.brewery || "?"}</p>
+                      <div className="mt-1.5 space-y-1">
+                        {c.options.map((o) => (
+                          <button key={o.loc} onClick={() => resolveLocationClash(allIds, o.loc)} className="flex w-full items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-left text-xs transition hover:bg-slate-50" style={{ borderColor: C.line }}>
+                            <span className="text-slate-700">{o.loc}</span>
+                            <span className="shrink-0 text-slate-400">{o.beerIds.length} beer{o.beerIds.length === 1 ? "" : "s"} · use for all</span>
+                          </button>
                         ))}
                       </div>
-                    )
-                  )}
-                </div>
-
-                {incomplete.length > 0 && (
-                  <div className="rounded-xl border p-3.5" style={{ borderColor: C.line }}>
-                    <h2 className="text-sm font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Needs more detail ({incomplete.length})</h2>
-                    <p className="mt-0.5 text-xs text-slate-500">Missing ABV, style, location, or tasting notes.</p>
-                    <div className="mt-2.5 space-y-1.5">
-                      {incomplete.map((b) => {
-                        const missing = [!(b.abv || "").trim() && "ABV", !(b.style || "").trim() && "style", !(b.location || "").trim() && "location", !(b.notes || "").trim() && "tasting notes"].filter(Boolean).join(", ");
-                        return (
-                          <button key={b.id} onClick={() => { setEditBeerId(b.id); setEditBeerLineId(null); }} className="block w-full rounded-lg border p-2 text-left transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>
-                            <span className="block truncate text-sm font-semibold" style={{ color: C.ink }}>{b.brewery || "?"} - {b.name}</span>
-                            <span className="block text-xs text-slate-400">Missing: {missing}</span>
-                          </button>
-                        );
-                      })}
                     </div>
-                  </div>
-                )}
+                  );
+                })}
               </div>
-            )}
+            )
+          )}
+        </div>
+
+        {incomplete.length > 0 && (
+          <div className="rounded-xl border p-3.5" style={{ background: C.paper, borderColor: C.line }}>
+            <h2 className="text-sm font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Needs more detail ({incomplete.length})</h2>
+            <p className="mt-0.5 text-xs text-slate-500">Missing ABV, style, location, or tasting notes.</p>
+            <div className="mt-2.5 space-y-1.5">
+              {incomplete.map((b) => {
+                const missing = [!(b.abv || "").trim() && "ABV", !(b.style || "").trim() && "style", !(b.location || "").trim() && "location", !(b.notes || "").trim() && "tasting notes"].filter(Boolean).join(", ");
+                return (
+                  <button key={b.id} onClick={() => { setEditBeerId(b.id); setEditBeerLineId(null); }} className="block w-full rounded-lg border p-2 text-left transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>
+                    <span className="block truncate text-sm font-semibold" style={{ color: C.ink }}>{b.brewery || "?"} - {b.name}</span>
+                    <span className="block text-xs text-slate-400">Missing: {missing}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
@@ -3073,7 +3320,7 @@ function TheCurfewCellarApp() {
     <div className="space-y-4">
       <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
         <h2 className="text-base font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Pump notifications</h2>
-        <div className="mt-1 mb-3 h-0.5 w-8 rounded-full" style={{ background: C.brass }} />
+        <div className="mt-1 mb-3 h-0.5 w-8 rounded-full" style={{ background: C.accent }} />
         <p className="text-sm text-slate-500">Get a ping on this phone whenever a beer goes on or a line finishes, even with the app closed. Each phone turns this on separately, so every manager who wants it enables it on their own phone.</p>
         <div className="mt-4">
           {pushState === "checking" && <p className="text-sm text-slate-400">Checking this phone…</p>}
@@ -3110,12 +3357,12 @@ function TheCurfewCellarApp() {
   const Guide = () => (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <button onClick={shareGuidePDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-1.5 py-1.5 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40 focus:outline-none" style={{ color: "#778883" }}>{pdfBusy ? <Loader2 className="animate-spin" size={13} /> : <Share size={13} />} Share</button>
+        <button onClick={shareGuidePDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-1.5 py-1.5 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40 focus:outline-none" style={{ color: C.muted }}>{pdfBusy ? <Loader2 className="animate-spin" size={13} /> : <Share size={13} />} Share</button>
       </div>
       {GUIDE_SECTIONS.map((sec) => (
         <div key={sec.title} className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
           <h2 className="text-base font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>{sec.title}</h2>
-          <div className="mt-1 mb-3 h-0.5 w-8 rounded-full" style={{ background: C.brass }} />
+          <div className="mt-1 mb-3 h-0.5 w-8 rounded-full" style={{ background: C.accent }} />
           <ul className="space-y-2.5">
             {sec.steps.map(([h, t]) => (
               <li key={h}>
@@ -3180,7 +3427,7 @@ function TheCurfewCellarApp() {
               {restocked.map(({ b, n }) => (
                 <li key={b.id} className="flex items-center justify-between gap-2 text-sm">
                   <span className="min-w-0 truncate" style={{ color: C.inkSoft }}>{rowName(b)}</span>
-                  <span className="shrink-0 font-semibold" style={{ color: C.brass, fontFamily: "var(--font-data)" }}>{n}×</span>
+                  <span className="shrink-0 font-semibold" style={{ color: C.accent, fontFamily: "var(--font-data)" }}>{n}×</span>
                 </li>
               ))}
             </ul>
@@ -3197,7 +3444,7 @@ function TheCurfewCellarApp() {
                     <span className="font-semibold" style={{ color: C.ink, fontFamily: "var(--font-data)" }}>{n}</span>
                   </div>
                   <div className="h-1.5 overflow-hidden rounded-full" style={{ background: C.stone }}>
-                    <div className="h-full rounded-full" style={{ width: `${Math.round((n / supMax) * 100)}%`, background: C.brass }} />
+                    <div className="h-full rounded-full" style={{ width: `${Math.round((n / supMax) * 100)}%`, background: C.accent }} />
                   </div>
                 </li>
               ))}
@@ -3345,19 +3592,19 @@ function TheCurfewCellarApp() {
       if (!JsPDF) throw new Error("no pdf lib");
       const doc = new JsPDF({ unit: "mm", format: "a4" });
       const W = 210, H = 297, M = 14; let y = M;
-      const ink = [28, 54, 54], brass = [153, 111, 35], brassSoft = [199, 154, 62], gray = [110, 118, 115], lineCol = [225, 222, 215], paleBg = [250, 249, 246];
+      const ink = [32, 59, 67], accent = [31, 107, 106], accentSoft = [86, 139, 137], gray = [86, 111, 118], lineCol = [224, 218, 212], paleBg = [249, 246, 243];
       const ensure = (need) => { if (y + need > H - M) { doc.addPage(); y = M; } };
 
       doc.setFillColor(ink[0], ink[1], ink[2]); doc.rect(0, 0, W, 28, "F");
       doc.setFont("helvetica", "bold"); doc.setFontSize(17); doc.setTextColor(243, 239, 230);
       doc.text("Empties to Return", M, 13);
-      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(brassSoft[0], brassSoft[1], brassSoft[2]);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(accentSoft[0], accentSoft[1], accentSoft[2]);
       doc.text(`${PUB_CONFIG.fullName.toUpperCase()} · COLLECTION LIST`, M, 20.5);
       doc.setFontSize(8.5); doc.setTextColor(200, 196, 186);
       doc.text(new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }), W - M, 13, { align: "right" });
       y = 36;
 
-      const sectionHead = (t, n) => { ensure(16); y += 4; doc.setFillColor(brass[0], brass[1], brass[2]); doc.rect(M, y - 4, 2.2, 5.2, "F"); doc.setFont("helvetica", "bold"); doc.setFontSize(11.5); doc.setTextColor(ink[0], ink[1], ink[2]); doc.text(t, M + 4.5, y); doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(gray[0], gray[1], gray[2]); doc.text(String(n), W - M, y, { align: "right" }); y += 5.5; };
+      const sectionHead = (t, n) => { ensure(16); y += 4; doc.setFillColor(accent[0], accent[1], accent[2]); doc.rect(M, y - 4, 2.2, 5.2, "F"); doc.setFont("helvetica", "bold"); doc.setFontSize(11.5); doc.setTextColor(ink[0], ink[1], ink[2]); doc.text(t, M + 4.5, y); doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(gray[0], gray[1], gray[2]); doc.text(String(n), W - M, y, { align: "right" }); y += 5.5; };
 
       const beerLine = (l) => {
         const b = beerById[l.beerId]; if (!b) return;
@@ -3404,6 +3651,61 @@ function TheCurfewCellarApp() {
     } finally { setPdfBusy(false); }
   };
 
+  const LineCare = () => {
+    const onBySlot = {};
+    lines.filter((l) => l.status === "on" && l.slot).forEach((l) => { onBySlot[l.slot] = l; });
+    const groups = [
+      { label: "Cask", pumps: PUMPS.cask, accent: TYPE_ACCENT.cask },
+      { label: "Keg", pumps: PUMPS.keg, accent: TYPE_ACCENT.keg },
+      { label: "Cider", pumps: PUMPS.cider, accent: TYPE_ACCENT.cider },
+    ];
+    const due = linesDueClean();
+    return (
+      <div className="space-y-4">
+        <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
+          <p className="text-sm" style={{ color: C.inkSoft }}>
+            {due === 0 ? "Every line is up to date." : `${due} line${due === 1 ? "" : "s"} due a clean.`}
+            {" "}Lines are counted as due every {PUB_CONFIG.lineCleanDays} days.
+          </p>
+          {canService && (
+            <button onClick={markAllLinesCleaned} className="mt-3 inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}>
+              <Check size={15} /> Mark all lines cleaned
+            </button>
+          )}
+        </div>
+        {groups.map((g) => (
+          <section key={g.label}>
+            <p className="mb-1.5 flex items-center gap-2 uppercase" style={{ color: g.accent, fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}>
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: g.accent }} />{g.label}
+              <span className="h-px flex-1" style={{ background: "linear-gradient(90deg, rgba(32, 59, 67,0.18), rgba(32, 59, 67,0))" }} />
+            </p>
+            <div className="space-y-1.5">
+              {g.pumps.map((slot) => {
+                const info = lineCleanInfo(slot);
+                const line = onBySlot[slot];
+                const beer = line ? beerById[line.beerId] : null;
+                const status = info.never ? "No clean recorded yet" : info.days === 0 ? "Cleaned today" : `Cleaned ${info.days} day${info.days === 1 ? "" : "s"} ago`;
+                return (
+                  <div key={slot} className="flex items-center gap-2.5 rounded-xl border p-2.5" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: info.overdue ? C.alert : g.accent }}>
+                    <span className="grid shrink-0 place-items-center rounded-md" style={{ width: 22, height: 22, background: "linear-gradient(180deg, #2C5460 0%, #203B43 100%)", color: C.accentSoft, fontFamily: "var(--font-data)", fontSize: 10, fontWeight: 700, border: "1px solid rgba(138,207,206,0.40)", boxShadow: "inset 0 1px 0 rgba(138,207,206,0.22), 0 1px 2px rgba(32, 59, 67,0.35)" }}>{String(PUMP_NUMBER[slot]).padStart(2, "0")}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{PUMP_LABELS[slot]}</p>
+                      <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{beer ? `${beer.brewery ? beer.brewery + " " : ""}${beer.name}` : "Nothing on"}</p>
+                      <p className="truncate text-xs" style={{ color: info.overdue ? C.alert : C.muted, fontFamily: "var(--font-data)", fontWeight: info.overdue ? 600 : 500 }}>{status}</p>
+                    </div>
+                    {canService && (
+                      <button onClick={() => markLineCleaned(slot)} className="shrink-0 rounded-lg border px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>Cleaned</button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        ))}
+      </div>
+    );
+  };
+
   const Empties = () => {
     const empties = lines.filter(IS_EMPTY);
     const groups = groupByOwner(empties);
@@ -3424,13 +3726,13 @@ function TheCurfewCellarApp() {
               </div>
             )}
             <div className="mt-2.5 flex gap-2">
-              <input value={newDistributor} onChange={(e) => setNewDistributor(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { addDistributor(newDistributor); setNewDistributor(""); } }} placeholder="Add a distributor" className="flex-1 rounded-lg border px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
+              <input value={newDistributor} onChange={(e) => setNewDistributor(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { addDistributor(newDistributor); setNewDistributor(""); } }} placeholder="Add a distributor" className="flex-1 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.stone, color: C.ink }} />
               <button onClick={() => { addDistributor(newDistributor); setNewDistributor(""); }} disabled={!newDistributor.trim()} className="shrink-0 rounded-lg border px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>Add</button>
             </div>
           </div>
         )}
         <div className="flex items-center justify-end gap-3">
-          <button onClick={shareEmptiesPDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-1 py-1 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40 focus:outline-none" style={{ color: "#778883" }}>{pdfBusy ? <Loader2 className="animate-spin" size={13} /> : <Share size={13} />} Share</button>
+          <button onClick={shareEmptiesPDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-1 py-1 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40 focus:outline-none" style={{ color: C.muted }}>{pdfBusy ? <Loader2 className="animate-spin" size={13} /> : <Share size={13} />} Share</button>
           <button onClick={() => go("cellar")} className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"><ArrowRight size={14} className="rotate-180" /> Back</button>
         </div>
         {empties.length === 0 && (
@@ -3452,7 +3754,7 @@ function TheCurfewCellarApp() {
                 <>
                   {items.length > 1 && canService && (
                     <div className="flex justify-end px-3 pb-1.5">
-                      <button onClick={() => markOwnerCollected(key)} className="inline-flex items-center gap-1 px-1 py-1 text-xs font-medium transition hover:opacity-70 active:scale-95 focus:outline-none" style={{ color: "#778883" }}><Check size={13} /> All collected ({items.length})</button>
+                      <button onClick={() => markOwnerCollected(key)} className="inline-flex items-center gap-1 px-1 py-1 text-xs font-medium transition hover:opacity-70 active:scale-95 focus:outline-none" style={{ color: C.muted }}><Check size={13} /> All collected ({items.length})</button>
                     </div>
                   )}
                   <ul className="space-y-1.5 px-3 pb-3">
@@ -3464,7 +3766,7 @@ function TheCurfewCellarApp() {
                         <button onClick={() => setOpenId(l.id)} className="min-w-0 flex-1 rounded text-left focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ WebkitTapHighlightColor: "transparent" }}>
                           <span className="block truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer ? `${beer.brewery ? beer.brewery + " - " : ""}${beer.name}` : "Unknown"}</span>
                           {beer && <span className="block truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[dt, beer.style || "", beer.abv ? `${beer.abv}%` : ""].filter(Boolean).join("  ·  ")}</span>}
-                          {beer && beer.location && <span className="block truncate text-xs text-slate-400" style={{ fontFamily: "var(--font-data)" }}>{beer.location}</span>}
+                          {beer && locationDisplay(beer) && <span className="block truncate text-xs text-slate-400" style={{ fontFamily: "var(--font-data)" }}>{locationDisplay(beer)}</span>}
                           <span className="block truncate text-xs text-slate-500" style={{ fontFamily: "var(--font-data)" }}>{l.size ? `${l.size} · ` : ""}finished {l.dates.off ? fmtDate(l.dates.off.slice(0, 10)) : "--"}</span>
                         </button>
                         {canService && <button onClick={() => markCollected(l.id)} className="inline-flex shrink-0 items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><Check size={13} /> Collected</button>}
@@ -3491,7 +3793,7 @@ function TheCurfewCellarApp() {
     return (
       <div className="space-y-4">
         <div className="no-print flex items-center justify-end gap-2">
-          <button onClick={shareAllergenPDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-1.5 py-1.5 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40 focus:outline-none" style={{ color: "#778883" }}>{pdfBusy ? <Loader2 className="animate-spin" size={13} /> : <Share size={13} />} Share</button>
+          <button onClick={shareAllergenPDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-1.5 py-1.5 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40 focus:outline-none" style={{ color: C.muted }}>{pdfBusy ? <Loader2 className="animate-spin" size={13} /> : <Share size={13} />} Share</button>
           <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Printer size={15} /> Print</button>
         </div>
         <div id="allergen-sheet" className="cc-elev rounded-xl border p-5" style={{ background: C.paper, borderColor: C.line }}>
@@ -3501,7 +3803,7 @@ function TheCurfewCellarApp() {
           {groups.length === 0 && <p className="mt-4 text-sm text-slate-400">Nothing on right now.</p>}
           {groups.map((g) => (
             <div key={g.title} className="mt-4">
-              <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: C.brass }}>{g.title}</h3>
+              <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: C.accent }}>{g.title}</h3>
               <div className="mt-1 divide-y" style={{ borderColor: C.line }}>
                 {g.items.map((l) => {
                   const beer = beerById[l.beerId];
@@ -3549,7 +3851,7 @@ function TheCurfewCellarApp() {
     return (
       <div className="space-y-4">
         <div className="no-print flex items-center justify-end gap-2">
-          <button onClick={sharePDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-1.5 py-1.5 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40 focus:outline-none" style={{ color: "#778883" }}>{pdfBusy ? <Loader2 className="animate-spin" size={13} /> : <Share size={13} />} Share</button>
+          <button onClick={sharePDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-1.5 py-1.5 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40 focus:outline-none" style={{ color: C.muted }}>{pdfBusy ? <Loader2 className="animate-spin" size={13} /> : <Share size={13} />} Share</button>
           <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Printer size={15} /> Print</button>
         </div>
         <div className="cc-elev rounded-xl border p-5" style={{ background: C.paper, borderColor: C.line }}>
@@ -3558,7 +3860,7 @@ function TheCurfewCellarApp() {
           <Section title="Pouring" items={onL} withStage={false} beerById={beerById} />
           {prep.length > 0 && (
             <div className="mt-4">
-              <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: C.brass }}>Racked · {prep.length}</h3>
+              <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: C.accent }}>Racked · {prep.length}</h3>
               {prepGroups.map((g) => (
                 <div key={g.label} className="mt-2">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{g.label}</p>
@@ -3569,7 +3871,7 @@ function TheCurfewCellarApp() {
           )}
           {storeL.length > 0 && (
             <div className="mt-4">
-              <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: C.brass }}>In Store · {storeL.length}</h3>
+              <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: C.accent }}>In Store · {storeL.length}</h3>
               {storeGroups.map((g) => (
                 <div key={g.label} className="mt-2">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{g.label}</p>
@@ -3594,11 +3896,11 @@ function TheCurfewCellarApp() {
     return (
       <div className="flex-1 overflow-y-auto" style={{ background: C.ink, overscrollBehaviorY: "none", WebkitOverflowScrolling: "touch", touchAction: "manipulation" }}>
         <div className="mx-auto max-w-2xl px-5 py-8">
-          <div style={{ border: "1.5px solid rgba(184,134,43,0.4)", borderBottom: "none", borderTopLeftRadius: 130, borderTopRightRadius: 130, padding: "28px 22px 4px" }}>
+          <div style={{ border: "1.5px solid rgba(138, 207, 206,0.4)", borderBottom: "none", borderTopLeftRadius: 130, borderTopRightRadius: 130, padding: "28px 22px 4px" }}>
             <div className="flex flex-col items-center text-center">
-              <div className="grid h-11 w-11 place-items-center rounded-full" style={{ background: C.brass, color: C.ink }}><Bell size={22} /></div>
+              <img src={PUB_LOGO} alt="" style={{ width: 64, height: 64 }} />
               <p className="mt-2.5 text-2xl font-semibold leading-tight" style={{ color: C.cream, fontFamily: "var(--font-brand)", letterSpacing: "0.03em" }}>{PUB_CONFIG.name}</p>
-              <p className="mt-0.5 text-xs uppercase tracking-widest" style={{ color: C.brassSoft }}>What's on today</p>
+              <p className="mt-0.5 text-xs uppercase tracking-widest" style={{ color: C.accentSoft }}>What's on today</p>
               {fmtUpdated(lastUpdated) && <p className="mt-2 text-xs" style={{ color: "rgba(243,239,230,0.5)" }}>Last updated: {fmtUpdated(lastUpdated)}</p>}
               <div className="mt-1 flex items-center gap-4">
                 <button onClick={shareTapListPDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-0 py-1 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40" style={{ color: "rgba(209,164,74,0.75)" }}>{pdfBusy ? <Loader2 className="animate-spin" size={12} /> : <Share size={12} />} Share</button>
@@ -3612,7 +3914,7 @@ function TheCurfewCellarApp() {
 
             {caskByCat.length > 0 && (
               <section className="mb-7">
-                <h2 className="mb-2 text-sm font-semibold uppercase tracking-widest" style={{ color: C.brass }}>Cask ale</h2>
+                <h2 className="mb-2 text-sm font-semibold uppercase tracking-widest" style={{ color: C.accent }}>Cask ale</h2>
                 {caskByCat.map((g) => (
                   <div key={g.cat} className="mb-3">
                     <p className="text-xs uppercase tracking-wide" style={{ color: "rgba(243,239,230,0.5)" }}>{g.cat}</p>
@@ -3624,14 +3926,14 @@ function TheCurfewCellarApp() {
 
             {keg.length > 0 && (
               <section className="mb-7">
-                <h2 className="mb-2 text-sm font-semibold uppercase tracking-widest" style={{ color: C.brass }}>Keg</h2>
+                <h2 className="mb-2 text-sm font-semibold uppercase tracking-widest" style={{ color: C.accent }}>Keg</h2>
                 {keg.map((l) => <Item key={l.id} line={l} beerById={beerById} />)}
               </section>
             )}
 
             {cider.length > 0 && (
               <section className="mb-7">
-                <h2 className="mb-2 text-sm font-semibold uppercase tracking-widest" style={{ color: C.brass }}>Draught cider</h2>
+                <h2 className="mb-2 text-sm font-semibold uppercase tracking-widest" style={{ color: C.accent }}>Draught cider</h2>
                 {cider.map((l) => <Item key={l.id} line={l} beerById={beerById} />)}
               </section>
             )}
@@ -3665,7 +3967,7 @@ function TheCurfewCellarApp() {
     const previewBeer = previewLine ? beerById[previewLine.beerId] : null;
     const pmeta = previewBeer ? [DRINK_TYPES.find((t) => t.key === previewLine.drinkType)?.label, previewBeer.style, `${previewBeer.abv}%`, previewLine.price ? `£${previewLine.price}` : "no price set", previewLine.size ? previewLine.size.replace("Bag-in-box ", "").replace("Keg ", "") : ""].filter(Boolean).join("  ·  ") : "";
     return (
-      <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(30, 58, 70,0.45)" }} onClick={close}>
+      <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(32, 59, 67,0.45)" }} onClick={close}>
         <div className="flex w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-white sm:rounded-2xl cc-pop" style={{ maxHeight: "85vh" }} onClick={(e) => e.stopPropagation()}>
           {previewBeer ? (
             <>
@@ -3685,7 +3987,7 @@ function TheCurfewCellarApp() {
                   <p className="text-base font-medium text-slate-700">{pmeta}</p>
                   <DietaryBadges beer={previewBeer} />
                 </div>
-                {previewBeer.notes && <div><Eyebrow>Tasting notes</Eyebrow><ul className="space-y-1">{splitNote(previewBeer.notes).map((line, i) => <li key={i} className="flex gap-1.5 text-sm leading-snug text-slate-600"><span style={{ color: C.brass }}>•</span><span>{line}.</span></li>)}</ul></div>}
+                {previewBeer.notes && <div><Eyebrow>Tasting notes</Eyebrow><ul className="space-y-1">{splitNote(previewBeer.notes).map((line, i) => <li key={i} className="flex gap-1.5 text-sm leading-snug text-slate-600"><span style={{ color: C.accent }}>•</span><span>{line}.</span></li>)}</ul></div>}
                 <div>
                   <Eyebrow>Allergens</Eyebrow>
                   {previewBeer.allergens.length ? <div className="flex flex-wrap gap-1.5">{previewBeer.allergens.map((a) => <Badge key={a} className="bg-slate-100 text-slate-700 border-slate-200">{a}</Badge>)}</div> : <p className="text-sm text-slate-500">None recorded.</p>}
@@ -3723,10 +4025,10 @@ function TheCurfewCellarApp() {
                           <span className="min-w-0">
                             <span className="flex items-center gap-1.5">
                               <CatDot category={beer.category} />
-                              <span className="font-normal leading-snug" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer.brewery && <span className="font-semibold" style={{ color: C.ink }}>{beer.brewery}</span>} {beer.name}</span>
+                              <span className="font-normal leading-snug" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{(() => { const t = splitTitle(beer.brewery, beer.name, beer.collabBrewery); return <>{t.lead && <span className="font-semibold" style={{ color: C.ink }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()}</span>
                             </span>
                             <span className="block truncate text-sm font-medium text-slate-600">{[beer.style || "", beer.abv ? `${beer.abv}%` : ""].filter(Boolean).join("  ·  ")}</span>
-                            <span className="block truncate text-xs text-slate-400">{beer.location || ""}</span>
+                            <span className="block truncate text-xs text-slate-400">{locationDisplay(beer)}</span>
                           </span>
                           <span className="flex shrink-0 items-center gap-1 text-xs text-slate-400">{when ? fmt(when) : ""} <ArrowRight size={14} /></span>
                         </button>
@@ -3747,18 +4049,18 @@ function TheCurfewCellarApp() {
   const CombineModal = () => {
     if (!combineCandidate) return null;
     return (
-      <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(30, 58, 70,0.45)" }} onClick={() => { setCombineCandidate(null); setCombineKeepId(null); }}>
+      <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(32, 59, 67,0.45)" }} onClick={() => { setCombineCandidate(null); setCombineKeepId(null); }}>
         <div className="w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white sm:rounded-2xl cc-pop p-5" style={{ maxHeight: "92vh" }} onClick={(e) => e.stopPropagation()}>
           <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Combine these two?</h2>
           <p className="mt-1 text-sm text-slate-500">Pick which one to keep. All stock history from the other moves across to it, then it's deleted.</p>
           <div className="mt-3 space-y-2">
             {combineCandidate.map((b) => (
-              <button key={b.id} onClick={() => setCombineKeepId(b.id)} className="w-full rounded-lg border p-3 text-left transition" style={{ borderColor: combineKeepId === b.id ? C.brass : C.line, background: combineKeepId === b.id ? "#FBF3E3" : "white" }}>
+              <button key={b.id} onClick={() => setCombineKeepId(b.id)} className="w-full rounded-lg border p-3 text-left transition" style={{ borderColor: combineKeepId === b.id ? C.accent : C.line, background: combineKeepId === b.id ? "#FBF3E3" : "white" }}>
                 <div className="flex items-center gap-2">
                   <input type="radio" checked={combineKeepId === b.id} readOnly className="h-4 w-4" />
                   <span className="font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{b.brewery || "?"} - {b.name}</span>
                 </div>
-                <p className="mt-1 pl-6 text-xs text-slate-500">{[b.style || "", b.abv ? `${b.abv}%` : "", b.location || ""].filter(Boolean).join(" · ")}</p>
+                <p className="mt-1 pl-6 text-xs text-slate-500">{[b.style || "", b.abv ? `${b.abv}%` : "", locationDisplay(b)].filter(Boolean).join(" · ")}</p>
                 <p className="mt-0.5 pl-6 text-xs text-slate-400">{(b.history || []).length} recorded {(b.history || []).length === 1 ? "delivery" : "deliveries"}{b.archived ? " · archived" : ""}</p>
               </button>
             ))}
@@ -3799,15 +4101,15 @@ function TheCurfewCellarApp() {
       : [beer.style, extraSweetness(beer) || null, beer.abv ? `${beer.abv}%` : null].filter(Boolean).join("  ·  ");
     const measures = priceTriple(openLine ? openLine.price : (latestPrice(beer) || beer.price));
     return (
-      <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(30, 58, 70,0.45)" }} onClick={close}>
+      <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(32, 59, 67,0.45)" }} onClick={close}>
         <div className="w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white sm:rounded-2xl cc-pop" style={{ maxHeight: "92vh", overscrollBehaviorY: "none", WebkitOverflowScrolling: "touch", touchAction: "manipulation" }} onClick={(e) => e.stopPropagation()}>
-          <div className="sticky top-0 z-10 flex items-start justify-between gap-3 p-4 pl-5" style={{ background: "linear-gradient(180deg, #254752 0%, #1E3A46 100%)", borderLeft: `4px solid ${(openLine && TYPE_ACCENT[openLine.drinkType]) || C.brass}`, boxShadow: "0 1px 0 rgba(184,134,43,0.28)" }}>
+          <div className="sticky top-0 z-10 flex items-start justify-between gap-3 p-4 pl-5" style={{ background: "linear-gradient(180deg, #274852 0%, #203B43 100%)", borderLeft: `4px solid ${(openLine && TYPE_ACCENT[openLine.drinkType]) || C.accent}`, boxShadow: "0 1px 0 rgba(138, 207, 206,0.28)" }}>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <CatDot category={beer.category} />
-                <h2 className="text-xl font-normal leading-snug" style={{ color: C.cream, fontFamily: "var(--font-display)", letterSpacing: "0.01em" }}>{beer.brewery && <span className="font-bold" style={{ color: C.cream }}>{beer.brewery}</span>} {beer.name}</h2>
+                <h2 className="text-xl font-normal leading-snug" style={{ color: C.cream, fontFamily: "var(--font-display)", letterSpacing: "0.01em" }}>{(() => { const t = splitTitle(beer.brewery, beer.name, beer.collabBrewery); return <>{t.lead && <span className="font-bold" style={{ color: C.cream }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()}</h2>
               </div>
-              {beer.location ? <p className="mt-1 text-xs font-semibold uppercase" style={{ color: C.brassSoft, letterSpacing: "0.14em", fontFamily: "var(--font-data)" }}>{beer.location}</p> : null}
+              {locationDisplay(beer) ? <p className="mt-1 text-xs font-semibold uppercase" style={{ color: C.accentSoft, letterSpacing: "0.14em", fontFamily: "var(--font-data)" }}>{locationDisplay(beer)}</p> : null}
             </div>
             <div className="flex shrink-0 items-center gap-1">
               <button onClick={() => copyBeerName(beer)} title="Copy brewery and beer name" className="rounded-lg p-1.5 transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ color: "rgba(243,239,230,0.75)" }}><Copy size={16} /></button>
@@ -3827,7 +4129,7 @@ function TheCurfewCellarApp() {
               <DietaryBadges beer={beer} />
             </div>
 
-            {beer.notes && <div><Eyebrow>Tasting notes</Eyebrow><ul className="space-y-1">{splitNote(beer.notes).map((line, i) => <li key={i} className="flex gap-1.5 text-sm leading-snug text-slate-600"><span style={{ color: C.brass }}>•</span><span>{line}.</span></li>)}</ul></div>}
+            {beer.notes && <div><Eyebrow>Tasting notes</Eyebrow><ul className="space-y-1">{splitNote(beer.notes).map((line, i) => <li key={i} className="flex gap-1.5 text-sm leading-snug text-slate-600"><span style={{ color: C.accent }}>•</span><span>{line}.</span></li>)}</ul></div>}
 
             <div>
               <Eyebrow>Allergens</Eyebrow>
@@ -3864,7 +4166,7 @@ function TheCurfewCellarApp() {
                     const cur = i === stageIdx;
                     return (
                       <div key={s.key} className="flex-1 text-center">
-                        <div className="h-1 rounded-full" style={{ background: done ? C.brass : "#E6E2D8" }} />
+                        <div className="h-1 rounded-full" style={{ background: done ? C.accent : "#E6E2D8" }} />
                         <p className="mt-1 text-xs leading-tight" style={{ color: cur ? C.ink : "#A8AEB8", fontWeight: cur ? 600 : 400 }}>{s.key === "tapped" ? "Tapped" : s.label}</p>
                       </div>
                     );
@@ -3906,20 +4208,20 @@ function TheCurfewCellarApp() {
         <FontBoot />
         <div className="w-full max-w-xs">
           <div className="mb-6 text-center">
-            <Bell size={26} className="mx-auto mb-2.5" style={{ color: C.brassSoft }} aria-hidden="true" />
+            <img src={PUB_LOGO} alt="" className="mx-auto mb-2.5" style={{ width: 64, height: 64 }} />
             <p className="text-2xl font-bold" style={{ color: C.cream, fontFamily: "var(--font-brand)", letterSpacing: "0.03em" }}>{PUB_CONFIG.name}</p>
-            <p className="mt-1 text-xs uppercase tracking-widest" style={{ color: C.brassSoft }}>Cellar Management</p>
+            <p className="mt-1 text-xs uppercase tracking-widest" style={{ color: C.accentSoft }}>Cellar Management</p>
           </div>
           {authChecking ? (
-            <p className="text-center text-sm" style={{ color: C.brassSoft }}>Checking…</p>
+            <p className="text-center text-sm" style={{ color: C.accentSoft }}>Checking…</p>
           ) : !authed ? (
             <div className="space-y-3">
-              <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") doLogin(); }} placeholder="Pub password" autoFocus className="w-full rounded-lg px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: "rgba(255,255,255,0.08)", color: C.cream, border: `1px solid ${C.brass}` }} />
+              <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") doLogin(); }} placeholder="Pub password" autoFocus className="w-full rounded-lg px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: "rgba(255,255,255,0.08)", color: C.cream, border: `1px solid ${C.accent}` }} />
               {authErr && <p className="text-xs" style={{ color: "#f3b4b4" }}>{authErr}</p>}
-              <button onClick={doLogin} disabled={authBusy || !pw.trim()} className="w-full rounded-lg px-4 py-3 text-sm font-semibold transition active:scale-95 disabled:opacity-50" style={{ background: C.brass, color: C.ink }}>{authBusy ? "Signing in…" : "Unlock"}</button>
+              <button onClick={doLogin} disabled={authBusy || !pw.trim()} className="w-full rounded-lg px-4 py-3 text-sm font-semibold transition active:scale-95 disabled:opacity-50" style={{ background: C.accent, color: C.ink }}>{authBusy ? "Signing in…" : "Unlock"}</button>
             </div>
           ) : (
-            <p className="text-center text-sm" style={{ color: C.brassSoft }}>Loading the cellar…</p>
+            <p className="text-center text-sm" style={{ color: C.accentSoft }}>Loading the cellar…</p>
           )}
         </div>
       </div>
@@ -3931,10 +4233,10 @@ function TheCurfewCellarApp() {
       <div className="flex min-h-screen w-full items-center justify-center p-6" style={{ background: C.ink }}>
         <FontBoot />
         <div className="w-full max-w-xs text-center">
-          <AlertTriangle className="mx-auto mb-3" size={28} color={C.brassSoft} />
+          <AlertTriangle className="mx-auto mb-3" size={28} color={C.accentSoft} />
           <p className="text-lg font-semibold" style={{ color: C.cream, fontFamily: "var(--font-display)" }}>Could not load the cellar</p>
           <p className="mt-2 text-sm" style={{ color: "rgba(243,239,230,0.7)" }}>Check your connection and try again. Editing stays paused until this loads, so nothing gets overwritten.</p>
-          <button onClick={() => loadCellar()} className="mt-4 w-full rounded-lg px-4 py-3 text-sm font-semibold transition active:scale-95" style={{ background: C.brass, color: C.ink }}>Try again</button>
+          <button onClick={() => loadCellar()} className="mt-4 w-full rounded-lg px-4 py-3 text-sm font-semibold transition active:scale-95" style={{ background: C.accent, color: C.ink }}>Try again</button>
         </div>
       </div>
     );
@@ -3968,29 +4270,29 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
 .cc-press:active{transform:scale(.975)}
 /* Layered elevation: a tight contact shadow plus a soft ambient one, so surfaces read as
    sitting on the page rather than drawn onto it. */
-.cc-elev{box-shadow:0 1px 2px rgba(30, 58, 70,0.05), 0 8px 20px -12px rgba(30, 58, 70,0.16);}
-.cc-elev-lg{box-shadow:0 1px 3px rgba(30, 58, 70,0.06), 0 16px 34px -18px rgba(30, 58, 70,0.22);}
-.cc-tile{box-shadow:0 1px 2px rgba(30, 58, 70,0.06), 0 6px 14px -8px rgba(30, 58, 70,0.18);transition:transform .16s cubic-bezier(.16,1,.3,1), box-shadow .2s ease}
-.cc-tile:hover{transform:translateY(-2px);box-shadow:0 2px 4px rgba(30, 58, 70,0.07), 0 12px 24px -10px rgba(30, 58, 70,0.24)}
+.cc-elev{box-shadow:0 1px 2px rgba(32, 59, 67,0.05), 0 8px 20px -12px rgba(32, 59, 67,0.16);}
+.cc-elev-lg{box-shadow:0 1px 3px rgba(32, 59, 67,0.06), 0 16px 34px -18px rgba(32, 59, 67,0.22);}
+.cc-tile{box-shadow:0 1px 2px rgba(32, 59, 67,0.06), 0 6px 14px -8px rgba(32, 59, 67,0.18);transition:transform .16s cubic-bezier(.16,1,.3,1), box-shadow .2s ease}
+.cc-tile:hover{transform:translateY(-2px);box-shadow:0 2px 4px rgba(32, 59, 67,0.07), 0 12px 24px -10px rgba(32, 59, 67,0.24)}
 .cc-tile:active{transform:scale(.975)}
 @media (prefers-reduced-motion: reduce){.cc-fade,.cc-rise,.cc-stagger>*,.cc-overlay,.cc-pop,.cc-sheet{animation:none}.cc-press{transition:none}}
 /* Retint Tailwind's default cool-blue slate scale to a warm, teal-tinted neutral so
    secondary text and hairlines sit with the brand instead of fighting its warm palette. */
-.text-slate-300{color:#B7BCB4!important}.text-slate-400{color:#96A19B!important}
-.text-slate-500{color:#778883!important}.text-slate-600{color:#59716C!important}
-.text-slate-700{color:#3C4F4B!important}.border-slate-200{border-color:#DEDBCD!important}
-.border-slate-300{border-color:#C7C6B7!important}.bg-slate-50{background-color:#F5F2E9!important}
-.bg-slate-100{background-color:#EDEADC!important}.hover\:bg-slate-50:hover{background-color:#F5F2E9!important}
-.hover\:text-slate-600:hover{color:#59716C!important}.hover\:text-slate-700:hover{color:#3C4F4B!important}
-.focus\:ring-slate-300:focus{--tw-ring-color:#C7C6B7!important}
-.focus\:ring-slate-400:focus{--tw-ring-color:#96A19B!important}`}</style>
+.text-slate-300{color:#99ADB2!important}.text-slate-400{color:#5A7077!important}
+.text-slate-500{color:#4B5D63!important}.text-slate-600{color:#3B4A4E!important}
+.text-slate-700{color:#2E3A3D!important}.border-slate-200{border-color:#E0DAD4!important}
+.border-slate-300{border-color:#CFC7BF!important}.bg-slate-50{background-color:#F3EEE9!important}
+.bg-slate-100{background-color:#EAE3DC!important}.hover\:bg-slate-50:hover{background-color:#F3EEE9!important}
+.hover\:text-slate-600:hover{color:#3B4A4E!important}.hover\:text-slate-700:hover{color:#2E3A3D!important}
+.focus\:ring-slate-300:focus{--tw-ring-color:#CFC7BF!important}
+.focus\:ring-slate-400:focus{--tw-ring-color:#5A7077!important}`}</style>
       {view === "taplist" ? TapList() : (<>
-      <header className="no-print relative z-40 border-b" style={{ background: "linear-gradient(180deg, #254752 0%, #1E3A46 100%)", borderColor: "rgba(184,134,43,0.35)", boxShadow: "0 1px 0 rgba(184,134,43,0.22), 0 10px 26px -18px rgba(0,0,0,0.65)", paddingTop: "env(safe-area-inset-top)" }}>
+      <header className="no-print relative z-40 border-b" style={{ background: "linear-gradient(180deg, #274852 0%, #203B43 100%)", borderColor: "rgba(138, 207, 206,0.35)", boxShadow: "0 1px 0 rgba(138, 207, 206,0.22), 0 10px 26px -18px rgba(0,0,0,0.65)", paddingTop: "env(safe-area-inset-top)" }}>
         <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 py-2.5">
           <div className="flex items-center gap-2.5">
             <div className="relative">
               <button onClick={() => setShowAlerts((v) => !v)} className="relative flex items-center rounded-lg p-0.5 transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-amber-300" aria-label={`Needs attention: ${attentionItems.length}`}>
-                <Bell size={19} style={{ color: attentionItems.length ? C.brassSoft : "rgba(209,164,74,0.6)", flexShrink: 0 }} />
+                <Bell size={19} style={{ color: attentionItems.length ? C.accentSoft : "rgba(209,164,74,0.6)", flexShrink: 0 }} />
                 {attentionItems.length > 0 && (
                   <span className="absolute -right-1 -top-1 grid place-items-center rounded-full px-1" style={{ height: 16, minWidth: 16, background: C.alert, color: "#fff", fontFamily: "var(--font-data)", fontSize: 10, fontWeight: 700, lineHeight: 1 }}>{attentionItems.length > 9 ? "9+" : attentionItems.length}</span>
                 )}
@@ -4000,8 +4302,8 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
                   <div className="fixed inset-0 z-40" onClick={() => setShowAlerts(false)} />
                   <div className="cc-pop absolute left-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-xl border bg-white shadow-xl" style={{ borderColor: C.line }}>
                     <div className="flex items-center gap-1.5 border-b px-3 py-2" style={{ borderColor: C.line }}>
-                      <AlertTriangle size={13} style={{ color: C.brass }} />
-                      <span className="uppercase" style={{ color: C.brass, fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}>Needs attention</span>
+                      <AlertTriangle size={13} style={{ color: C.accent }} />
+                      <span className="uppercase" style={{ color: C.accent, fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}>Needs attention</span>
                     </div>
                     {attentionItems.length === 0 ? (
                       <div className="px-3 py-6 text-center">
@@ -4012,8 +4314,8 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
                       <ul className="max-h-80 overflow-y-auto py-1" style={{ overscrollBehaviorY: "none", WebkitOverflowScrolling: "touch", touchAction: "manipulation" }}>
                         {attentionItems.map((a, i) => (
                           <li key={`${a.id}-${i}`}>
-                            <button onClick={() => { setShowAlerts(false); a.backup ? go("backup") : (go("cellar"), setOpenId(a.id)); }} className="flex w-full items-start gap-2 px-3 py-2 text-left text-sm transition hover:bg-slate-50 focus:outline-none" style={{ color: a.warn ? C.alert : C.inkSoft }}>
-                              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: a.warn ? C.alert : C.brass }} />
+                            <button onClick={() => { setShowAlerts(false); a.backup ? go("backup") : a.lineCare ? go("lines") : (go("cellar"), setOpenId(a.id)); }} className="flex w-full items-start gap-2 px-3 py-2 text-left text-sm transition hover:bg-slate-50 focus:outline-none" style={{ color: a.warn ? C.alert : C.inkSoft }}>
+                              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: a.warn ? C.alert : C.accent }} />
                               <span className="min-w-0 flex-1">{a.text}</span>
                             </button>
                           </li>
@@ -4025,7 +4327,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
               )}
             </div>
             <p className="text-base font-semibold leading-none" style={{ color: C.cream, fontFamily: "var(--font-brand)", letterSpacing: "0.025em" }}>{PUB_CONFIG.name}</p>
-            <p className="hidden sm:inline" style={{ color: C.brassSoft, fontFamily: "var(--font-data)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.14em", lineHeight: 1 }}>Cellar</p>
+            <p className="hidden sm:inline" style={{ color: C.accentSoft, fontFamily: "var(--font-data)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.14em", lineHeight: 1 }}>Cellar</p>
           </div>
           <nav className="relative hidden items-center gap-1 sm:flex">
             <NavButton id="cellar" icon={ClipboardList} label="Cellar" view={view} go={go} />
@@ -4036,7 +4338,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
                 <div className="absolute right-0 top-full z-50 mt-1 w-44 overflow-hidden rounded-lg border bg-white shadow-lg" style={{ borderColor: C.line }}>
-                  {[["guide", "How to Use", Compass], ["library", "Library", BookOpen], ["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ...(TENANT_FEATURES.cellarStats ? [["stats", "Cellar Stats", BarChart3]] : []), ["notify", "Notifications", Bell], ...(canEdit ? [["backup", "Backup & Restore", Database]] : [])].map(([id, label, Icon]) => (
+                  {[["guide", "How to Use", Compass], ["library", "Library", BookOpen], ["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["lines", "Line Cleaning", Droplet], ...(canEdit ? [["libtools", "Library Tools", Wrench]] : []), ...(TENANT_FEATURES.cellarStats ? [["stats", "Cellar Stats", BarChart3]] : []), ["notify", "Notifications", Bell], ...(canEdit ? [["backup", "Backup & Restore", Database]] : [])].map(([id, label, Icon]) => (
                     <button key={id} onClick={() => { setMenuOpen(false); go(id); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"><Icon size={15} className="text-slate-400" />{label}</button>
                   ))}
                 </div>
@@ -4054,7 +4356,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
             {VIEW_TITLES[view] && (
               <div className="no-print mb-5">
                 <h1 className="text-2xl font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)", letterSpacing: "0.02em" }}>{VIEW_TITLES[view]}</h1>
-                <div className="mt-2 h-1 w-10 rounded-full" style={{ background: C.brass }} />
+                <div className="mt-2 h-1 w-10 rounded-full" style={{ background: C.accent }} />
               </div>
             )}
             <div key={view} className="cc-fade">
@@ -4064,6 +4366,8 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
             {view === "allergens" && AllergenSheet()}
             {view === "stock" && StockSheet()}
             {view === "empties" && Empties()}
+            {view === "lines" && LineCare()}
+            {view === "libtools" && LibraryTools()}
             {view === "stats" && Stats()}
             {view === "guide" && Guide()}
             {view === "notify" && NotifySettings()}
@@ -4080,14 +4384,14 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
       </footer>
       </div>
 
-      <nav className="no-print fixed inset-x-0 bottom-0 z-40 border-t bg-white sm:hidden" style={{ borderColor: C.line, paddingBottom: "env(safe-area-inset-bottom)", boxShadow: "0 -6px 22px -14px rgba(30, 58, 70,0.4)" }}>
+      <nav className="no-print fixed inset-x-0 bottom-0 z-40 border-t bg-white sm:hidden" style={{ borderColor: C.line, paddingBottom: "env(safe-area-inset-bottom)", boxShadow: "0 -6px 22px -14px rgba(32, 59, 67,0.4)" }}>
         <div className="mx-auto flex max-w-md items-end justify-around px-2">
           <BottomTab id="cellar" icon={ClipboardList} label="Cellar" view={view} go={go} />
           <BottomTab id="library" icon={BookOpen} label="Library" view={view} go={go} />
           {canEdit && (
             <button onClick={() => go("add")} className="flex flex-1 flex-col items-center justify-center transition active:scale-95 focus:outline-none">
-              <span className="-mt-5 grid h-12 w-12 place-items-center rounded-full" style={{ background: C.brass, color: C.ink, boxShadow: "0 6px 16px -6px rgba(184,134,43,0.65)" }}><Plus size={24} /></span>
-              <span className="mt-0.5 text-xs font-medium" style={{ color: view === "add" ? C.brass : C.inkSoft }}>Add</span>
+              <span className="-mt-5 grid h-12 w-12 place-items-center rounded-full" style={{ background: C.accent, color: C.ink, boxShadow: "0 6px 16px -6px rgba(138, 207, 206,0.65)" }}><Plus size={24} /></span>
+              <span className="mt-0.5 text-xs font-medium" style={{ color: view === "add" ? C.accent : C.inkSoft }}>Add</span>
             </button>
           )}
           <BottomTab id="empties" icon={Package} label="Empties" view={view} go={go} />
@@ -4097,16 +4401,26 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
 
       {menuOpen && (
         <div className="no-print fixed inset-0 z-50 sm:hidden">
-          <div className="absolute inset-0 cc-overlay" style={{ background: "rgba(30, 58, 70,0.45)" }} onClick={() => setMenuOpen(false)} />
+          <div className="absolute inset-0 cc-overlay" style={{ background: "rgba(32, 59, 67,0.45)" }} onClick={() => setMenuOpen(false)} />
           <div className="cc-sheet absolute inset-x-0 bottom-0 rounded-t-2xl bg-white p-4" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 16px)" }}>
             <div className="mx-auto mb-3 h-1.5 w-10 rounded-full" style={{ background: C.line }} />
             <div className="grid grid-cols-3 gap-2.5">
-              {[["guide", "How to Use", Compass], ["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ...(TENANT_FEATURES.cellarStats ? [["stats", "Cellar Stats", BarChart3]] : []), ["notify", "Notifications", Bell], ...(canEdit ? [["backup", "Backup & Restore", Database]] : [])].map(([id, label, Icon]) => (
-                <button key={id} onClick={() => { setMenuOpen(false); go(id); }} className="flex flex-col items-center gap-1.5 rounded-xl border p-3 transition active:scale-95" style={{ borderColor: C.line, color: C.ink }}>
-                  <Icon size={20} style={{ color: C.brass }} />
-                  <span className="text-center text-xs font-medium leading-tight">{label}</span>
-                </button>
-              ))}
+              {(() => {
+                // Seven items in a three-column grid left one tile stranded beside two empty
+                // cells, and the two longest labels wrapped while the rest didn't, so rows sat
+                // at different heights. A fixed tile height evens the rows out, and a lone
+                // trailing tile stretches across the row rather than leaving a gap.
+                const menuItems = [["guide", "How to Use", Compass], ["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["lines", "Line Cleaning", Droplet], ...(canEdit ? [["libtools", "Library Tools", Wrench]] : []), ...(TENANT_FEATURES.cellarStats ? [["stats", "Cellar Stats", BarChart3]] : []), ["notify", "Notifications", Bell], ...(canEdit ? [["backup", "Backup & Restore", Database]] : [])];
+                return menuItems.map(([id, label, Icon], i) => {
+                  const lone = i === menuItems.length - 1 && menuItems.length % 3 === 1;
+                  return (
+                    <button key={id} onClick={() => { setMenuOpen(false); go(id); }} className={`flex flex-col items-center justify-center gap-1.5 rounded-xl border p-3 transition active:scale-95${lone ? " col-span-3" : ""}`} style={{ borderColor: C.line, color: C.ink, minHeight: 84 }}>
+                      <Icon size={20} style={{ color: C.accent }} />
+                      <span className="text-center text-xs font-medium leading-tight">{label}</span>
+                    </button>
+                  );
+                });
+              })()}
             </div>
           </div>
         </div>
@@ -4115,7 +4429,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
       {toast && (
         <div className="no-print fixed inset-x-0 bottom-40 flex justify-center px-4 sm:bottom-16" style={{ zIndex: 60 }}>
           <div className="cc-pop flex items-center gap-2 rounded-full px-4 py-2 text-sm text-white shadow-lg" style={{ background: C.ink }}>
-            <AlertTriangle size={14} style={{ color: C.brassSoft }} />
+            <AlertTriangle size={14} style={{ color: C.accentSoft }} />
             <span>{toast}</span>
           </div>
         </div>
@@ -4124,7 +4438,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
         <div className="no-print fixed inset-x-0 bottom-24 z-50 flex justify-center px-4 sm:bottom-4">
           <div className="flex items-center gap-3 rounded-full px-4 py-2 text-sm text-white shadow-lg" style={{ background: C.ink }}>
             <span>{undoState.label}</span>
-            <button onClick={doUndo} className="font-semibold" style={{ color: C.brassSoft }}>Undo</button>
+            <button onClick={doUndo} className="font-semibold" style={{ color: C.accentSoft }}>Undo</button>
           </div>
         </div>
       )}
@@ -4149,9 +4463,9 @@ class ErrorBoundary extends React.Component {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center p-6 text-center" style={{ background: "linear-gradient(180deg, #F6F1E4 0%, #EEE7D5 60%)", fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif" }}>
         <div className="w-full max-w-sm rounded-2xl border bg-white p-6" style={{ borderColor: "#E6E2D8" }}>
-          <p className="text-lg font-bold" style={{ color: "#1E3A46" }}>Something went wrong</p>
+          <p className="text-lg font-bold" style={{ color: "#203B43" }}>Something went wrong</p>
           <p className="mt-2 text-sm text-slate-600">The app hit a problem and needs a reload. Your cellar data lives in the cloud, not in this screen, so nothing here is lost, reloading is safe.</p>
-          <button onClick={() => window.location.reload()} className="mt-4 w-full rounded-lg px-4 py-2.5 text-sm font-semibold text-white" style={{ background: "#1E3A46" }}>Reload the app</button>
+          <button onClick={() => window.location.reload()} className="mt-4 w-full rounded-lg px-4 py-2.5 text-sm font-semibold text-white" style={{ background: "#203B43" }}>Reload the app</button>
           <button onClick={() => this.setState((s) => ({ showDetails: !s.showDetails }))} className="mt-3 text-xs text-slate-400 underline">{this.state.showDetails ? "Hide" : "Show"} technical details</button>
           {this.state.showDetails && <p className="mt-2 max-h-40 overflow-y-auto rounded-lg bg-slate-50 p-2 text-left text-xs text-slate-500" style={{ fontFamily: "monospace" }}>{String(this.state.error && this.state.error.message)}</p>}
         </div>
