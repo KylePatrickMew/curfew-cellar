@@ -889,8 +889,8 @@ const BeerDetailsFields = ({ values, onChange, onAutoFill, busy, note, toggleAll
             <button onClick={() => { setShowCollab(false); onChange({ collabBrewery: "", collabLocation: "" }); }} className="text-xs font-medium text-slate-500 hover:text-slate-700">Remove</button>
           </div>
           <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field label="Second brewery"><input className={inputCls} value={values.collabBrewery} onChange={(e) => onChange({ collabBrewery: e.target.value })} placeholder="e.g. Wild Beer Co" /></Field>
-            <Field label="Its location"><input className={inputCls} value={values.collabLocation} onChange={(e) => onChange({ collabLocation: e.target.value })} placeholder="e.g. Shepton Mallet" /></Field>
+            <Field label="Second Brewery"><input className={inputCls} value={values.collabBrewery} onChange={(e) => onChange({ collabBrewery: e.target.value })} placeholder="e.g. Wild Beer Co" /></Field>
+            <Field label="Second Location"><input className={inputCls} value={values.collabLocation} onChange={(e) => onChange({ collabLocation: e.target.value })} placeholder="e.g. Shepton Mallet" /></Field>
           </div>
         </div>
       ) : (
