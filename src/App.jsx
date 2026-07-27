@@ -5,12 +5,28 @@ import {
 } from "lucide-react";
 
 // ---------- Brand ----------
+// Taken directly from The Curfew's own T-shirt artwork (both CMYK masters), not estimated
+// from photographs. The Front artwork is 100% a single ink, #203B43, and the Reverse uses that
+// same ink for the tower, the viaduct and all type. The brand runs cool: dark teal, a light
+// teal sky, and cream. Every warm colour in the artwork is beer, never chrome, which is the
+// rule this palette follows too: the interface is teal and cream, and warmth only ever comes
+// from the drink itself.
 const C = {
-  ink: "#1E3A46", inkSoft: "#2E4E57", brass: "#B8862B", brassSoft: "#D1A44A",
-  stone: "#E8E7E2", surface: "#FCFBF9", line: "#DBD8D0", cream: "#F3EFE6",
-  paper: "#FBF8F2", alert: "#A23B3B",
+  ink: "#203B43",        // the brand ink, exact
+  inkSoft: "#376673",    // same hue, lifted, for secondary text (5.5:1 on cream)
+  accent: "#1F6B6A",     // the brand's teal hue at 179deg, deepened so it carries on cream (5.4:1)
+  accentSoft: "#8ACFCE", // the light teal at the top of the sky gradient, exact, for dark surfaces
+  cream: "#F6EDE5",      // the cream the gradient resolves into, and the foam on every pint, exact
+  paper: "#F9F6F3",      // cards, a touch lighter than the page
+  stone: "#ECE6E2",      // recessed fields
+  line: "#E0DAD4",       // hairlines
+  muted: "#51666C",      // quiet text, still readable at 4.6:1
+  alert: "#B23A2C",      // the artwork's red, deepened enough to read as text
 };
-const TYPE_ACCENT = { cask: "#B8862B", keg: "#3E8C82", keykeg: "#3E8C82", cider: "#5E8C4F" };
+// The five pints under the viaduct, sampled straight from the artwork. Warm colour in this app
+// means beer and nothing else, so these are the only warm values in the whole palette.
+const BEER = { yellow: "#E4C234", gold: "#E39E1A", amber: "#D6771C", red: "#CB4132", brown: "#974A31" };
+const TYPE_ACCENT = { cask: C.ink, keg: C.accent, keykeg: C.accent, cider: "#4C7C6F" };
 // One definition of each dietary badge's colour, warm and teal-tinted to match the app's
 // own palette. Used everywhere a badge appears, so they can't drift out of sync again.
 const DIET_BADGE_STYLE = {
@@ -18,7 +34,7 @@ const DIET_BADGE_STYLE = {
   gluten: { background: "#E8F2F1", color: "#1F5C54", borderColor: "#BFDDD9" },
   hazy: { background: "#F7E9E7", color: C.alert, borderColor: "#E8CCC8" },
 };
-const CAT_ACCENT = { IPA: "#E3A93E", Pale: "#F2CC45", Bitter: "#D6823C", "Stout/Porter": "#6E4A32", Stout: "#6E4A32", Porter: "#6E4A32", Cider: "#5E8C4F", Sour: "#C4553F", Misc: "#96A19B" };
+const CAT_ACCENT = { IPA: BEER.gold, Pale: BEER.yellow, Bitter: BEER.amber, "Stout/Porter": BEER.brown, Stout: BEER.brown, Porter: BEER.brown, Cider: "#4C7C6F", Sour: BEER.red, Misc: "#7C8F96" };
 const STORE_KEY = "curfew-cellar:data:v1";
 const MODEL = "claude-sonnet-4-6";
 // Updated by hand every time a new App.jsx is handed over. Check this against what you were
@@ -167,6 +183,10 @@ const FIRST_IDX = STATUS_INDEX["in_cellar"];
 const VISIBLE_STATUSES = STATUSES;
 const STATUS_BY_KEY = Object.fromEntries(STATUSES.map((s) => [s.key, s]));
 const CASK_FLOW = ["in_cellar", "racked", "vented", "tapped", "on", "off"];
+// One colour per lifecycle stage, running the pint gradient (pale straw through to brown),
+// the same family as the category dots and the bridge motif. The named pint colours cover
+// five of the six stages, so one pale stop was added ahead of yellow for In Store.
+const STAGE_ACCENT = { in_cellar: "#E8DFB0", racked: BEER.yellow, vented: BEER.gold, tapped: BEER.amber, on: BEER.red, off: BEER.brown };
 const SHORT_FLOW = ["in_cellar", "on", "off"];
 const flowFor = (drinkType) => (drinkType === "cask" ? CASK_FLOW : SHORT_FLOW);
 
@@ -182,6 +202,14 @@ const flowFor = (drinkType) => (drinkType === "cask" ? CASK_FLOW : SHORT_FLOW);
 // Also NOT included: the racked-preview six-slot mix (2 IPA, 2 Pale, 1 Bitter, 1 Stout). It's
 // tightly interleaved with which of two shared IPA/Pale candidates lands in which slot, not a
 // simple lookup, so folding it in here risked an off-by-one for no real benefit this session.
+// The Curfew's actual logo mark (tower, clock, flag), embedded directly so it travels with
+// this one file rather than needing a separate asset uploaded to the repo. Its own background
+// is a solid fill, not transparent, and that fill is the genuine brand teal, see the C.ink note
+// below for why that matters.
+const PUB_LOGO = "data:image/png;base64,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";
+// Same artwork, dark ink instead of cream, for use against the light sky gradient rather
+// than a flat dark surface.
+const PUB_LOGO_INK = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAgAAAAIACAYAAAD0eNT6AAAf8UlEQVR42u3dfZAteV3f8ffcmXt3WYFdnmVDzCqIBiM+oQZXIgSNGjWGChqjUctKFSaFmmDUSIkhpSkxPpUxRsuEpDQqhgcBQQREZQUFXB4ERYSFjSC4ytOysM975yF/dHdNc3buPNw7Mzsz+3pVnTr3nunT53TPnPP9/H79618vXXHl4wMA7l5O2QUAIAAAAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAgAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAgAAAAAgAAIAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAAAgAAIAAAAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAIAAAAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAgAACAAGAXAIAAAAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAgAAAAAIAACAAAAAn1IpdANwFlsYGyNrssYdXj64eVf3d6m9Vl1UXjT+/ubq+em/159WbqzdVb682ZutZHu/X7GbY5kN4xZWPtxeAw7Q8K86fUn1d9TXVZ1X33OO6bq2uqf6geln1qupj53gtQAAA7uLC/3nVU6onVJfMllkdW/NL423Rxux+qTv3Yl5XvaR6VnWVIAACAHA0/O3q6dW3zor3HQ2HA85V9LezMd7Wx3XMA8Ebqv9V/Vr1UUEAFhL5ZZ/0KfYCcKANjbHw/qvqOdUXz1r7U1E+n+Lf7HlTgFifrfch1VdX31Tdu+FQwcdmr7nhV4MAAHBwxX9jLMavrD6hun0swKfOs+jv9HrTetfG232qx1bfMgaBP6tuEgS4u3MaIHBYbhlb6Id19tGpNrv876geUD2tekv1/dW92jwcsOzXgwAAcHDfN3fFd840WHAKAp9YPaPhFMJvG5dZa/NQBAgAACfIYhB4WPW/G04hfNz4+IbeAAQAgJMdBFars9WV1e9Vv1RdkcMCCAAAJ/77b3kMAmsNgwTfVH1vdabNwwIgAACc0O/BpbE34D7Vj1Wvrf6R3gAEAICTb37GwOdWL69+sWHyIkEAAQDgBJuPD1htmLHwTdV3tjm3gBCAAABwgr8bTzUcFrh/9TPVH1aP0RuAAABw8s0PCzy64WqDv1BdLgggAACcbPPDAmvVk9o8LDAFhPO9lgEIAADH4PtyaewNeFDDYYHXVV/Z5lUJzSaIAABwQk2zCZ6tHlX9VvX86rP7+NkEBQEEAIATZrrE8XS2wBOqP2oYH/DQIxAEhA8EAIAD/g6dzhZYaRgf8MfVT7U5rfAUBA5jsOA0FmGjYTZDEAAADtDyWHTPNlxm+CkNlx3+2eozxiAwP2tgv1voS7P3sFE9tnqEXwsCAHCSbWxzO0xTEZ5OG7x39eTqjdVzG6YWXp71CnSBPQNLszCxMa73YQ2zF14+BhAQAIATYX0sdNMpeeuzIrrVbWO2/Pw5BxkOFi87fFH1xIaphd9UPW3sFWihZ6AdtmV5ITBszMLEwxvOSnh19dvVs/ypsJMVuwA44qYit3KO76y16raG7vdpqt7T1cU7tLDPjutdavMUv4MKAuvj/x853p5evWEs1q+s/rT68EIY2MkV1Zc0DED82ur66iuq1896GuDcf6BXXPl4ewE4yNbwRsMFda4Zi/LaLort1Lpd6eN7Kq9t6Nr+k+rt1XurD1U3jgV9fVz+THXPhqv7Pbj6pIbR+Q+vPrV6yNgyXwwSawcYCKYejPXuPEDvg9U7qrdV7xq36/rq1nH5S6r7jtvx6dVnVZ82bmNjkPjGMUQo/ugBAI6dqfCfmbXc/7B6cfU7Y0v5jgt8jTNjIPmM6vOrLxhb5Z+40FuwOmu571cgmM4amHo1psDygPH2xXtc323VD1XPGP+v+CMAAMfOWkPX/fLY+n1Ww4C2Ny4st7xFq3oKD/Oeh7rzOKf1MUBcO95eND5+6RgCvqihW/3zqgcuPHc6ZDCFgQsJBEuzYDFt+3xswtLC/RQW1sbegCkYfXd19WxZxZ/d/xE6BAAc5HdMOx8CWJ81SD5a/XzD6XN/tVD093Pw3rz4brXe+44h4LFjIPisNrvbDyIQbNcjMu2f0+P9u6v/0jDp0IZWP3oAgOPc6q/61YbBcdduUfT3u8Bttc7lWSC4vnrFeGsMMH+/elx1ZcNx+MXj+KuzYn1qi1b8bt/XVPSXZj0ijQHqF6pnVh/T6kcAAI6r1bGIvrth4pwXzgrx2l1Q2M4VCNYaBuW9t+F8/hoGE35B9ZiG6wE8fIsegilMrM+CwU49EouHN26ormo4HPLihmP+83204c8IAQA4LqZW7pnqedW/aRjJP7X4j0qLdm2LAj09fs14+5VZD8Ejqs9pc4T+Q6r77fF79obq/zWcIvjK6lXVdQuhZC2tfgQA4JhZa3Mk/FOrH10obEc5tGwXCKYegpfPlrms4cyCyxsuH/yAhtkBP2H87j1b3VR9pPqb8fl/WX3gHL0DCj8CAHBsi//F1S3Vt1S/foxbtNsFgmlbbxhvbz+P9c8PP2yk8CMAAMe8+H+kYda6V4/fP6snZPvOVaQXg8Fu9lMKPgIAcFJc0jDb3Vc3nNd/kor/+QQDEACAE18Aq26uvqx6a0P39qpdAwIAcPL99Xhz3jocES4HDByWpZy3DgIAcLej+IMAAAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAIAAAAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAABw4FbsAu6GLjuk8LtefbTaOIHbdcMJ/H2tjb8vEADghPqT6hMOsDBvjAXr5urzq/cfwjbdu7q6ut9YoJcOcLuurx51SMXyftXrq0sPYbs+OG7XTT4iCABwMj2guvgQXueSDu8w21J1/+o+h/Bapw6oEJ/L/at7HcLrbBzydoEAAIfsbHXmEHoAzt4F27V+CC1l2wUCABxLS+MX/voJaiXPt+sgW7K2C04IZwEAgAAAAAgAAIAAAAAIAACAAAAACABAbZ5atnRM17/Td8dJ2y4QAIB9sbFwf1DrXz/k7Vo7pO3a8CcEB8NEQHDwIfsgJx6a1nvYn+WVQ9oujRQQAODYWBqL1z2q369WDyloXNbBTZc7365Lq9fNegEO0nLDdQAOcrtAAAD2vWA+9JBf8zAOBZyuHnYCtwsEAGDfrB7iax1Wd/n6IRdkhwFAAIBj55TtAnyIAQABAAAQAAAAAQAAEAAAAAEAABAAAAABAAAQAAAAAQAABAAAQAAAAAQAAEAAAAAEAABAAAAABAAAQAAAAAQAAEAAAAAEAABAAAAABAAAQAAAAAQAAEAAAAAWrdgFcOJtzO43quVtll2rlsZbs3tAAACOeLFfnxX9U+f4nK9v8dip7twruDpbdmn8uVAAAgBwBKyPt6nYL7bwb6uurz5UfaR6VHWPMSQsze5vrt5Q3ae6f3Xf6uItXm919noOI4IAAByBz/GHq7dVf1z9afWO6i/Hx28al3lX9dCxkE8BYLn6YPXYcZl7VverPqn6tOozq8+pHjE+vl1PAiAAAAdoarn/afXi6qqx8H9om+dctE2rfWls8d82hoWbqvdUr54tc/8xCDy2+qoxGEzvAxAAgH0u9BtbFO716nT1PdVvL/xseYtW+rSe7cyP97fwmmtjuHjFeHt59fuznoTF9SwJBiAAAOdX+NeqMwvFeatW/fJ4u2NWrC/0tc+1njPj4xft4rvljvF9CQJwxBjAA0fT2lg4z1TXVW9dKMxbBYW1Q3xvazsEh7dV7xvf//IhvjdAAIBjaRrRf7q6sfrJ6pHVs8fP61EvpGvj+3xB9VnVj1cfG7dn2jZAAABmVhu6zleqZzWcrvc9DSP4P+GYbcslDacefl/1udWvzLZt1a8aBABgc3Demert1ddU31Rd0zAqf2mHlvNujq/v9hj8fs0AOA0CvLi6tvrm6iurPxu3czcDEgEBAE508Z8G8P1Uwyl2vzn7+W1tzu53LmsL9+d6nZ2WadY639iH19sY3//kZdXnNRwWWBq3WQiAu4izAOCuLf5VH6j+XfVrDV3n954V/OXqbFvPyDe5ZLyttPMx9jPbtO6Xqsuq23fRcFht+8MSZ8b3dHoWFKbnfV/1xuqnqwdkHgG4SyxdceXj7QXubm5smOnurh6QNhW+G6v3j8V3fYtW8UZ1r20K7g1jS3u3RfT+bX1BoLWG8QYbu3zvFzVMG7yVWxoG/y1tETJOje/5gWPYuasDwNQL8/7qU8ffB+gBAA4ugI/3l463nZwrsNz3PF57q3Wdrj5xH9bTGLDuuc3zHjh7vtY/CABwt7S+y1b3uQrlXk8NXLrA97Ff70nhBwEA9AbcRc89qHUp7iAAAFvY62lwSzu03Pdiu7N/9mtd+7l9gAAAJ8byeTxnfR8/x+vnKOan9uk97ef2AQIAnIiW/1LDaPu/2GXLeKO6vGGA3nzE/PTvd1Yf3UNL+zPavMDQ3G0NE/XstuV+7+ph59i+v2m4FsDSDuubfn5Fw2BGpwSCAAAnptjPTVf3e2nD7Hi79cPV0xqurrcyazGfrv7tuL7dBoBrq09uOCf/1LielbFof2G7H1T4uOr3ZuuZb98vN5zvv1u/VH3LwvZttx+BC2QmQDi44r+8zWdsenynrvKVXXxWl3exrqmAnt5hmZWF5bd7vZVdfLesXOD2ncqMgSAAwDEr/reMLdoLXdd+vae9LHdYr7vTz+9oODQhBIAAAEe++FfdXP37Ni+Py/l9P601XBHx5n0OJuADZhfAvlobW6vfW724ukd7n6iHzX15j+pFDeMJlu1LEADgqBasM9Vrqp+vHmSX7IsHVj9XvXbcv0IACABwZEwj1W+rvn18zMj1/f2eelKbFz1yKAAEADgSplPpfrJ666xHgP3Zt4379afa3WWPAQEADqVALVfvqX6085sFj50tV8+o/nL8txAAAgDcpTbGz9J/bhitfmYsUDudl7+8i9tK288n0GyZ3axnN/MOLO9ynad2+G7ZzXqmny/tYl1nxv37w+NjDgPABTATIFx46/90w8C/Z46P3TreX7/N825vOESw02GC6ec3b7PMR3a5rum9rW+zLbfsYh3T69ywzTK37HH7bt/F9k379ZnVt1Vf1MfPQggIAHDo/qZ68viZ2hiL6SedozVb9feq79hFS3Y6F/4xC89v1mr+xuozd9kqXq4uXXj+dH9p9ZSxqLZD78V69ekLz5+/v0eP27dTV/20fY/cYvsmT2ro9j81vtbquL+BC7B0xZWPtxe4u7mxumf7ewz51Dat6r0sv1Nvw0Gu6yi+p/PZt3s1zdz4/upTx78P0AMA7MrqFgVpOs6/ld122c+L4LkK4dn2djx8ZZuCurqH9Wy3fat7LNDbjQPYavvO59LFgAAA+26vBWlpHz9/+3nWwcpdtD8Oa/uA2YcUANADAOzSett3c2/XRb7R/h0C2Ol97PY9Nb6njX1Y117e09TKXzrP9+RwAAgAcOQ+P+vbFLy9dm2v7+PneH2fCulBv6caTrM83+cCAgDsm+mKfy+t/s/4OVpbKKTr1RXVj4w/W5o993T1R9VPt/NpcssNA+q+ofrahgFxy7Oit1L9RPXGHdY1zZ8/Lf/A2fuaRsF/sOHSu2fbfr79+al7Tz3H9r2k+pUt9s25tu/J1RcvbN/0vn6g+ovZfl187jdXXzH7vQACAByYU9XPVr+1zTIPHQPA3FRUr63+7x5e71PHALCxxbpeUl21h3U9fQwAGwuF/qYx0OzWe8YAsDELANO63rLH7fuyMQBsFTqeV12zzXNvqP5xrr0AAgAcoI2xhfux6g1tHrveWGiZrlWXbbOe+XTBazt8RlerS7ZZ5rJdrGt6j2c6dzf/qfF1bt+hB2B6nXtv857u0eZUv6u72L6Ltlnm0nNs3/Qe31h9dFxu3hsBCACwb6YL/7yl+sA5CuV6uxvkt7Zwv91y2x0mWN3jutrlui7kPa3v8T1t7GJd61sst9Rw6OIt1T+Y/X6AHRg5C3vvAah6nc/QkfoO+6OF3w8gAMC+mrqXX29XHClXL/x+AAEA9tV0HPpt4//XD+nzda7Ctn4eRW8/i+T6Pr3G0gW+/ttyFgAIAHBANsbPzIcbrk43PXYut52jQK9Xd+zxtc+eo2ie2uO61rZZfq+T95zd5jtkr9t3R1tfS2GndU37/73Vh9rdFREBAQD2HACq3tf2V4yblntH9ed9/PnrU9H+7T2+9u8ufGanc/o/1ObhiJ0G2029F1cttJ6nwv/7DYMAd2pFT6/zpoYr6K3Mtnl6f7+zx+17RZuX+53e06lxH75jF2HrxuqvdrEcIADABQWAdiiUU7F94aygTacQfrTh3P3dFO3p56+p3jkW2/mo+FdU17e3ru/nLHz+pxkAn72HdSw3nAr58oX3s1K9u3r1Hrfv5dVHxv2zMQsnLxx7AHba11MvgAAAAgAcWAC4bg/PeUGbp6ZNxe6qseW+26I9zXj3olmYmHoSnreH9zK9/h82HMKYZulbGbfpVbss2nPPm7Xcp6L9kl0U7cXtu37s5ZjCxPTc5+/hvVwnAIAAAAfpA3sotm9uGKA2n6b3eef5us+ffW5PjyHid/dYtJcbxia8ZHw/Z8f7l1a37KFoT6/3yobDAKfb7L7/9fPcvilMTFMA/3nDJD+73b4P+NMEAQAO0vV7KLZr1W+M/5+6/1+2x6I9LXd1w5S40wRerxjXdz4j3399/PyvnEdPwnz7bpptz+mG7v/XnOf2TYczpu17UXsb2f8Rf5ogAMBBunmPy7+gzcF1r2xv3f/zYrtavfgCexLmhwHe3TA18Ps6v+7/Ft7HevWbDVMJn8/2Xd8weHAKTs8/4N8LCADAnty+x2L75uqt47+fc4GvPbXcP9DmSPu9Fu3pMMCLZ0V7L93/i9t3VcPx91PVcy9w+6bnv629df83bhMgAMC+28156VsV27WGY+yr4/35FO35YYAPjC34j3VhE988f/wOeMEFrGM6DPCqhqvyveYCt+/lDeMSXt7eJ/Yx+A/2wMWA4HD8TvXIsUgunWexmo8puPoC3stUbN/QcE2Dq8+zaM+9dAxGq+18hcPttu/GcV2v8CcDAgAcZ1MhfH31/Re4runY/0+MQeJCi/ZN1XfM1nUh2/fSWZBYv8Dt+4E2Z1pc8ycEAgAcZze2OQ7gfLuqp+dds4/v6437tJ4Pjrf92L63+nOBg2cMANy9uXoeCADA3ZCBcyAAAAACAAAgAAAAAgAAIAAAAAIAACAAAEfWt3Zh1xMABADgmHlQ9YzqcrsCBADg5Jta/I+tHlw9buFxQAAATrAnNlyA55+N/1+3S0AAAE6uter+1ZeO3wGPG3sCNnJtABAAgBNp6ub/iuqy6tbqXtVX+k4AAQA4+Z54jv87DAACAHACrVUPaHPg3+nx/jE5DAACAHAizbv/712dHb8D7qjumcMAIAAAJ9rX9fFd/VOL/+vHe4cBQAAATpC1aqX6zPGzv7QQAB5RnWk4DAAIAMAJ+8xvbBMQAAEAuJsx+A8EAABAAAAABADg2Nrpgj8rdhEIAMDJc2vnPs1vvbrFLgIBADh5rf//UD2oYcT//DTAteqB1VP1AoAAAJwMU6H/xepHq3uMj80DwFJ1cfUj1a8uPA8QAIBj2OrfqL6w+pcN0/5u5/aGGQEfMz5v2S4EAQA4vj6jzYl+lrbpKZgOBzzCLgMBADj+bpj1BmxnfVzuo3YZCADA8TWN+H9dQ/f+RTssf3G1Wr124fmAAAAcIxsN3frXNYwBeHPDZYC3crZ6S/XN1XvG57kwEJxQTveBu08IeF71gupd1RVjS//U2Mpfqd5fPWp8XPEHPQDACQkBy20/DmBj/E7YzVgBQAAAjom1fV4OEAAAAAEAABAAAAABAAC4izkNEA7H0ixwG2QHCABwNyn+G1sU/vmFdoQCQACAE+Y+1dOqa6s3VddUHz5H0V8WBgABAE5G6//66qrqN8bHPtgwG99bqjeO9+9suGDPmiAACABw/E0z8L2oekLDVLwPGG+Pni33/rFn4Leqn61umgUIs/IB+85ZAHDw1saw/cLqyeNjt1Z3jLe16kHVY6pnjL0C/2IhQCyPYaBZDwGAAABH3OpYtH+u+uHqHuPjK2NhX2u4Gt8d1cOrZ1WvGHsJ1sbbRnXPhkv6OjwACABwjHoClqv/WP3P6swYDBpDwPIYCFbHMPCl1WuqX6j+QfXchsMEb6/+a3WpXQqcL2MA4K4JAU9q6Pb/J9VtYxhYDOZnZ8s+aWE931U9dgwJH7RbAT0AcPStjy3+fz628C9us5t/bros79k2DxFMy91aPbJ66mxZAAEAjrBpVP9t1ddUv1idHm9rY0CYTIcG5vfTv9caxgyU3jxAAIBjFQKur76t4Rj/VWMImMYB7PTZXaquqB5c3a4nABAA4HhZrl5dPa76loZJgs7s4rO70XAY4c3Vd4/PWZv1EgAIAHCErc1a7r9cfW71Qw2HCLabBGipYVzAA6ufrF5f/dPxORtb9Abs1DuwoRcBBADg8EPAVHxvrP5TdXObAwG36z2YxgI8smGmwRdVn72wzmm5s9t87qdl1oQAEACAww8CSw1nBtzaMBZgPihwvc1JgeY9AdO4gdWGgYV/1DBXwINmRf0JDYcaLh//f2r2PbBWfeL48yfOwoNDCSAAAIf4uby1+pmxsM/PDpj+v9XFgk6Nt7Pjct/VcKGh72w40+D51ZXdeVrhqdAvN8w8+Nzq2dW9xqAhBMAJ5NQhOLq9AD85Fvvvbrh4UNX/qN5XfX91SZtnC8zD/NR9f8fYA/Az4/9X23pswNzU4/D11d+pvrz6mF8J6AEADsfUxf+j1SMauvW/tPr2hmsJPKp6zhjiV7rzYYFmj59t89j/8i6+E1YaBiB+YfWruwgNgAAA7LPl6kPVb1a/O3vszxtOAfzyhuP902GB1e48PmB5iwI+H0uwOPlQDacU3l59VcM8BQYGggAAHKLFkfzTY1Nh/+2G4/r/unrvWLiXtyjoi8V/PpZgmnxofYvwsV79YK5ACAIAcJcFgXkB3pi1ytcarhj4OdWPNwwgXGnr0wen4n919Q3VF1RfV712i+ecGpf/5OpLZqEAEACAI9RD8OHq+8aifvXYS7C+sOyp6nUNUw8/u2HyoOc1XFnwD8bnrC0EhvXqH9rVIAAARzcInKne2jBG4FR37tY/VT294fj+mbHgn2k4Y+AH27zGwGRpfOzhdjEIAMDRdXYs2g+eFfAauvZPNwwSfOds2elyw1XXjsFgq8MH95z1CAACAHAEP9Mb1U0Ljy+NxX+lesj42OmF+8tnIWFx8p9bfWeAAAAcfdeOrfV5S3769w+M93cs3D9tFiDmz1kf1wcIAMARd1V3Pp4/zRPw5dWLq8dUVzScRvjC6qvHny8v9Bycql5ll8LJYipgOFmmwYCvbJgX4PKxBT+/8M/qWOy/urqlYUrhxsfnjYLpeddVv7OwfkAPAHDELDccs/+xzn3RoLPj45d07ssET/MM/ETDmAJzAIAAABzxXoCl6ucbuu4vanOk/zwkLPXxswrOnR2f99rqv3Xn+QEAAQA4wkHg66u3z0LA4ml8i6P912fF/10NswSu2pUgAADHw8ZY3N/fMIvf745FfZrzf3W8TVMMT/9eGZd71fi8vxrXs2GXggAAHK8Q8NcNlxL+juqascifGW+nx9v072urp4zF/72KP5xczgKAkx8CJv+9emb1uOqLq4c1zPB3a0N3/6sbzh6YJv1R/EEAAE6A5Yapfl823rZbbk3xBwEAOBnmVw7cbhmj/UEAAE5wEADuxgwCBAABAAAQAAAAAQAAEAAAAAEAABAAAAABAAAQAAAAAQAAEAAAAAEAABAAAAABAAAQAAAAAQAAEAAAAAEAAAQAAEAAAAAEAABAAAAABAAAQAAAAAQAAEAAAAAEAABAAAAABAAAQAAAAAQAAEAAAAAEAABAAAAABAAAEAAAAAEAABAAAAABAAAQAAAAAQAAEAAAAAEAABAAAAABAAAQAAAAAQAAEAAAAAEAABAAAAABAAAQAABAAAAABAAAQAAAAAQAAOC4W7ELuBvaqNbH+/N5HkfX9HvdOIS/BxAA4Jg50/n1fi2P93rOjqZT4+2iC/i7AAEATrD3VJecR4tvfQwBN9uFR9JN1XXVHbOwttsegFPVh/QCcHeydMWVj7cXAOBuRlcmAAgAAIAAAAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAIAAAAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAgAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAgAAAAAgAAIAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAAAgAAIAAAAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAgAAAAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAgAAAAAgAACAAAgAAAAAgAAMCJ8f8BwhhoaCdysYUAAAAASUVORK5CYII=";
 const PUB_CONFIG = {
   name: "The Curfew",             // short display name: header, tap list, allergen sheet, PDF titles
   fullName: "The Curfew Micropub", // long form: PDF subtitle taglines, rendered upper-case there
@@ -787,7 +815,7 @@ const emptyForm = {
 // the louder dietary/allergen colours (Ve/GF/Hazy) that share the same card.
 const CatDot = ({ category }) => {
   const c = CAT_ACCENT[category] || CAT_ACCENT.Misc;
-  return <span className="inline-block shrink-0 rounded-full" style={{ width: 9, height: 9, background: c, boxShadow: "inset 0 0 0 1.25px rgba(30, 58, 70,0.35)" }} title={category || "Misc"} />;
+  return <span className="inline-block shrink-0 rounded-full" style={{ width: 9, height: 9, background: c, boxShadow: "inset 0 0 0 1.25px rgba(32, 59, 67,0.35)" }} title={category || "Misc"} />;
 };
 // The Curfew's own signature graphic (the festival poster and banner): a row of pint glasses,
 // yellow through to brown, sitting beneath a viaduct of arches. Reused here at the foot of the
@@ -795,25 +823,29 @@ const CatDot = ({ category }) => {
 // well-made but generic beer list. Fixed palette, not the live category colours, since this is
 // branding, not a reflection of what's currently on tap.
 const BridgeMotif = () => {
-  // The festival poster's motif is a viaduct whose arches ARE the pint glasses: a dome-topped
-  // opening with straight sides, filled with beer, the dark piers showing between them. The
-  // first attempt drew flat-topped rectangles with separate arcs floating above, which read as
-  // croquet hoops over colour swatches rather than a bridge. Each glass is now a single arched
-  // shape, and the gaps between them do the work of the piers against the dark background.
-  const colors = ["#F2CC45", "#E3A93E", "#D6823C", "#C4553F", "#6E4A32"];
-  const unit = 56, gap = 8, H = 54, foamH = 7;
-  const w = unit - gap, r = w / 2;
-  const totalW = colors.length * unit;
+  // Proportions measured off the T-shirt artwork rather than guessed: each glass there is
+  // 2.75x taller than it is wide, with foam filling the top 16%. The first build had them at
+  // 1.12 and 57%, which is why they read as squat blocks with far too much head rather than
+  // a row of pints. The dome IS the arch, so the foam curve follows the arch top exactly,
+  // and the dark gaps between glasses do the work of the viaduct piers.
+  const colors = [BEER.yellow, BEER.gold, BEER.amber, BEER.red, BEER.brown];
+  const w = 30, gap = 12, H = 72, foamH = Math.round(H * 0.16);
+  const unit = w + gap, r = w / 2;
+  const totalW = colors.length * unit - gap;
   const arch = (x) => `M ${x} ${H} L ${x} ${r} A ${r} ${r} 0 0 1 ${x + w} ${r} L ${x + w} ${H} Z`;
-  const foam = (x) => `M ${x} ${r} A ${r} ${r} 0 0 1 ${x + w} ${r} L ${x + w} ${r + foamH} L ${x} ${r + foamH} Z`;
   return (
-    <svg viewBox={`0 0 ${totalW} ${H}`} preserveAspectRatio="xMidYMax meet" style={{ width: "100%", maxWidth: 300, height: 58, display: "block", margin: "0 auto" }} aria-hidden="true">
+    <svg viewBox={`0 0 ${totalW} ${H}`} preserveAspectRatio="xMidYMax meet" style={{ width: "100%", maxWidth: 236, height: 78, display: "block", margin: "0 auto" }} aria-hidden="true">
+      <defs>
+        {colors.map((_, i) => (
+          <clipPath key={i} id={`ccglass${i}`}><path d={arch(i * unit)} /></clipPath>
+        ))}
+      </defs>
       {colors.map((c, i) => {
-        const x = i * unit + gap / 2;
+        const x = i * unit;
         return (
-          <g key={i}>
-            <path d={arch(x)} fill={c} />
-            <path d={foam(x)} fill="#F3EFE6" opacity="0.92" />
+          <g key={i} clipPath={`url(#ccglass${i})`}>
+            <rect x={x} y={0} width={w} height={H} fill={c} />
+            <rect x={x} y={0} width={w} height={foamH} fill={C.cream} />
           </g>
         );
       })}
@@ -868,7 +900,7 @@ const BeerDetailsFields = ({ values, onChange, onAutoFill, busy, note, toggleAll
   useEffect(() => { if (values.collabBrewery || values.collabLocation) setShowCollab(true); }, [values.collabBrewery, values.collabLocation]);
   return (
     <>
-      <button onClick={onAutoFill} disabled={busy} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:opacity-60" style={{ borderColor: C.brass, color: C.brass }}>
+      <button onClick={onAutoFill} disabled={busy} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-teal-300 disabled:opacity-60" style={{ borderColor: C.accent, color: C.accent }}>
         {busy ? <><Loader2 size={16} className="animate-spin" /> Filling in…</> : <><Sparkles size={16} /> Auto-fill</>}
       </button>
       {note && (
@@ -941,7 +973,7 @@ const BeerDetailsFields = ({ values, onChange, onAutoFill, busy, note, toggleAll
 };
 const Eyebrow = ({ children, count }) => (
   <div className="mb-2 flex items-center gap-2">
-    <h3 className="text-xs font-semibold uppercase tracking-widest" style={{ color: C.brass }}>{children}</h3>
+    <h3 className="text-xs font-semibold uppercase tracking-widest" style={{ color: C.accent }}>{children}</h3>
     <span className="h-px flex-1" style={{ background: C.line }} />
     {count != null && <span className="text-xs font-medium text-slate-400">{count}</span>}
   </div>
@@ -977,12 +1009,14 @@ const LineRow = ({ line, context, beerById, onOpen }) => {
   else if (bb && bb.level === "past") badgeText = "BB passed";
   else if (bb && bb.level === "soon") badgeText = daysUntil(line.bestBefore) === 0 ? "BB today" : `BB ${daysUntil(line.bestBefore)}d`;
   return (
-    <button onClick={() => onOpen(line.id)} className="flex h-full w-full flex-col gap-1.5 rounded-xl border px-3 py-2 text-left transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-amber-300 active:scale-95" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[line.drinkType] || C.line, boxShadow: "0 1px 2px rgba(30, 58, 70,0.05), 0 6px 14px -10px rgba(30, 58, 70,0.2)", minHeight: 52 }}>
+    <button onClick={() => onOpen(line.id)} className="relative flex h-full w-full flex-col gap-1.5 overflow-hidden rounded-xl border py-2 pr-3 text-left transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-teal-300 active:scale-95" style={{ background: C.paper, borderColor: C.line, boxShadow: "0 1px 2px rgba(32, 59, 67,0.04), 0 8px 20px -14px rgba(32, 59, 67,0.28)", minHeight: 52, paddingLeft: 22 }}>
+      <span aria-hidden="true" title={beer.category || "Misc"} style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 14, background: C.ink }}>
+        <span style={{ position: "absolute", left: 3, top: 0, bottom: 0, width: 11, background: CAT_ACCENT[beer.category] || CAT_ACCENT.Misc }} />
+      </span>
       <div className="min-w-0">
         <div className="flex items-center gap-1.5">
-          <CatDot category={beer.category} />
           <p className="truncate text-sm font-normal leading-tight" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{(() => { const t = splitTitle(beer.brewery, beer.name, beer.collabBrewery); return <>{t.lead && <span className="font-semibold" style={{ color: C.ink }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()}</p>
-          {!beer.allergensVerified && <AlertTriangle size={13} className="shrink-0 text-amber-500" />}
+          {!beer.allergensVerified && <AlertTriangle size={13} className="shrink-0" style={{ color: C.alert }} />}
         </div>
         <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[beer.style || "", beer.abv ? `${beer.abv}%` : "", line.price ? `£${line.price}` : "no price set", locationDisplay(beer)].filter(Boolean).join("  ·  ")}</p>
       </div>
@@ -997,10 +1031,10 @@ const LineRow = ({ line, context, beerById, onOpen }) => {
 const NavButton = ({ id, icon: Icon, label, badge, view, go }) => {
   const active = view === id;
   return (
-    <button onClick={() => go(id)} style={active ? { background: C.brass, color: C.ink, fontFamily: "var(--font-data)" } : { color: C.cream, fontFamily: "var(--font-data)" }}
-      className={`flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-semibold transition active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300 ${active ? "" : "hover:opacity-80"}`}>
+    <button onClick={() => go(id)} style={active ? { background: C.accent, color: C.cream, fontFamily: "var(--font-data)" } : { color: C.cream, fontFamily: "var(--font-data)" }}
+      className={`flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-semibold transition active:scale-95 focus:outline-none focus:ring-2 focus:ring-teal-300 ${active ? "" : "hover:opacity-80"}`}>
       <Icon size={16} /> <span className="hidden sm:inline">{label}</span>
-      {badge > 0 && <span className="grid place-items-center rounded-full px-1" style={{ height: 15, minWidth: 15, background: active ? C.ink : C.brass, color: active ? C.brassSoft : C.ink, fontSize: 9.5, fontWeight: 700, lineHeight: 1 }}>{badge > 9 ? "9+" : badge}</span>}
+      {badge > 0 && <span className="grid place-items-center rounded-full px-1" style={{ height: 15, minWidth: 15, background: active ? C.ink : C.accent, color: active ? C.accentSoft : C.ink, fontSize: 9.5, fontWeight: 700, lineHeight: 1 }}>{badge > 9 ? "9+" : badge}</span>}
     </button>
   );
 };
@@ -1008,10 +1042,10 @@ const NavButton = ({ id, icon: Icon, label, badge, view, go }) => {
 const BottomTab = ({ id, icon: Icon, label, onClick, badge, view, go }) => {
   const active = view === id;
   return (
-    <button onClick={onClick || (() => go(id))} className="flex flex-1 flex-col items-center justify-center gap-0.5 py-2 transition active:scale-95 focus:outline-none" style={{ color: active ? C.brass : C.inkSoft }}>
+    <button onClick={onClick || (() => go(id))} className="flex flex-1 flex-col items-center justify-center gap-0.5 py-2 transition active:scale-95 focus:outline-none" style={{ color: active ? C.accent : C.inkSoft }}>
       <span className="relative inline-flex">
         <Icon size={21} />
-        {badge > 0 && <span className="absolute grid place-items-center rounded-full px-1" style={{ top: -4, right: -8, height: 14, minWidth: 14, background: C.brass, color: C.ink, fontFamily: "var(--font-data)", fontSize: 9, fontWeight: 700, lineHeight: 1 }}>{badge > 9 ? "9+" : badge}</span>}
+        {badge > 0 && <span className="absolute grid place-items-center rounded-full px-1" style={{ top: -4, right: -8, height: 14, minWidth: 14, background: C.accent, color: C.ink, fontFamily: "var(--font-data)", fontSize: 9, fontWeight: 700, lineHeight: 1 }}>{badge > 9 ? "9+" : badge}</span>}
       </span>
       <span className="text-xs font-semibold" style={{ fontFamily: "var(--font-data)" }}>{label}</span>
     </button>
@@ -1026,10 +1060,12 @@ const Row = ({ l, stage, beerById }) => {
   const bb = fmtBB(l.bestBefore);
   const pump = l.status === "on" && l.slot ? PUMP_LABELS[l.slot] : null;
   return (
-    <div className="mb-1.5 flex items-start justify-between gap-3 rounded-lg border px-2.5 py-2" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[l.drinkType] || C.line }}>
+    <div className="relative mb-1.5 flex items-start justify-between gap-3 overflow-hidden rounded-lg border py-2 pr-2.5" style={{ background: C.paper, borderColor: C.line, paddingLeft: 20 }}>
+      <span aria-hidden="true" title={beer.category || "Misc"} style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 14, background: C.ink }}>
+        <span style={{ position: "absolute", left: 3, top: 0, bottom: 0, width: 11, background: CAT_ACCENT[beer.category] || CAT_ACCENT.Misc }} />
+      </span>
       <div className="min-w-0">
         <div className="flex items-center gap-1.5">
-          <CatDot category={beer.category} />
           <p className="truncate text-sm font-normal" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{(() => { const t = splitTitle(beer.brewery, beer.name, beer.collabBrewery); return <>{t.lead && <span className="font-semibold" style={{ color: C.ink }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()}</p>
         </div>
         <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[dt, beer.style || "", extraSweetness(beer), beer.abv ? `${beer.abv}%` : ""].filter(Boolean).join("  ·  ")}</p>
@@ -1038,7 +1074,7 @@ const Row = ({ l, stage, beerById }) => {
         <div className="mt-1 flex flex-wrap items-center gap-1" style={{ minHeight: 22 }}><DietaryMini beer={beer} /></div>
       </div>
       <div className="shrink-0 text-right" style={{ fontFamily: "var(--font-data)" }}>
-        {pump && <p className="text-xs font-semibold" style={{ color: C.brass }}>{pump}</p>}
+        {pump && <p className="text-xs font-semibold" style={{ color: C.accent }}>{pump}</p>}
         {stage && <p className="text-xs text-slate-500">{stage}</p>}
         {bb && <p className="text-xs text-slate-400">BB {bb}</p>}
       </div>
@@ -1047,7 +1083,7 @@ const Row = ({ l, stage, beerById }) => {
 };
 const Section = ({ title, items, withStage, beerById }) => items.length ? (
   <div className="mt-4">
-    <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: C.brass }}>{title} · {items.length}</h3>
+    <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: C.accent }}>{title} · {items.length}</h3>
     <div className="mt-1">{items.map((l) => <Row key={l.id} l={l} stage={withStage ? (STATUS_BY_KEY[l.status] && STATUS_BY_KEY[l.status].label) : null} beerById={beerById} />)}</div>
   </div>
 ) : null;
@@ -1068,16 +1104,21 @@ const Item = ({ line, beerById }) => {
           <span className="shrink-0" style={{ paddingTop: 9 }}><CatDot category={beer.category} /></span>
           <p className="min-w-0 text-lg font-normal" style={{ color: C.cream, fontFamily: "var(--font-display)" }}>{(() => { const t = splitTitle(beer.brewery, beer.name, beer.collabBrewery); return <>{t.lead && <span className="font-semibold" style={{ color: C.cream }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()}</p>
         </div>
-        <p className="shrink-0 text-lg font-semibold" style={{ color: C.brassSoft, fontFamily: "var(--font-display)" }}>{tlp ? tlp.pint : line.price ? `£${line.price}` : "Ask at the bar"}</p>
+        <div className="shrink-0 text-right">
+          {(tlp || line.price) ? (
+            <p className="text-lg font-semibold leading-tight" style={{ color: C.accentSoft, fontFamily: "var(--font-display)" }}>{tlp ? tlp.pint : `£${line.price}`}</p>
+          ) : (
+            <p className="text-xs font-medium" style={{ color: "rgba(243,239,230,0.55)" }}>Ask at<br />the bar</p>
+          )}
+          {tlp && <p className="text-xs leading-tight" style={{ color: "rgba(243,239,230,0.55)" }}>Half {tlp.half}</p>}
+          {tlp && <p className="text-xs leading-tight" style={{ color: "rgba(243,239,230,0.55)" }}>Schooner {tlp.schooner}</p>}
+        </div>
       </div>
-      <div className="flex items-baseline justify-between gap-3">
-        <p className="text-sm font-medium" style={{ color: "rgba(243,239,230,0.85)" }}>{beer.style}{extraSweetness(beer) ? ` · ${extraSweetness(beer)}` : ""} · {beer.abv}%{beer.clarity === "Hazy" ? " · Hazy" : ""}</p>
-        {tlp && <p className="shrink-0 text-xs" style={{ color: "rgba(243,239,230,0.55)" }}>Half {tlp.half} · Schooner {tlp.schooner}</p>}
-      </div>
+      <p className="text-sm font-medium" style={{ color: "rgba(243,239,230,0.85)" }}>{beer.style}{extraSweetness(beer) ? ` · ${extraSweetness(beer)}` : ""} · {beer.abv}%{beer.clarity === "Hazy" ? " · Hazy" : ""}</p>
       {locationDisplay(beer) && <p className="text-xs" style={{ color: "rgba(243,239,230,0.5)" }}>{locationDisplay(beer)}</p>}
       {beer.notes && <ul className="mt-1 space-y-0.5">{splitNote(beer.notes).map((line, i) => <li key={i} className="flex gap-1.5 text-sm italic" style={{ color: faint }}><span>·</span><span>{line}.</span></li>)}</ul>}
       <div className="mt-1.5">
-        {diet.length > 0 && <p className="flex flex-wrap gap-x-3 text-xs font-semibold uppercase tracking-wide" style={{ color: C.brassSoft }}>{diet.map((d) => <span key={d}>{d}</span>)}</p>}
+        {diet.length > 0 && <p className="flex flex-wrap gap-x-3 text-xs font-semibold uppercase tracking-wide" style={{ color: C.accentSoft }}>{diet.map((d) => <span key={d}>{d}</span>)}</p>}
         <p className="mt-1 text-xs" style={{ color: "rgba(243,239,230,0.45)" }}>{beer.allergensVerified ? (beer.allergens.length ? `Contains: ${beer.allergens.join(", ")}` : "No declared allergens") : "Allergens: please ask at the bar"}</p>
       </div>
     </div>
@@ -1145,7 +1186,7 @@ const EditBeer = ({
     vegan: !!beer.vegan, allergens: beer.allergens, allergensVerified: !!beer.allergensVerified, notes: beer.notes || "",
   };
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(30, 58, 70,0.45)" }} onClick={close}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(32, 59, 67,0.45)" }} onClick={close}>
       <div className="w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white sm:rounded-2xl cc-pop" style={{ maxHeight: "92vh", overscrollBehaviorY: "none", WebkitOverflowScrolling: "touch", touchAction: "manipulation" }} onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 flex items-center justify-between gap-2 border-b bg-white p-4" style={{ borderColor: C.line }}>
           <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Edit beer details</h2>
@@ -1208,7 +1249,7 @@ const EditBeer = ({
               </button>
             )
           ) : null}
-          <button onClick={close} className="mt-1 inline-flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}>Done</button>
+          <button onClick={close} className="mt-1 inline-flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ background: C.ink }}>Done</button>
         </div>
       </div>
     </div>
@@ -1606,7 +1647,7 @@ function TheCurfewCellarApp() {
       const doc = new JsPDF({ unit: "mm", format: "a4" });
       const W = 210, H = 297, M = 14; let y = M;
       const hex = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
-      const ink = [28, 54, 54], brass = [153, 111, 35], brassSoft = [199, 154, 62], gray = [110, 118, 115], lineCol = [225, 222, 215], paleBg = [250, 249, 246];
+      const ink = [32, 59, 67], accent = [31, 107, 106], accentSoft = [86, 139, 137], gray = [86, 111, 118], lineCol = [224, 218, 212], paleBg = [249, 246, 243];
       const ensure = (need) => { if (y + need > H - M) { doc.addPage(); y = M; } };
       const fmtD = (d) => { if (!d) return ""; try { return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" }); } catch (e) { return ""; } };
       const cmpBB = (a, b) => { const da = a.bestBefore ? new Date(a.bestBefore).getTime() : Infinity; const db = b.bestBefore ? new Date(b.bestBefore).getTime() : Infinity; return da - db; };
@@ -1616,7 +1657,7 @@ function TheCurfewCellarApp() {
       doc.setFillColor(ink[0], ink[1], ink[2]); doc.rect(0, 0, W, 28, "F");
       doc.setFont("helvetica", "bold"); doc.setFontSize(19); doc.setTextColor(243, 239, 230);
       doc.text(PUB_CONFIG.name, M, 14);
-      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(brassSoft[0], brassSoft[1], brassSoft[2]);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(accentSoft[0], accentSoft[1], accentSoft[2]);
       doc.text(`${PUB_CONFIG.typeLabel.toUpperCase()} · STOCK LIST`, M, 20.5);
       doc.setFontSize(8.5); doc.setTextColor(200, 196, 186);
       doc.text(new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }), W - M, 14, { align: "right" });
@@ -1627,14 +1668,14 @@ function TheCurfewCellarApp() {
       const sectionHead = (t, n) => {
         ensure(16);
         y += 4;
-        doc.setFillColor(brass[0], brass[1], brass[2]); doc.rect(M, y - 4, 2.2, 5.2, "F");
+        doc.setFillColor(accent[0], accent[1], accent[2]); doc.rect(M, y - 4, 2.2, 5.2, "F");
         doc.setFont("helvetica", "bold"); doc.setFontSize(11.5); doc.setTextColor(ink[0], ink[1], ink[2]);
         doc.text(t, M + 4.5, y);
         doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(gray[0], gray[1], gray[2]);
         doc.text(String(n), W - M, y, { align: "right" });
         y += 5.5;
       };
-      const subHead = (t) => { ensure(11); y += 3.5; doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor(brass[0], brass[1], brass[2]); doc.text(t.toUpperCase(), M, y); y += 4.8; };
+      const subHead = (t) => { ensure(11); y += 3.5; doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor(accent[0], accent[1], accent[2]); doc.text(t.toUpperCase(), M, y); y += 4.8; };
       const catHead = (t) => { ensure(9); y += 2.4; doc.setFont("helvetica", "italic"); doc.setFontSize(7.5); doc.setTextColor(gray[0], gray[1], gray[2]); doc.text(t, M + 3, y); y += 4.2; };
 
       // One stock line as a card row: accent bar, name, meta, and a right column with
@@ -1686,12 +1727,12 @@ function TheCurfewCellarApp() {
 
       if (onL.length) {
         sectionHead("On", onL.length);
-        onL.forEach((l) => beerLine(l, TYPE_ACCENT[l.drinkType] || "#B8862B", { pill: (l.status === "on" && l.slot) ? PUMP_LABELS[l.slot] : null }));
+        onL.forEach((l) => beerLine(l, TYPE_ACCENT[l.drinkType] || "#1F6B6A", { pill: (l.status === "on" && l.slot) ? PUMP_LABELS[l.slot] : null }));
         y += 1.5;
       }
       if (prep.length) {
         sectionHead("In cellar", prep.length);
-        prep.forEach((l) => beerLine(l, TYPE_ACCENT[l.drinkType] || "#B8862B", { pill: (STATUS_BY_KEY[l.status] && STATUS_BY_KEY[l.status].label) || null }));
+        prep.forEach((l) => beerLine(l, TYPE_ACCENT[l.drinkType] || "#1F6B6A", { pill: (STATUS_BY_KEY[l.status] && STATUS_BY_KEY[l.status].label) || null }));
         y += 1.5;
       }
       if (storeL.length) {
@@ -1702,10 +1743,10 @@ function TheCurfewCellarApp() {
           subHead(label);
           if (dt === "cask") {
             caskCategoryGroups(items, (l) => (beerById[l.beerId] && beerById[l.beerId].category) || "Misc").forEach(({ cat, items: sub }) => {
-              catHead(cat); sub.slice().sort(cmpBB).forEach((l) => beerLine(l, CAT_ACCENT[cat] || "#96A19B", {}));
+              catHead(cat); sub.slice().sort(cmpBB).forEach((l) => beerLine(l, CAT_ACCENT[cat] || "#7C8F96", {}));
             });
           } else {
-            items.slice().sort(cmpBB).forEach((l) => beerLine(l, TYPE_ACCENT[l.drinkType] || "#B8862B", {}));
+            items.slice().sort(cmpBB).forEach((l) => beerLine(l, TYPE_ACCENT[l.drinkType] || "#1F6B6A", {}));
           }
           y += 1;
         });
@@ -1748,20 +1789,20 @@ function TheCurfewCellarApp() {
       if (!JsPDF) throw new Error("no pdf lib");
       const doc = new JsPDF({ unit: "mm", format: "a4" });
       const W = 210, H = 297, M = 14; let y = M;
-      const ink = [28, 54, 54], brass = [153, 111, 35], brassSoft = [199, 154, 62], gray = [110, 118, 115], lineCol = [225, 222, 215], paleBg = [250, 249, 246];
+      const ink = [32, 59, 67], accent = [31, 107, 106], accentSoft = [86, 139, 137], gray = [86, 111, 118], lineCol = [224, 218, 212], paleBg = [249, 246, 243];
       const hex = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
       const ensure = (need) => { if (y + need > H - M) { doc.addPage(); y = M; } };
 
       doc.setFillColor(ink[0], ink[1], ink[2]); doc.rect(0, 0, W, 28, "F");
       doc.setFont("helvetica", "bold"); doc.setFontSize(19); doc.setTextColor(243, 239, 230);
       doc.text(PUB_CONFIG.name, M, 14);
-      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(brassSoft[0], brassSoft[1], brassSoft[2]);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(accentSoft[0], accentSoft[1], accentSoft[2]);
       doc.text(`${PUB_CONFIG.typeLabel.toUpperCase()} · WHAT'S ON TODAY`, M, 20.5);
       doc.setFontSize(8.5); doc.setTextColor(200, 196, 186);
       doc.text(new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }), W - M, 14, { align: "right" });
       y = 36;
 
-      const sectionHead = (t) => { ensure(16); y += 4; doc.setFillColor(brass[0], brass[1], brass[2]); doc.rect(M, y - 4, 2.2, 5.2, "F"); doc.setFont("helvetica", "bold"); doc.setFontSize(11.5); doc.setTextColor(ink[0], ink[1], ink[2]); doc.text(t, M + 4.5, y); y += 5.5; };
+      const sectionHead = (t) => { ensure(16); y += 4; doc.setFillColor(accent[0], accent[1], accent[2]); doc.rect(M, y - 4, 2.2, 5.2, "F"); doc.setFont("helvetica", "bold"); doc.setFontSize(11.5); doc.setTextColor(ink[0], ink[1], ink[2]); doc.text(t, M + 4.5, y); y += 5.5; };
       const catHead = (t) => { ensure(9); y += 2.4; doc.setFont("helvetica", "italic"); doc.setFontSize(7.5); doc.setTextColor(gray[0], gray[1], gray[2]); doc.text(t, M + 3, y); y += 4.2; };
 
       const beerLine = (l, accentRGB) => {
@@ -1792,13 +1833,13 @@ function TheCurfewCellarApp() {
         doc.setFont("helvetica", "normal"); doc.setFontSize(7.8); doc.setTextColor(gray[0], gray[1], gray[2]);
         doc.text(metaLines, M + 4.5, ty); ty += lhMeta * metaLines.length;
         if (noteLines.length) { doc.setFont("helvetica", "italic"); doc.setFontSize(7.6); doc.setTextColor(110, 110, 110); doc.text(noteLines, M + 4.5, ty); ty += lhNote * noteLines.length; }
-        if (diet) { doc.setFont("helvetica", "bold"); doc.setFontSize(7.4); doc.setTextColor(brass[0], brass[1], brass[2]); doc.text(diet, M + 4.5, ty); ty += lhDiet; }
+        if (diet) { doc.setFont("helvetica", "bold"); doc.setFontSize(7.4); doc.setTextColor(accent[0], accent[1], accent[2]); doc.text(diet, M + 4.5, ty); ty += lhDiet; }
         doc.setFont("helvetica", "normal"); doc.setFontSize(7); doc.setTextColor(150, 150, 150);
         doc.text(allergenLines, M + 4.5, ty);
 
         if (tlp) {
           const rx = W - M - 3;
-          doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(brass[0], brass[1], brass[2]);
+          doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(accent[0], accent[1], accent[2]);
           doc.text(tlp.pint, rx, y + 5.5, { align: "right" });
           doc.setFont("helvetica", "normal"); doc.setFontSize(7); doc.setTextColor(gray[0], gray[1], gray[2]);
           doc.text(`Half ${tlp.half} · Schooner ${tlp.schooner}`, rx, y + 9, { align: "right" });
@@ -1814,11 +1855,11 @@ function TheCurfewCellarApp() {
       if (cask.length) {
         sectionHead("Cask ale");
         caskCategoryGroups(cask, (l) => (beerById[l.beerId] && beerById[l.beerId].category) || "Misc").forEach(({ cat, items }) => {
-          catHead(cat); items.forEach((l) => beerLine(l, hex(CAT_ACCENT[cat] || "#96A19B")));
+          catHead(cat); items.forEach((l) => beerLine(l, hex(CAT_ACCENT[cat] || "#7C8F96")));
         });
         y += 1;
       }
-      if (keg.length) { sectionHead("Keg"); keg.forEach((l) => beerLine(l, hex(TYPE_ACCENT[l.drinkType] || "#3E8C82"))); y += 1; }
+      if (keg.length) { sectionHead("Keg"); keg.forEach((l) => beerLine(l, hex(TYPE_ACCENT[l.drinkType] || "#1F6B6A"))); y += 1; }
       if (cider.length) { sectionHead("Draught cider"); cider.forEach((l) => beerLine(l, hex(TYPE_ACCENT.cider))); y += 1; }
       if (!onL.length) { doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(gray[0], gray[1], gray[2]); doc.text("Nothing on right now.", M, y); }
 
@@ -1847,13 +1888,13 @@ function TheCurfewCellarApp() {
       if (!JsPDF) throw new Error("no pdf lib");
       const doc = new JsPDF({ unit: "mm", format: "a4" });
       const W = 210, H = 297, M = 14; let y = M;
-      const ink = [28, 54, 54], brassSoft = [199, 154, 62], gray = [110, 118, 115];
+      const ink = [32, 59, 67], accentSoft = [86, 139, 137], gray = [86, 111, 118];
       const ensure = (need) => { if (y + need > H - M) { doc.addPage(); y = M; } };
 
       doc.setFillColor(ink[0], ink[1], ink[2]); doc.rect(0, 0, W, 28, "F");
       doc.setFont("helvetica", "bold"); doc.setFontSize(17); doc.setTextColor(243, 239, 230);
       doc.text("How to Use The Curfew Cellar", M, 13);
-      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(brassSoft[0], brassSoft[1], brassSoft[2]);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(accentSoft[0], accentSoft[1], accentSoft[2]);
       doc.text(`${PUB_CONFIG.fullName.toUpperCase()} · STAFF GUIDE`, M, 20.5);
       doc.setFontSize(8.5); doc.setTextColor(200, 196, 186);
       doc.text(new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }), W - M, 13, { align: "right" });
@@ -1863,7 +1904,7 @@ function TheCurfewCellarApp() {
         ensure(18);
         doc.setFont("helvetica", "bold"); doc.setFontSize(12.5); doc.setTextColor(ink[0], ink[1], ink[2]);
         doc.text(sec.title, M, y); y += 2.5;
-        doc.setDrawColor(brassSoft[0], brassSoft[1], brassSoft[2]); doc.setLineWidth(0.5);
+        doc.setDrawColor(accentSoft[0], accentSoft[1], accentSoft[2]); doc.setLineWidth(0.5);
         doc.line(M, y, M + 10, y); y += 5;
         sec.steps.forEach(([h, t]) => {
           const lines = doc.splitTextToSize(t, W - M * 2 - 4);
@@ -1890,20 +1931,20 @@ function TheCurfewCellarApp() {
       if (!JsPDF) throw new Error("no pdf lib");
       const doc = new JsPDF({ unit: "mm", format: "a4" });
       const W = 210, H = 297, M = 14; let y = M;
-      const ink = [28, 54, 54], brass = [153, 111, 35], brassSoft = [199, 154, 62], gray = [110, 118, 115], lineCol = [225, 222, 215], paleBg = [250, 249, 246];
+      const ink = [32, 59, 67], accent = [31, 107, 106], accentSoft = [86, 139, 137], gray = [86, 111, 118], lineCol = [224, 218, 212], paleBg = [249, 246, 243];
       const hex = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
       const ensure = (need) => { if (y + need > H - M) { doc.addPage(); y = M; } };
 
       doc.setFillColor(ink[0], ink[1], ink[2]); doc.rect(0, 0, W, 28, "F");
       doc.setFont("helvetica", "bold"); doc.setFontSize(17); doc.setTextColor(243, 239, 230);
       doc.text("Allergen and Dietary Guide", M, 13);
-      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(brassSoft[0], brassSoft[1], brassSoft[2]);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(accentSoft[0], accentSoft[1], accentSoft[2]);
       doc.text(`${PUB_CONFIG.fullName.toUpperCase()} · PLEASE CONFIRM WITH STAFF BEFORE ORDERING`, M, 20.5);
       doc.setFontSize(8.5); doc.setTextColor(200, 196, 186);
       doc.text(new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }), W - M, 13, { align: "right" });
       y = 36;
 
-      const sectionHead = (t) => { ensure(16); y += 4; doc.setFillColor(brass[0], brass[1], brass[2]); doc.rect(M, y - 4, 2.2, 5.2, "F"); doc.setFont("helvetica", "bold"); doc.setFontSize(11.5); doc.setTextColor(ink[0], ink[1], ink[2]); doc.text(t, M + 4.5, y); y += 5.5; };
+      const sectionHead = (t) => { ensure(16); y += 4; doc.setFillColor(accent[0], accent[1], accent[2]); doc.rect(M, y - 4, 2.2, 5.2, "F"); doc.setFont("helvetica", "bold"); doc.setFontSize(11.5); doc.setTextColor(ink[0], ink[1], ink[2]); doc.text(t, M + 4.5, y); y += 5.5; };
 
       const beerLine = (l, accentRGB) => {
         const b = beerById[l.beerId]; if (!b) return;
@@ -1929,7 +1970,7 @@ function TheCurfewCellarApp() {
         const rx = W - M - 3;
         doc.setFont("helvetica", "normal"); doc.setFontSize(7.8); doc.setTextColor(gray[0], gray[1], gray[2]);
         doc.text(`${b.abv ? b.abv + "%" : ""}`, rx, y + topPad, { align: "right" });
-        if (dietLines.length) { doc.setFont("helvetica", "bold"); doc.setFontSize(7.6); doc.setTextColor(brass[0], brass[1], brass[2]); doc.text(dietLines, M + 4.5, ty); ty += lhDiet * dietLines.length; }
+        if (dietLines.length) { doc.setFont("helvetica", "bold"); doc.setFontSize(7.6); doc.setTextColor(accent[0], accent[1], accent[2]); doc.text(dietLines, M + 4.5, ty); ty += lhDiet * dietLines.length; }
         doc.setFont("helvetica", "normal"); doc.setFontSize(7.4);
         if (b.allergensVerified) doc.setTextColor(130, 130, 130); else doc.setTextColor(180, 110, 50);
         doc.text(allergenLines, M + 4.5, ty);
@@ -1944,7 +1985,7 @@ function TheCurfewCellarApp() {
         const items = onL.filter((l) => dts.includes(l.drinkType));
         if (!items.length) return;
         sectionHead(label);
-        items.forEach((l) => beerLine(l, hex(TYPE_ACCENT[l.drinkType] || "#B8862B")));
+        items.forEach((l) => beerLine(l, hex(TYPE_ACCENT[l.drinkType] || "#1F6B6A")));
       });
       if (!onL.length) { doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(gray[0], gray[1], gray[2]); doc.text("Nothing on right now.", M, y); }
 
@@ -2754,7 +2795,7 @@ function TheCurfewCellarApp() {
     const renderSlot = (slot, k, urgent) => (
       <div key={k} className={urgent ? "flex items-start gap-2" : "flex h-full flex-col"}>
         {urgent ? (
-          <span className="grid shrink-0 place-items-center rounded-md" style={{ width: 22, height: 22, marginTop: 6, background: "linear-gradient(180deg, #284D5B 0%, #1E3A46 100%)", color: C.brassSoft, fontFamily: "var(--font-data)", fontSize: 10, fontWeight: 700, border: "1px solid rgba(184,134,43,0.45)", boxShadow: "inset 0 1px 0 rgba(209,164,74,0.28), 0 1px 2px rgba(30, 58, 70,0.35)" }}>{String(PUMP_NUMBER[slot.slot]).padStart(2, "0")}</span>
+          <span className="grid shrink-0 place-items-center rounded-md" style={{ width: 22, height: 22, marginTop: 6, background: "linear-gradient(180deg, #2C5460 0%, #203B43 100%)", color: C.accentSoft, fontFamily: "var(--font-data)", fontSize: 10, fontWeight: 700, border: "1px solid rgba(138,207,206,0.40)", boxShadow: "inset 0 1px 0 rgba(138,207,206,0.22), 0 1px 2px rgba(32, 59, 67,0.35)" }}>{String(PUMP_NUMBER[slot.slot]).padStart(2, "0")}</span>
         ) : (
           <p className="mb-0.5 text-xs font-semibold uppercase tracking-wide text-slate-400">{slot.label}</p>
         )}
@@ -2762,7 +2803,7 @@ function TheCurfewCellarApp() {
           {slot.line ? <LineRow line={slot.line} context={urgent ? "on" : "racked"} beerById={beerById} onOpen={setOpenId} /> : (
             !canService ? <div className="flex h-full w-full items-center justify-center gap-2 rounded-xl border border-dashed text-sm font-medium text-slate-400" style={{ borderColor: C.line, minHeight: 52 }}>Empty · {slot.label}</div>
             : urgent
-              ? <button onClick={() => openPump(slot)} className="flex h-full w-full items-center justify-center gap-2 rounded-xl border border-dashed text-sm font-medium transition hover:bg-amber-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ borderColor: "#e2c98a", color: "#b45309", minHeight: 52 }}><Plus size={15} /> Empty · {slot.label}</button>
+              ? <button onClick={() => openPump(slot)} className="flex h-full w-full items-center justify-center gap-2 rounded-xl border border-dashed text-sm font-medium transition hover:bg-amber-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ borderColor: "#8ACFCE", color: "#1F6B6A", minHeight: 52 }}><Plus size={15} /> Empty · {slot.label}</button>
               : <button onClick={() => openRack(slot.label)} className="flex h-full w-full items-center justify-center gap-2 rounded-xl border border-dashed text-sm font-medium text-slate-500 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line, minHeight: 52 }}><Plus size={15} /> Rack from store</button>
           )}
         </div>
@@ -2772,7 +2813,7 @@ function TheCurfewCellarApp() {
     if (!lines.length) {
       return (
         <div className="rounded-2xl border border-dashed bg-white p-10 text-center" style={{ borderColor: C.line }}>
-          <Bell className="mx-auto mb-2" style={{ color: C.brass }} />
+          <Bell className="mx-auto mb-2" style={{ color: C.accent }} />
           <p className="font-semibold" style={{ color: C.ink }}>The cellar's empty</p>
           {canEdit && (
           <div className="mt-4 flex flex-col items-center gap-2">
@@ -2799,7 +2840,7 @@ function TheCurfewCellarApp() {
     const searchBox = (
       <div className="relative">
         <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-        <input value={cellarSearch} onChange={(e) => setCellarSearch(e.target.value)} placeholder="Search the cellar…" className="w-full rounded-lg py-2 pl-10 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.stone, color: C.ink }} />
+        <input value={cellarSearch} onChange={(e) => setCellarSearch(e.target.value)} placeholder="Search the cellar…" className="w-full rounded-lg border py-2 pl-10 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ background: "rgba(32,59,67,0.07)", borderColor: "rgba(32,59,67,0.14)", color: C.ink }} />
         {cellarSearch && <button onClick={() => setCellarSearch("")} aria-label="Clear search" className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 hover:bg-slate-100"><X size={16} /></button>}
       </div>
     );
@@ -2818,7 +2859,7 @@ function TheCurfewCellarApp() {
               <p className="text-xs text-slate-500">{searchHits.length} match{searchHits.length === 1 ? "" : "es"}</p>
               {searchGroups.map((g) => (
                 <section key={g.label}>
-                  <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>{g.label} <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {g.items.length}</span></h2>
+                  <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>{g.label} <span className="text-sm" style={{ color: C.muted, fontFamily: "var(--font-data)" }}>· {g.items.length}</span></h2>
                   <div className="mt-2 space-y-1.5">
                     {g.items.map((l) => <LineRow key={l.id} line={l} context={g.context} beerById={beerById} onOpen={setOpenId} />)}
                   </div>
@@ -2835,21 +2876,21 @@ function TheCurfewCellarApp() {
         {searchBox}
         <section>
           <button onClick={() => toggleSection("on")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
-            <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Pouring <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {onFilled}/10</span></h2>
+            <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Pouring <span className="text-sm" style={{ color: C.muted, fontFamily: "var(--font-data)" }}>· {onFilled}/10</span></h2>
             <ChevronDown size={20} className="text-slate-400" style={{ transform: uiPrefs.on ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
           </button>
           {uiPrefs.on && (
             <div className="mt-2 space-y-3">
               <div>
-                <p className="mb-1.5 flex items-center gap-2 uppercase" style={{ color: TYPE_ACCENT.cask, fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}><span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: TYPE_ACCENT.cask }} />Cask<span className="h-px flex-1" style={{ background: "linear-gradient(90deg, rgba(30, 58, 70,0.18), rgba(30, 58, 70,0))" }} /></p>
+                <p className="mb-1.5 flex items-center gap-2 uppercase" style={{ color: TYPE_ACCENT.cask, fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}><span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: TYPE_ACCENT.cask }} />Cask<span className="h-px flex-1" style={{ background: "linear-gradient(90deg, rgba(32, 59, 67,0.18), rgba(32, 59, 67,0))" }} /></p>
                 <div className="cc-stagger grid grid-cols-1 gap-1.5 sm:grid-cols-2">{onCaskSlots.map((s, i) => renderSlot(s, `oc${i}`, true))}</div>
               </div>
               <div className="border-t pt-3" style={{ borderColor: C.line }}>
-                <p className="mb-1.5 flex items-center gap-2 uppercase" style={{ color: TYPE_ACCENT.keg, fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}><span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: TYPE_ACCENT.keg }} />Keg<span className="h-px flex-1" style={{ background: "linear-gradient(90deg, rgba(30, 58, 70,0.18), rgba(30, 58, 70,0))" }} /></p>
+                <p className="mb-1.5 flex items-center gap-2 uppercase" style={{ color: TYPE_ACCENT.keg, fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}><span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: TYPE_ACCENT.keg }} />Keg<span className="h-px flex-1" style={{ background: "linear-gradient(90deg, rgba(32, 59, 67,0.18), rgba(32, 59, 67,0))" }} /></p>
                 <div className="cc-stagger grid grid-cols-1 gap-1.5 sm:grid-cols-2">{onKegSlots.map((s, i) => renderSlot(s, `ok${i}`, true))}</div>
               </div>
               <div className="border-t pt-3" style={{ borderColor: C.line }}>
-                <p className="mb-1.5 flex items-center gap-2 uppercase" style={{ color: TYPE_ACCENT.cider, fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}><span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: TYPE_ACCENT.cider }} />Cider<span className="h-px flex-1" style={{ background: "linear-gradient(90deg, rgba(30, 58, 70,0.18), rgba(30, 58, 70,0))" }} /></p>
+                <p className="mb-1.5 flex items-center gap-2 uppercase" style={{ color: TYPE_ACCENT.cider, fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}><span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: TYPE_ACCENT.cider }} />Cider<span className="h-px flex-1" style={{ background: "linear-gradient(90deg, rgba(32, 59, 67,0.18), rgba(32, 59, 67,0))" }} /></p>
                 <div className="cc-stagger grid grid-cols-1 gap-1.5 sm:grid-cols-2">{onCiderSlots.map((s, i) => renderSlot(s, `od${i}`, true))}</div>
               </div>
             </div>
@@ -2857,7 +2898,7 @@ function TheCurfewCellarApp() {
         </section>
         <section className="border-t pt-4" style={{ borderColor: C.line }}>
           <button onClick={() => toggleSection("racked")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
-            <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Racked <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {rackedCask.length}</span></h2>
+            <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Racked <span className="text-sm" style={{ color: C.muted, fontFamily: "var(--font-data)" }}>· {rackedCask.length}</span></h2>
             <ChevronDown size={20} className="text-slate-400" style={{ transform: uiPrefs.racked ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
           </button>
           {uiPrefs.racked && (
@@ -2875,7 +2916,7 @@ function TheCurfewCellarApp() {
         {store.length > 0 && (
           <section className="border-t pt-4" style={{ borderColor: C.line }}>
             <button onClick={() => toggleSection("store")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
-              <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>In Store <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {store.length}</span></h2>
+              <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>In Store <span className="text-sm" style={{ color: C.muted, fontFamily: "var(--font-data)" }}>· {store.length}</span></h2>
               <ChevronDown size={20} className="text-slate-400" style={{ transform: uiPrefs.store ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
             </button>
             {uiPrefs.store && (
@@ -2891,12 +2932,12 @@ function TheCurfewCellarApp() {
           </section>
         )}
         {empties.length > 0 && (
-          <button onClick={() => go("empties")} className="flex w-full items-center justify-between gap-2 rounded-xl border px-4 py-3 text-left focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ borderColor: "#e2c98a", background: "#fffbeb" }}>
+          <button onClick={() => go("empties")} className="flex w-full items-center justify-between gap-2 rounded-xl border px-4 py-3 text-left focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ borderColor: "#8ACFCE", background: "#EFF6F5" }}>
             <span className="flex items-center gap-2 text-sm font-medium" style={{ color: C.ink }}>
-              <Package size={16} style={{ color: "#b45309" }} />
+              <Package size={16} style={{ color: "#1F6B6A" }} />
               {empties.length} empt{empties.length === 1 ? "y" : "ies"} waiting for collection
             </span>
-            <span className="text-xs font-semibold" style={{ color: "#b45309" }}>View →</span>
+            <span className="text-xs font-semibold" style={{ color: "#1F6B6A" }}>View →</span>
           </button>
         )}
       </div>
@@ -2907,7 +2948,7 @@ function TheCurfewCellarApp() {
     if (!canEdit) {
       return (
         <div className="rounded-2xl border border-dashed bg-white p-10 text-center" style={{ borderColor: C.line }}>
-          <Lock className="mx-auto mb-2" style={{ color: C.brass }} />
+          <Lock className="mx-auto mb-2" style={{ color: C.accent }} />
           <p className="font-semibold" style={{ color: C.ink }}>Manager access needed</p>
           <p className="mt-1 text-sm text-slate-500">Adding stock isn't available on this login.</p>
         </div>
@@ -2926,7 +2967,10 @@ function TheCurfewCellarApp() {
             <div className="mt-3 space-y-2">
               {items.length === 0 && <p className="py-3 text-center text-sm text-slate-400">Nothing found.</p>}
               {items.map((x, idx) => (
-                <div key={x.id} className="rounded-lg border p-2.5" style={{ borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[x.drinkType] || C.line }}>
+                <div key={x.id} className="relative overflow-hidden rounded-lg border py-2.5 pr-2.5" style={{ borderColor: C.line, paddingLeft: 20 }}>
+                  <span aria-hidden="true" style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 14, background: C.ink }}>
+                    <span style={{ position: "absolute", left: 3, top: 0, bottom: 0, width: 11, background: CAT_ACCENT[x.category] || CAT_ACCENT.Misc }} />
+                  </span>
                   <div className="flex items-center gap-2">
                     <input type="checkbox" checked={x.include} onChange={(e) => updateInvoice(idx, { include: e.target.checked })} className="h-4 w-4" />
                     <input value={x.name} onChange={(e) => updateInvoice(idx, { name: e.target.value })} placeholder="Name" className={cellChk} style={{ borderColor: C.line }} />
@@ -2942,7 +2986,7 @@ function TheCurfewCellarApp() {
                   {(() => {
                     const known = x.brewery.trim() && x.name.trim() ? findSavedBeer(x.brewery, x.name) : null;
                     const carried = known ? latestPrice(known) : "";
-                    return !!carried && x.price.trim() === carried.trim() && <p className="mt-1.5 text-xs font-medium" style={{ color: C.brass }}>Previous price. Please confirm.</p>;
+                    return !!carried && x.price.trim() === carried.trim() && <p className="mt-1.5 text-xs font-medium" style={{ color: C.accent }}>Previous price. Please confirm.</p>;
                   })()}
                   {batchSource === "labels" && (
                     (x.drinkType === "cider" || x.drinkType === "keykeg") ? (
@@ -2961,7 +3005,7 @@ function TheCurfewCellarApp() {
             </div>
           </div>
           <div className="flex gap-2">
-            <button onClick={importInvoice} disabled={!count} className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:opacity-50" style={{ background: C.ink }}><Plus size={16} /> Confirm all {count} · add to store</button>
+            <button onClick={importInvoice} disabled={!count} className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-teal-300 disabled:opacity-50" style={{ background: C.ink }}><Plus size={16} /> Confirm all {count} · add to store</button>
             <button onClick={() => { setAddMode("pick"); setInvoiceItems(null); }} className="rounded-lg border px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50" style={{ borderColor: C.line }}>Cancel</button>
           </div>
         </div>
@@ -2973,7 +3017,10 @@ function TheCurfewCellarApp() {
       const results = q ? pickable.filter((b) => [b.name, b.brewery, b.style, b.category].some((x) => (x || "").toLowerCase().includes(q))) : [];
       const recent = pickable.slice(-5).reverse();
       const pickRow = (b) => (
-        <button key={b.id} onClick={() => pickBeer(b)} className="flex w-full items-center justify-between gap-2 rounded-lg border p-2.5 text-left transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: CAT_ACCENT[b.category] || C.line }}>
+        <button key={b.id} onClick={() => pickBeer(b)} className="relative flex w-full items-center justify-between gap-2 overflow-hidden rounded-lg border py-2.5 pr-2.5 text-left transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ background: C.paper, borderColor: C.line, paddingLeft: 20 }}>
+          <span aria-hidden="true" style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 14, background: C.ink }}>
+            <span style={{ position: "absolute", left: 3, top: 0, bottom: 0, width: 11, background: CAT_ACCENT[b.category] || CAT_ACCENT.Misc }} />
+          </span>
           <span className="min-w-0">
             <span className="block truncate text-sm font-normal" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{(() => { const t = splitTitle(b.brewery, b.name, b.collabBrewery); return <>{t.lead && <span className="font-semibold" style={{ color: C.ink }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()}</span>
             <span className="block truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[b.style || "", b.abv ? `${b.abv}%` : "", extraSweetness(b)].filter(Boolean).join("  ·  ")}</span>
@@ -2989,7 +3036,7 @@ function TheCurfewCellarApp() {
           <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
             <p className="text-base font-semibold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Scan it in</p>
             <div className="mt-3 flex flex-wrap gap-2">
-              <button onClick={() => labelRef.current && labelRef.current.click()} disabled={scanning} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:opacity-60" style={{ background: C.ink }}><Camera size={16} /> Scan a cask label / pump clip</button>
+              <button onClick={() => labelRef.current && labelRef.current.click()} disabled={scanning} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-teal-300 disabled:opacity-60" style={{ background: C.ink }}><Camera size={16} /> Scan a cask label / pump clip</button>
               <button onClick={() => invoiceRef.current && invoiceRef.current.click()} disabled={scanning} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-60" style={{ borderColor: C.line }}><FileText size={16} /> Scan an invoice</button>
               <button onClick={startNewBeer} disabled={scanning} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-60" style={{ borderColor: C.line }}><Plus size={16} /> Add manually</button>
             </div>
@@ -3000,7 +3047,7 @@ function TheCurfewCellarApp() {
             <p className="text-base font-semibold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Add from your library</p>
             <div className="relative mt-3">
               <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input value={addPickSearch} onChange={(e) => setAddPickSearch(e.target.value)} placeholder="Search ales, breweries, styles…" className="w-full rounded-lg py-2 pl-10 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.stone, color: C.ink }} />
+              <input value={addPickSearch} onChange={(e) => setAddPickSearch(e.target.value)} placeholder="Search ales, breweries, styles…" className="w-full rounded-lg border py-2 pl-10 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ background: "rgba(32,59,67,0.07)", borderColor: "rgba(32,59,67,0.14)", color: C.ink }} />
               {addPickSearch && <button onClick={() => setAddPickSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 hover:bg-slate-100"><X size={16} /></button>}
             </div>
             {q ? (
@@ -3059,14 +3106,14 @@ function TheCurfewCellarApp() {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="Price (£ per pint)">
               <input className={inputCls} inputMode="decimal" value={form.price} onChange={(e) => setF({ price: e.target.value })} placeholder="e.g. 4.40" />
-              {priceNeedsConfirm && <p className="mt-1 text-xs font-medium" style={{ color: C.brass }}>Previous price. Please confirm.</p>}
+              {priceNeedsConfirm && <p className="mt-1 text-xs font-medium" style={{ color: C.accent }}>Previous price. Please confirm.</p>}
             </Field>
             {form.drinkType === "cider" && <Field label="Container"><select className={inputCls} value={form.size} onChange={(e) => setF({ size: e.target.value })}>{SIZE_OPTIONS.map((s) => <option key={s}>{s}</option>)}</select></Field>}
           </div>
           {form.drinkType !== "cider" && form.drinkType !== "keykeg" && (
             <Field label="Delivered by">
               <input className={inputCls} value={form.caskOwner} onChange={(e) => setF({ caskOwner: e.target.value })} placeholder={form.brewery ? `Defaults to ${form.brewery}` : "Defaults to the brewery"} />
-              {supplierNeedsConfirm && <p className="mt-1 text-xs font-medium" style={{ color: C.brass }}>Previous delivery. Please confirm.</p>}
+              {supplierNeedsConfirm && <p className="mt-1 text-xs font-medium" style={{ color: C.accent }}>Previous delivery. Please confirm.</p>}
             </Field>
           )}
           <Field label="Best before">
@@ -3077,7 +3124,7 @@ function TheCurfewCellarApp() {
         </div>
 
         <div className="flex gap-2">
-          <button onClick={addLine} className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Plus size={16} /> Add to cellar</button>
+          <button onClick={addLine} className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ background: C.ink }}><Plus size={16} /> Add to cellar</button>
           <button onClick={() => { setForm(emptyForm); setFillNote(null); setAddMode("pick"); setView("cellar"); }} className="rounded-lg border px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50" style={{ borderColor: C.line }}>Cancel</button>
         </div>
       </div>
@@ -3102,18 +3149,21 @@ function TheCurfewCellarApp() {
       const h = histChrono(b);
       const open = !!historyOpen[b.id];
       return (
-        <div key={b.id} className="rounded-xl border p-2.5" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: CAT_ACCENT[b.category] || C.line }}>
+        <div key={b.id} className="relative overflow-hidden rounded-xl border py-2.5 pr-2.5" style={{ background: C.paper, borderColor: C.line, paddingLeft: 20 }}>
+          <span aria-hidden="true" title={b.category || "Misc"} style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 14, background: C.ink }}>
+            <span style={{ position: "absolute", left: 3, top: 0, bottom: 0, width: 11, background: CAT_ACCENT[b.category] || CAT_ACCENT.Misc }} />
+          </span>
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0 flex-1">
-              <button onClick={() => setLibraryOpenId(b.id)} className="block w-full min-w-0 rounded-lg text-left transition focus:outline-none focus:ring-2 focus:ring-amber-300">
-                <p className="truncate text-sm font-normal" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{(() => { const t = splitTitle(b.brewery, b.name, b.collabBrewery); return <>{t.lead && <span className="font-semibold" style={{ color: C.ink }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()} {!b.allergensVerified && <AlertTriangle size={13} className="inline shrink-0 text-amber-500" />}</p>
+              <button onClick={() => setLibraryOpenId(b.id)} className="block w-full min-w-0 rounded-lg text-left transition focus:outline-none focus:ring-2 focus:ring-teal-300">
+                <p className="truncate text-sm font-normal" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{(() => { const t = splitTitle(b.brewery, b.name, b.collabBrewery); return <>{t.lead && <span className="font-semibold" style={{ color: C.ink }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()} {!b.allergensVerified && <AlertTriangle size={13} className="inline shrink-0" style={{ color: C.alert }} />}</p>
                 <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[b.style || "", b.abv ? `${b.abv}%` : "", extraSweetness(b)].filter(Boolean).join("  ·  ")}</p>
                 <p className="truncate text-xs text-slate-400">{[locationDisplay(b), latestPrice(b) ? `Last £${latestPrice(b)}` : ""].filter(Boolean).join("  ·  ")}</p>
               </button>
               <div className="mt-1 flex flex-wrap items-center gap-1" style={{ minHeight: 22 }}><DietaryMini beer={b} /></div>
             </div>
             <div className="flex shrink-0 items-center gap-1">
-              {canEdit && <button onClick={(e) => { e.stopPropagation(); addLineOfBeer(b); }} title="Add to cellar" className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Plus size={13} /> Add</button>}
+              {canEdit && <button onClick={(e) => { e.stopPropagation(); addLineOfBeer(b); }} title="Add to cellar" className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ background: C.ink }}><Plus size={13} /> Add</button>}
               <button onClick={(e) => { e.stopPropagation(); setHistoryOpen((m) => ({ ...m, [b.id]: !m[b.id] })); }} title="Price & ABV history" className="inline-flex items-center gap-0.5 rounded-lg border p-1.5 text-slate-500 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><History size={14} />{h.length ? <span className="text-xs font-medium">{h.length}</span> : null}</button>
             </div>
           </div>
@@ -3152,7 +3202,7 @@ function TheCurfewCellarApp() {
       <div className="space-y-3">
         <div className="relative">
           <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input value={librarySearch} onChange={(e) => setLibrarySearch(e.target.value)} placeholder="Search ales, breweries, styles…" className="w-full rounded-lg py-2 pl-10 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.stone, color: C.ink }} />
+          <input value={librarySearch} onChange={(e) => setLibrarySearch(e.target.value)} placeholder="Search ales, breweries, styles…" className="w-full rounded-lg border py-2 pl-10 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ background: "rgba(32,59,67,0.07)", borderColor: "rgba(32,59,67,0.14)", color: C.ink }} />
           {librarySearch && <button onClick={() => setLibrarySearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 hover:bg-slate-100"><X size={16} /></button>}
         </div>
 
@@ -3173,7 +3223,7 @@ function TheCurfewCellarApp() {
             {recentAdded.length > 0 && (
               <section>
                 <button onClick={() => toggleSection("libRecent")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
-                  <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Recently added <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {recentAdded.length}</span></h2>
+                  <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Recently added <span className="text-sm" style={{ color: C.muted, fontFamily: "var(--font-data)" }}>· {recentAdded.length}</span></h2>
                   <ChevronDown size={20} className="text-slate-400" style={{ transform: uiPrefs.libRecent ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
                 </button>
                 {uiPrefs.libRecent && <div className="mt-2 space-y-2">{recentAdded.map(libRow)}</div>}
@@ -3182,7 +3232,7 @@ function TheCurfewCellarApp() {
             {rest.length > 0 && (
               <section className="border-t pt-4" style={{ borderColor: C.line }}>
                 <button onClick={() => toggleSection("libAll")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
-                  <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>All beers <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {rest.length}</span></h2>
+                  <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>All beers <span className="text-sm" style={{ color: C.muted, fontFamily: "var(--font-data)" }}>· {rest.length}</span></h2>
                   <ChevronDown size={20} className="text-slate-400" style={{ transform: uiPrefs.libAll ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
                 </button>
                 {uiPrefs.libAll && <div className="mt-2 space-y-2">{rest.map(libRow)}</div>}
@@ -3191,7 +3241,7 @@ function TheCurfewCellarApp() {
             {archived.length > 0 && (
               <section className="border-t pt-4" style={{ borderColor: C.line }}>
                 <button onClick={() => toggleSection("libArchived")} className="flex w-full items-center justify-between gap-2 text-left focus:outline-none">
-                  <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Archived <span className="text-sm" style={{ color: "#96A19B", fontFamily: "var(--font-data)" }}>· {archived.length}</span></h2>
+                  <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Archived <span className="text-sm" style={{ color: C.muted, fontFamily: "var(--font-data)" }}>· {archived.length}</span></h2>
                   <ChevronDown size={20} className="text-slate-400" style={{ transform: uiPrefs.libArchived ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
                 </button>
                 {uiPrefs.libArchived && <div className="mt-2 space-y-2" style={{ opacity: 0.75 }}>{archived.map(libRow)}</div>}
@@ -3207,7 +3257,7 @@ function TheCurfewCellarApp() {
     if (!canEdit) {
       return (
         <div className="rounded-2xl border border-dashed bg-white p-10 text-center" style={{ borderColor: C.line }}>
-          <Lock className="mx-auto mb-2" style={{ color: C.brass }} />
+          <Lock className="mx-auto mb-2" style={{ color: C.accent }} />
           <p className="font-semibold" style={{ color: C.ink }}>Manager access needed</p>
           <p className="mt-1 text-sm text-slate-500">Library tools aren't available on this login.</p>
         </div>
@@ -3299,7 +3349,7 @@ function TheCurfewCellarApp() {
     <div className="space-y-4">
       <div className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
         <h2 className="text-base font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Pump notifications</h2>
-        <div className="mt-1 mb-3 h-0.5 w-8 rounded-full" style={{ background: C.brass }} />
+        <div className="mt-1 mb-3 h-0.5 w-8 rounded-full" style={{ background: C.accent }} />
         <p className="text-sm text-slate-500">Get a ping on this phone whenever a beer goes on or a line finishes, even with the app closed. Each phone turns this on separately, so every manager who wants it enables it on their own phone.</p>
         <div className="mt-4">
           {pushState === "checking" && <p className="text-sm text-slate-400">Checking this phone…</p>}
@@ -3312,11 +3362,11 @@ function TheCurfewCellarApp() {
           )}
           {pushState === "blocked" && <p className="text-sm text-slate-500">Notifications are blocked for this app in your phone settings. Allow them there, then come back and try again.</p>}
           {pushState === "off" && (
-            <button onClick={enablePush} disabled={pushBusy} className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}>{pushBusy ? <Loader2 className="animate-spin" size={15} /> : <Bell size={15} />} Turn on for this phone</button>
+            <button onClick={enablePush} disabled={pushBusy} className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ background: C.ink }}>{pushBusy ? <Loader2 className="animate-spin" size={15} /> : <Bell size={15} />} Turn on for this phone</button>
           )}
           {pushState === "on" && (
             <div className="space-y-3">
-              <div className="flex items-center gap-2 rounded-lg p-3 text-sm font-medium" style={{ background: "#EDF3E7", color: "#3E6B33" }}><CheckCircle2 size={16} /> Notifications are on for this phone.</div>
+              <div className="flex items-center gap-2 rounded-lg p-3 text-sm font-medium" style={{ background: "#EDF3E7", color: DIET_BADGE_STYLE.vegan.color }}><CheckCircle2 size={16} /> Notifications are on for this phone.</div>
               <button onClick={disablePush} disabled={pushBusy} className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border px-4 py-2.5 text-sm font-medium text-slate-500 transition hover:bg-slate-50 active:scale-95 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>Turn off for this phone</button>
             </div>
           )}
@@ -3336,12 +3386,12 @@ function TheCurfewCellarApp() {
   const Guide = () => (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <button onClick={shareGuidePDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-1.5 py-1.5 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40 focus:outline-none" style={{ color: "#778883" }}>{pdfBusy ? <Loader2 className="animate-spin" size={13} /> : <Share size={13} />} Share</button>
+        <button onClick={shareGuidePDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-1.5 py-1.5 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40 focus:outline-none" style={{ color: C.muted }}>{pdfBusy ? <Loader2 className="animate-spin" size={13} /> : <Share size={13} />} Share</button>
       </div>
       {GUIDE_SECTIONS.map((sec) => (
         <div key={sec.title} className="cc-elev rounded-xl border p-4" style={{ background: C.paper, borderColor: C.line }}>
           <h2 className="text-base font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>{sec.title}</h2>
-          <div className="mt-1 mb-3 h-0.5 w-8 rounded-full" style={{ background: C.brass }} />
+          <div className="mt-1 mb-3 h-0.5 w-8 rounded-full" style={{ background: C.accent }} />
           <ul className="space-y-2.5">
             {sec.steps.map(([h, t]) => (
               <li key={h}>
@@ -3406,7 +3456,7 @@ function TheCurfewCellarApp() {
               {restocked.map(({ b, n }) => (
                 <li key={b.id} className="flex items-center justify-between gap-2 text-sm">
                   <span className="min-w-0 truncate" style={{ color: C.inkSoft }}>{rowName(b)}</span>
-                  <span className="shrink-0 font-semibold" style={{ color: C.brass, fontFamily: "var(--font-data)" }}>{n}×</span>
+                  <span className="shrink-0 font-semibold" style={{ color: C.accent, fontFamily: "var(--font-data)" }}>{n}×</span>
                 </li>
               ))}
             </ul>
@@ -3423,7 +3473,7 @@ function TheCurfewCellarApp() {
                     <span className="font-semibold" style={{ color: C.ink, fontFamily: "var(--font-data)" }}>{n}</span>
                   </div>
                   <div className="h-1.5 overflow-hidden rounded-full" style={{ background: C.stone }}>
-                    <div className="h-full rounded-full" style={{ width: `${Math.round((n / supMax) * 100)}%`, background: C.brass }} />
+                    <div className="h-full rounded-full" style={{ width: `${Math.round((n / supMax) * 100)}%`, background: C.accent }} />
                   </div>
                 </li>
               ))}
@@ -3479,7 +3529,7 @@ function TheCurfewCellarApp() {
           <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Export</h2>
           <p className="mt-0.5 text-xs text-slate-400">{prefs.lastBackup ? `Last backup: ${fmtUpdated(prefs.lastBackup)}` : "No backup taken yet. The cloud keeps no history, so a saved copy is your safety net."}</p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <button onClick={copyBackup} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Copy size={16} /> Copy backup</button>
+            <button onClick={copyBackup} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ background: C.ink }}><Copy size={16} /> Copy backup</button>
             <button onClick={downloadBackup} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><Download size={16} /> Download .json</button>
           </div>
           <textarea readOnly value={exportData()} className={`mt-3 ${taCls}`} onFocus={(e) => e.target.select()} />
@@ -3531,7 +3581,7 @@ function TheCurfewCellarApp() {
                       <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5">
                         <p className="text-xs text-amber-800">Replaces everything currently in the app with how the cellar looked at this point. Cannot be undone from here, take a backup first if you're not sure.</p>
                         <div className="mt-2 flex gap-2">
-                          <button onClick={() => restoreSnapshot(row)} className="rounded-md bg-amber-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-900">Restore now</button>
+                          <button onClick={() => restoreSnapshot(row)} className="rounded-md px-3 py-1.5 text-xs font-semibold text-white transition hover:opacity-90" style={{ background: C.accent }}>Restore now</button>
                           <button onClick={() => setConfirmSnapshotId(null)} className="rounded-md border px-3 py-1.5 text-xs font-medium text-slate-600" style={{ borderColor: C.line }}>Cancel</button>
                         </div>
                       </div>
@@ -3552,7 +3602,7 @@ function TheCurfewCellarApp() {
             <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
               <p className="text-sm text-amber-800">This reloads the app immediately. Make sure nothing else needs saving first.</p>
               <div className="mt-2 flex gap-2">
-                <button onClick={resetAppCache} className="rounded-md bg-amber-800 px-3 py-1.5 text-sm font-semibold text-white hover:bg-amber-900">Reset now</button>
+                <button onClick={resetAppCache} className="rounded-md px-3 py-1.5 text-sm font-semibold text-white transition hover:opacity-90" style={{ background: C.accent }}>Reset now</button>
                 <button onClick={() => setConfirmCacheReset(false)} className="rounded-md border px-3 py-1.5 text-sm font-medium text-slate-600" style={{ borderColor: C.line }}>Cancel</button>
               </div>
             </div>
@@ -3571,19 +3621,19 @@ function TheCurfewCellarApp() {
       if (!JsPDF) throw new Error("no pdf lib");
       const doc = new JsPDF({ unit: "mm", format: "a4" });
       const W = 210, H = 297, M = 14; let y = M;
-      const ink = [28, 54, 54], brass = [153, 111, 35], brassSoft = [199, 154, 62], gray = [110, 118, 115], lineCol = [225, 222, 215], paleBg = [250, 249, 246];
+      const ink = [32, 59, 67], accent = [31, 107, 106], accentSoft = [86, 139, 137], gray = [86, 111, 118], lineCol = [224, 218, 212], paleBg = [249, 246, 243];
       const ensure = (need) => { if (y + need > H - M) { doc.addPage(); y = M; } };
 
       doc.setFillColor(ink[0], ink[1], ink[2]); doc.rect(0, 0, W, 28, "F");
       doc.setFont("helvetica", "bold"); doc.setFontSize(17); doc.setTextColor(243, 239, 230);
       doc.text("Empties to Return", M, 13);
-      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(brassSoft[0], brassSoft[1], brassSoft[2]);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(accentSoft[0], accentSoft[1], accentSoft[2]);
       doc.text(`${PUB_CONFIG.fullName.toUpperCase()} · COLLECTION LIST`, M, 20.5);
       doc.setFontSize(8.5); doc.setTextColor(200, 196, 186);
       doc.text(new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }), W - M, 13, { align: "right" });
       y = 36;
 
-      const sectionHead = (t, n) => { ensure(16); y += 4; doc.setFillColor(brass[0], brass[1], brass[2]); doc.rect(M, y - 4, 2.2, 5.2, "F"); doc.setFont("helvetica", "bold"); doc.setFontSize(11.5); doc.setTextColor(ink[0], ink[1], ink[2]); doc.text(t, M + 4.5, y); doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(gray[0], gray[1], gray[2]); doc.text(String(n), W - M, y, { align: "right" }); y += 5.5; };
+      const sectionHead = (t, n) => { ensure(16); y += 4; doc.setFillColor(accent[0], accent[1], accent[2]); doc.rect(M, y - 4, 2.2, 5.2, "F"); doc.setFont("helvetica", "bold"); doc.setFontSize(11.5); doc.setTextColor(ink[0], ink[1], ink[2]); doc.text(t, M + 4.5, y); doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(gray[0], gray[1], gray[2]); doc.text(String(n), W - M, y, { align: "right" }); y += 5.5; };
 
       const beerLine = (l) => {
         const b = beerById[l.beerId]; if (!b) return;
@@ -3647,7 +3697,7 @@ function TheCurfewCellarApp() {
             {" "}Lines are counted as due every {PUB_CONFIG.lineCleanDays} days.
           </p>
           {canService && (
-            <button onClick={markAllLinesCleaned} className="mt-3 inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}>
+            <button onClick={markAllLinesCleaned} className="mt-3 inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ background: C.ink }}>
               <Check size={15} /> Mark all lines cleaned
             </button>
           )}
@@ -3656,7 +3706,7 @@ function TheCurfewCellarApp() {
           <section key={g.label}>
             <p className="mb-1.5 flex items-center gap-2 uppercase" style={{ color: g.accent, fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}>
               <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: g.accent }} />{g.label}
-              <span className="h-px flex-1" style={{ background: "linear-gradient(90deg, rgba(30, 58, 70,0.18), rgba(30, 58, 70,0))" }} />
+              <span className="h-px flex-1" style={{ background: "linear-gradient(90deg, rgba(32, 59, 67,0.18), rgba(32, 59, 67,0))" }} />
             </p>
             <div className="space-y-1.5">
               {g.pumps.map((slot) => {
@@ -3666,11 +3716,11 @@ function TheCurfewCellarApp() {
                 const status = info.never ? "No clean recorded yet" : info.days === 0 ? "Cleaned today" : `Cleaned ${info.days} day${info.days === 1 ? "" : "s"} ago`;
                 return (
                   <div key={slot} className="flex items-center gap-2.5 rounded-xl border p-2.5" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: info.overdue ? C.alert : g.accent }}>
-                    <span className="grid shrink-0 place-items-center rounded-md" style={{ width: 22, height: 22, background: "linear-gradient(180deg, #284D5B 0%, #1E3A46 100%)", color: C.brassSoft, fontFamily: "var(--font-data)", fontSize: 10, fontWeight: 700, border: "1px solid rgba(184,134,43,0.45)", boxShadow: "inset 0 1px 0 rgba(209,164,74,0.28), 0 1px 2px rgba(30, 58, 70,0.35)" }}>{String(PUMP_NUMBER[slot]).padStart(2, "0")}</span>
+                    <span className="grid shrink-0 place-items-center rounded-md" style={{ width: 22, height: 22, background: "linear-gradient(180deg, #2C5460 0%, #203B43 100%)", color: C.accentSoft, fontFamily: "var(--font-data)", fontSize: 10, fontWeight: 700, border: "1px solid rgba(138,207,206,0.40)", boxShadow: "inset 0 1px 0 rgba(138,207,206,0.22), 0 1px 2px rgba(32, 59, 67,0.35)" }}>{String(PUMP_NUMBER[slot]).padStart(2, "0")}</span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{PUMP_LABELS[slot]}</p>
                       <p className="truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{beer ? `${beer.brewery ? beer.brewery + " " : ""}${beer.name}` : "Nothing on"}</p>
-                      <p className="truncate text-xs" style={{ color: info.overdue ? C.alert : "#96A19B", fontFamily: "var(--font-data)", fontWeight: info.overdue ? 600 : 500 }}>{status}</p>
+                      <p className="truncate text-xs" style={{ color: info.overdue ? C.alert : C.muted, fontFamily: "var(--font-data)", fontWeight: info.overdue ? 600 : 500 }}>{status}</p>
                     </div>
                     {canService && (
                       <button onClick={() => markLineCleaned(slot)} className="shrink-0 rounded-lg border px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>Cleaned</button>
@@ -3705,13 +3755,13 @@ function TheCurfewCellarApp() {
               </div>
             )}
             <div className="mt-2.5 flex gap-2">
-              <input value={newDistributor} onChange={(e) => setNewDistributor(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { addDistributor(newDistributor); setNewDistributor(""); } }} placeholder="Add a distributor" className="flex-1 rounded-lg border px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" style={{ borderColor: C.line }} />
+              <input value={newDistributor} onChange={(e) => setNewDistributor(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { addDistributor(newDistributor); setNewDistributor(""); } }} placeholder="Add a distributor" className="flex-1 rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ background: "rgba(32,59,67,0.07)", borderColor: "rgba(32,59,67,0.14)", color: C.ink }} />
               <button onClick={() => { addDistributor(newDistributor); setNewDistributor(""); }} disabled={!newDistributor.trim()} className="shrink-0 rounded-lg border px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>Add</button>
             </div>
           </div>
         )}
         <div className="flex items-center justify-end gap-3">
-          <button onClick={shareEmptiesPDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-1 py-1 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40 focus:outline-none" style={{ color: "#778883" }}>{pdfBusy ? <Loader2 className="animate-spin" size={13} /> : <Share size={13} />} Share</button>
+          <button onClick={shareEmptiesPDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-1 py-1 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40 focus:outline-none" style={{ color: C.muted }}>{pdfBusy ? <Loader2 className="animate-spin" size={13} /> : <Share size={13} />} Share</button>
           <button onClick={() => go("cellar")} className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"><ArrowRight size={14} className="rotate-180" /> Back</button>
         </div>
         {empties.length === 0 && (
@@ -3733,7 +3783,7 @@ function TheCurfewCellarApp() {
                 <>
                   {items.length > 1 && canService && (
                     <div className="flex justify-end px-3 pb-1.5">
-                      <button onClick={() => markOwnerCollected(key)} className="inline-flex items-center gap-1 px-1 py-1 text-xs font-medium transition hover:opacity-70 active:scale-95 focus:outline-none" style={{ color: "#778883" }}><Check size={13} /> All collected ({items.length})</button>
+                      <button onClick={() => markOwnerCollected(key)} className="inline-flex items-center gap-1 px-1 py-1 text-xs font-medium transition hover:opacity-70 active:scale-95 focus:outline-none" style={{ color: C.muted }}><Check size={13} /> All collected ({items.length})</button>
                     </div>
                   )}
                   <ul className="space-y-1.5 px-3 pb-3">
@@ -3741,9 +3791,12 @@ function TheCurfewCellarApp() {
                     const beer = beerById[l.beerId];
                     const dt = (DRINK_TYPES.find((t) => t.key === l.drinkType) || {}).label || l.drinkType;
                     return (
-                      <li key={l.id} className="flex items-start justify-between gap-2 rounded-lg border px-2.5 py-2" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[l.drinkType] || C.line }}>
-                        <button onClick={() => setOpenId(l.id)} className="min-w-0 flex-1 rounded text-left focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ WebkitTapHighlightColor: "transparent" }}>
-                          <span className="block truncate text-sm font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer ? `${beer.brewery ? beer.brewery + " - " : ""}${beer.name}` : "Unknown"}</span>
+                      <li key={l.id} className="relative flex items-start justify-between gap-2 overflow-hidden rounded-lg border py-2 pr-2.5" style={{ background: C.paper, borderColor: C.line, paddingLeft: 20 }}>
+                        <span aria-hidden="true" title={(beer && beer.category) || "Misc"} style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 14, background: C.ink }}>
+                          <span style={{ position: "absolute", left: 3, top: 0, bottom: 0, width: 11, background: CAT_ACCENT[beer && beer.category] || CAT_ACCENT.Misc }} />
+                        </span>
+                        <button onClick={() => setOpenId(l.id)} className="min-w-0 flex-1 rounded text-left focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ WebkitTapHighlightColor: "transparent" }}>
+                          <span className="block truncate text-sm font-normal" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{beer ? (() => { const t = splitTitle(beer.brewery, beer.name, beer.collabBrewery); return <>{t.lead && <span className="font-semibold" style={{ color: C.ink }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })() : "Unknown"}</span>
                           {beer && <span className="block truncate text-xs" style={{ color: C.inkSoft, fontFamily: "var(--font-data)", fontWeight: 500 }}>{[dt, beer.style || "", beer.abv ? `${beer.abv}%` : ""].filter(Boolean).join("  ·  ")}</span>}
                           {beer && locationDisplay(beer) && <span className="block truncate text-xs text-slate-400" style={{ fontFamily: "var(--font-data)" }}>{locationDisplay(beer)}</span>}
                           <span className="block truncate text-xs text-slate-500" style={{ fontFamily: "var(--font-data)" }}>{l.size ? `${l.size} · ` : ""}finished {l.dates.off ? fmtDate(l.dates.off.slice(0, 10)) : "--"}</span>
@@ -3772,8 +3825,8 @@ function TheCurfewCellarApp() {
     return (
       <div className="space-y-4">
         <div className="no-print flex items-center justify-end gap-2">
-          <button onClick={shareAllergenPDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-1.5 py-1.5 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40 focus:outline-none" style={{ color: "#778883" }}>{pdfBusy ? <Loader2 className="animate-spin" size={13} /> : <Share size={13} />} Share</button>
-          <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Printer size={15} /> Print</button>
+          <button onClick={shareAllergenPDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-1.5 py-1.5 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40 focus:outline-none" style={{ color: C.muted }}>{pdfBusy ? <Loader2 className="animate-spin" size={13} /> : <Share size={13} />} Share</button>
+          <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ background: C.ink }}><Printer size={15} /> Print</button>
         </div>
         <div id="allergen-sheet" className="cc-elev rounded-xl border p-5" style={{ background: C.paper, borderColor: C.line }}>
           <h1 className="text-xl font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>What's on: allergen and dietary guide</h1>
@@ -3782,7 +3835,7 @@ function TheCurfewCellarApp() {
           {groups.length === 0 && <p className="mt-4 text-sm text-slate-400">Nothing on right now.</p>}
           {groups.map((g) => (
             <div key={g.title} className="mt-4">
-              <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: C.brass }}>{g.title}</h3>
+              <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: C.accent }}>{g.title}</h3>
               <div className="mt-1 divide-y" style={{ borderColor: C.line }}>
                 {g.items.map((l) => {
                   const beer = beerById[l.beerId];
@@ -3830,8 +3883,8 @@ function TheCurfewCellarApp() {
     return (
       <div className="space-y-4">
         <div className="no-print flex items-center justify-end gap-2">
-          <button onClick={sharePDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-1.5 py-1.5 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40 focus:outline-none" style={{ color: "#778883" }}>{pdfBusy ? <Loader2 className="animate-spin" size={13} /> : <Share size={13} />} Share</button>
-          <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Printer size={15} /> Print</button>
+          <button onClick={sharePDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-1.5 py-1.5 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40 focus:outline-none" style={{ color: C.muted }}>{pdfBusy ? <Loader2 className="animate-spin" size={13} /> : <Share size={13} />} Share</button>
+          <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ background: C.ink }}><Printer size={15} /> Print</button>
         </div>
         <div className="cc-elev rounded-xl border p-5" style={{ background: C.paper, borderColor: C.line }}>
           {fmtUpdated(lastUpdated) && <p className="text-xs text-slate-400">Last updated: {fmtUpdated(lastUpdated)}</p>}
@@ -3839,7 +3892,7 @@ function TheCurfewCellarApp() {
           <Section title="Pouring" items={onL} withStage={false} beerById={beerById} />
           {prep.length > 0 && (
             <div className="mt-4">
-              <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: C.brass }}>Racked · {prep.length}</h3>
+              <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: C.accent }}>Racked · {prep.length}</h3>
               {prepGroups.map((g) => (
                 <div key={g.label} className="mt-2">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{g.label}</p>
@@ -3850,7 +3903,7 @@ function TheCurfewCellarApp() {
           )}
           {storeL.length > 0 && (
             <div className="mt-4">
-              <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: C.brass }}>In Store · {storeL.length}</h3>
+              <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: C.accent }}>In Store · {storeL.length}</h3>
               {storeGroups.map((g) => (
                 <div key={g.label} className="mt-2">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{g.label}</p>
@@ -3875,15 +3928,15 @@ function TheCurfewCellarApp() {
     return (
       <div className="flex-1 overflow-y-auto" style={{ background: C.ink, overscrollBehaviorY: "none", WebkitOverflowScrolling: "touch", touchAction: "manipulation" }}>
         <div className="mx-auto max-w-2xl px-5 py-8">
-          <div style={{ border: "1.5px solid rgba(184,134,43,0.4)", borderBottom: "none", borderTopLeftRadius: 130, borderTopRightRadius: 130, padding: "28px 22px 4px" }}>
+          <div style={{ borderTopLeftRadius: 130, borderTopRightRadius: 130, padding: "28px 22px 20px", background: "linear-gradient(180deg, #8ACFCE 0%, #C5E0DA 45%, #E3E8E1 75%, #F6EDE5 100%)" }}>
             <div className="flex flex-col items-center text-center">
-              <div className="grid h-11 w-11 place-items-center rounded-full" style={{ background: C.brass, color: C.ink }}><Bell size={22} /></div>
-              <p className="mt-2.5 text-2xl font-semibold leading-tight" style={{ color: C.cream, fontFamily: "var(--font-brand)", letterSpacing: "0.03em" }}>{PUB_CONFIG.name}</p>
-              <p className="mt-0.5 text-xs uppercase tracking-widest" style={{ color: C.brassSoft }}>What's on today</p>
-              {fmtUpdated(lastUpdated) && <p className="mt-2 text-xs" style={{ color: "rgba(243,239,230,0.5)" }}>Last updated: {fmtUpdated(lastUpdated)}</p>}
+              <img src={PUB_LOGO_INK} alt="" style={{ width: 64, height: 64 }} />
+              <p className="mt-2.5 text-2xl font-semibold leading-tight" style={{ color: C.ink, fontFamily: "var(--font-brand)", letterSpacing: "0.03em" }}>{PUB_CONFIG.name}</p>
+              <p className="mt-0.5 text-xs uppercase tracking-widest" style={{ color: C.accent }}>What's on today</p>
+              {fmtUpdated(lastUpdated) && <p className="mt-2 text-xs" style={{ color: "rgba(32,59,67,0.6)" }}>Last updated: {fmtUpdated(lastUpdated)}</p>}
               <div className="mt-1 flex items-center gap-4">
-                <button onClick={shareTapListPDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-0 py-1 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40" style={{ color: "rgba(209,164,74,0.75)" }}>{pdfBusy ? <Loader2 className="animate-spin" size={12} /> : <Share size={12} />} Share</button>
-                <button onClick={() => go("cellar")} className="inline-flex items-center px-0 py-1 text-xs font-medium transition hover:opacity-70" style={{ color: "rgba(209,164,74,0.75)" }}>Exit preview</button>
+                <button onClick={shareTapListPDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-0 py-1 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40" style={{ color: C.accent }}>{pdfBusy ? <Loader2 className="animate-spin" size={12} /> : <Share size={12} />} Share</button>
+                <button onClick={() => go("cellar")} className="inline-flex items-center px-0 py-1 text-xs font-medium transition hover:opacity-70" style={{ color: C.accent }}>Exit preview</button>
               </div>
             </div>
           </div>
@@ -3893,7 +3946,7 @@ function TheCurfewCellarApp() {
 
             {caskByCat.length > 0 && (
               <section className="mb-7">
-                <h2 className="mb-2 text-sm font-semibold uppercase tracking-widest" style={{ color: C.brass }}>Cask ale</h2>
+                <h2 className="mb-2 text-sm font-semibold uppercase tracking-widest" style={{ color: C.accent }}>Cask ale</h2>
                 {caskByCat.map((g) => (
                   <div key={g.cat} className="mb-3">
                     <p className="text-xs uppercase tracking-wide" style={{ color: "rgba(243,239,230,0.5)" }}>{g.cat}</p>
@@ -3905,14 +3958,14 @@ function TheCurfewCellarApp() {
 
             {keg.length > 0 && (
               <section className="mb-7">
-                <h2 className="mb-2 text-sm font-semibold uppercase tracking-widest" style={{ color: C.brass }}>Keg</h2>
+                <h2 className="mb-2 text-sm font-semibold uppercase tracking-widest" style={{ color: C.accent }}>Keg</h2>
                 {keg.map((l) => <Item key={l.id} line={l} beerById={beerById} />)}
               </section>
             )}
 
             {cider.length > 0 && (
               <section className="mb-7">
-                <h2 className="mb-2 text-sm font-semibold uppercase tracking-widest" style={{ color: C.brass }}>Draught cider</h2>
+                <h2 className="mb-2 text-sm font-semibold uppercase tracking-widest" style={{ color: C.accent }}>Draught cider</h2>
                 {cider.map((l) => <Item key={l.id} line={l} beerById={beerById} />)}
               </section>
             )}
@@ -3946,7 +3999,7 @@ function TheCurfewCellarApp() {
     const previewBeer = previewLine ? beerById[previewLine.beerId] : null;
     const pmeta = previewBeer ? [DRINK_TYPES.find((t) => t.key === previewLine.drinkType)?.label, previewBeer.style, `${previewBeer.abv}%`, previewLine.price ? `£${previewLine.price}` : "no price set", previewLine.size ? previewLine.size.replace("Bag-in-box ", "").replace("Keg ", "") : ""].filter(Boolean).join("  ·  ") : "";
     return (
-      <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(30, 58, 70,0.45)" }} onClick={close}>
+      <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(32, 59, 67,0.45)" }} onClick={close}>
         <div className="flex w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-white sm:rounded-2xl cc-pop" style={{ maxHeight: "85vh" }} onClick={(e) => e.stopPropagation()}>
           {previewBeer ? (
             <>
@@ -3966,20 +4019,20 @@ function TheCurfewCellarApp() {
                   <p className="text-base font-medium text-slate-700">{pmeta}</p>
                   <DietaryBadges beer={previewBeer} />
                 </div>
-                {previewBeer.notes && <div><Eyebrow>Tasting notes</Eyebrow><ul className="space-y-1">{splitNote(previewBeer.notes).map((line, i) => <li key={i} className="flex gap-1.5 text-sm leading-snug text-slate-600"><span style={{ color: C.brass }}>•</span><span>{line}.</span></li>)}</ul></div>}
+                {previewBeer.notes && <div><Eyebrow>Tasting notes</Eyebrow><ul className="space-y-1">{splitNote(previewBeer.notes).map((line, i) => <li key={i} className="flex gap-1.5 text-sm leading-snug text-slate-600"><span style={{ color: C.accent }}>•</span><span>{line}.</span></li>)}</ul></div>}
                 <div>
                   <Eyebrow>Allergens</Eyebrow>
                   {previewBeer.allergens.length ? <div className="flex flex-wrap gap-1.5">{previewBeer.allergens.map((a) => <Badge key={a} className="bg-slate-100 text-slate-700 border-slate-200">{a}</Badge>)}</div> : <p className="text-sm text-slate-500">None recorded.</p>}
                   {!previewBeer.allergensVerified ? (
                     <div className="mt-2 flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-sm text-amber-800">
                       <span className="flex items-center gap-1.5"><AlertTriangle size={15} /> Not staff verified yet</span>
-                      {canService && <button onClick={() => verify(previewBeer.id)} className="shrink-0 rounded-md bg-amber-800 px-2.5 py-1 text-xs font-medium text-white hover:bg-amber-900">Verify</button>}
+                      {canService && <button onClick={() => verify(previewBeer.id)} className="shrink-0 rounded-md px-2.5 py-1 text-xs font-medium text-white transition hover:opacity-90" style={{ background: C.accent }}>Verify</button>}
                     </div>
-                  ) : <p className="mt-2 flex items-center gap-1.5 text-sm text-emerald-700"><CheckCircle2 size={15} /> Verified by staff</p>}
+                  ) : <p className="mt-2 flex items-center gap-1.5 text-sm" style={{ color: C.accent }}><CheckCircle2 size={15} /> Verified by staff</p>}
                 </div>
               </div>
               <div className="sticky bottom-0 border-t bg-white p-4" style={{ borderColor: C.line }}>
-                {canService && <button onClick={() => doSwap(previewLine.id, swap.oldId, swap.slot)} className="flex w-full items-center justify-center gap-1.5 rounded-lg px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Check size={16} /> {swap.toRack ? "Rack this cask" : "Put on"}</button>}
+                {canService && <button onClick={() => doSwap(previewLine.id, swap.oldId, swap.slot)} className="flex w-full items-center justify-center gap-1.5 rounded-lg px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ background: C.ink }}><Check size={16} /> {swap.toRack ? "Rack this cask" : "Put on"}</button>}
               </div>
             </>
           ) : (
@@ -4000,7 +4053,10 @@ function TheCurfewCellarApp() {
                       if (!beer) return null;
                       const when = dateForStatus(l);
                       return (
-                        <button key={l.id} onClick={() => setSwapPreviewId(l.id)} className="flex w-full items-center justify-between gap-2 rounded-xl border p-3 text-left transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.paper, borderColor: C.line, borderLeftWidth: 3, borderLeftColor: TYPE_ACCENT[swap.drink] || C.line }}>
+                        <button key={l.id} onClick={() => setSwapPreviewId(l.id)} className="relative flex w-full items-center justify-between gap-2 overflow-hidden rounded-xl border py-3 pr-3 text-left transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ background: C.paper, borderColor: C.line, paddingLeft: 20 }}>
+                          <span aria-hidden="true" style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 14, background: C.ink }}>
+                            <span style={{ position: "absolute", left: 3, top: 0, bottom: 0, width: 11, background: CAT_ACCENT[beer && beer.category] || CAT_ACCENT.Misc }} />
+                          </span>
                           <span className="min-w-0">
                             <span className="flex items-center gap-1.5">
                               <CatDot category={beer.category} />
@@ -4028,13 +4084,13 @@ function TheCurfewCellarApp() {
   const CombineModal = () => {
     if (!combineCandidate) return null;
     return (
-      <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(30, 58, 70,0.45)" }} onClick={() => { setCombineCandidate(null); setCombineKeepId(null); }}>
+      <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(32, 59, 67,0.45)" }} onClick={() => { setCombineCandidate(null); setCombineKeepId(null); }}>
         <div className="w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white sm:rounded-2xl cc-pop p-5" style={{ maxHeight: "92vh" }} onClick={(e) => e.stopPropagation()}>
           <h2 className="text-lg font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)" }}>Combine these two?</h2>
           <p className="mt-1 text-sm text-slate-500">Pick which one to keep. All stock history from the other moves across to it, then it's deleted.</p>
           <div className="mt-3 space-y-2">
             {combineCandidate.map((b) => (
-              <button key={b.id} onClick={() => setCombineKeepId(b.id)} className="w-full rounded-lg border p-3 text-left transition" style={{ borderColor: combineKeepId === b.id ? C.brass : C.line, background: combineKeepId === b.id ? "#FBF3E3" : "white" }}>
+              <button key={b.id} onClick={() => setCombineKeepId(b.id)} className="w-full rounded-lg border p-3 text-left transition" style={{ borderColor: combineKeepId === b.id ? C.accent : C.line, background: combineKeepId === b.id ? "#EFF6F5" : "white" }}>
                 <div className="flex items-center gap-2">
                   <input type="radio" checked={combineKeepId === b.id} readOnly className="h-4 w-4" />
                   <span className="font-semibold" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{b.brewery || "?"} - {b.name}</span>
@@ -4080,19 +4136,21 @@ function TheCurfewCellarApp() {
       : [beer.style, extraSweetness(beer) || null, beer.abv ? `${beer.abv}%` : null].filter(Boolean).join("  ·  ");
     const measures = priceTriple(openLine ? openLine.price : (latestPrice(beer) || beer.price));
     return (
-      <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(30, 58, 70,0.45)" }} onClick={close}>
+      <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(32, 59, 67,0.45)" }} onClick={close}>
         <div className="w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white sm:rounded-2xl cc-pop" style={{ maxHeight: "92vh", overscrollBehaviorY: "none", WebkitOverflowScrolling: "touch", touchAction: "manipulation" }} onClick={(e) => e.stopPropagation()}>
-          <div className="sticky top-0 z-10 flex items-start justify-between gap-3 p-4 pl-5" style={{ background: "linear-gradient(180deg, #254752 0%, #1E3A46 100%)", borderLeft: `4px solid ${(openLine && TYPE_ACCENT[openLine.drinkType]) || C.brass}`, boxShadow: "0 1px 0 rgba(184,134,43,0.28)" }}>
+          <div className="relative sticky top-0 z-10 flex items-start justify-between gap-3 p-4 pl-5" style={{ background: "linear-gradient(180deg, #274852 0%, #203B43 100%)", boxShadow: "0 1px 0 rgba(138, 207, 206,0.28)" }}>
+            <span aria-hidden="true" title={beer.category || "Misc"} style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 14, background: C.ink }}>
+              <span style={{ position: "absolute", left: 3, top: 0, bottom: 0, width: 11, background: CAT_ACCENT[beer.category] || CAT_ACCENT.Misc }} />
+            </span>
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <CatDot category={beer.category} />
+              <div>
                 <h2 className="text-xl font-normal leading-snug" style={{ color: C.cream, fontFamily: "var(--font-display)", letterSpacing: "0.01em" }}>{(() => { const t = splitTitle(beer.brewery, beer.name, beer.collabBrewery); return <>{t.lead && <span className="font-bold" style={{ color: C.cream }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()}</h2>
               </div>
-              {locationDisplay(beer) ? <p className="mt-1 text-xs font-semibold uppercase" style={{ color: C.brassSoft, letterSpacing: "0.14em", fontFamily: "var(--font-data)" }}>{locationDisplay(beer)}</p> : null}
+              {locationDisplay(beer) ? <p className="mt-1 text-xs font-semibold uppercase" style={{ color: C.accentSoft, letterSpacing: "0.14em", fontFamily: "var(--font-data)" }}>{locationDisplay(beer)}</p> : null}
             </div>
             <div className="flex shrink-0 items-center gap-1">
-              <button onClick={() => copyBeerName(beer)} title="Copy brewery and beer name" className="rounded-lg p-1.5 transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ color: "rgba(243,239,230,0.75)" }}><Copy size={16} /></button>
-              <button onClick={close} className="rounded-lg p-1.5 transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ color: "rgba(243,239,230,0.75)" }}><X size={18} /></button>
+              <button onClick={() => copyBeerName(beer)} title="Copy brewery and beer name" className="rounded-lg p-1.5 transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ color: "rgba(243,239,230,0.75)" }}><Copy size={16} /></button>
+              <button onClick={close} className="rounded-lg p-1.5 transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ color: "rgba(243,239,230,0.75)" }}><X size={18} /></button>
             </div>
           </div>
           <div className="space-y-5 p-5">
@@ -4108,7 +4166,7 @@ function TheCurfewCellarApp() {
               <DietaryBadges beer={beer} />
             </div>
 
-            {beer.notes && <div><Eyebrow>Tasting notes</Eyebrow><ul className="space-y-1">{splitNote(beer.notes).map((line, i) => <li key={i} className="flex gap-1.5 text-sm leading-snug text-slate-600"><span style={{ color: C.brass }}>•</span><span>{line}.</span></li>)}</ul></div>}
+            {beer.notes && <div><Eyebrow>Tasting notes</Eyebrow><ul className="space-y-1">{splitNote(beer.notes).map((line, i) => <li key={i} className="flex gap-1.5 text-sm leading-snug text-slate-600"><span style={{ color: C.accent }}>•</span><span>{line}.</span></li>)}</ul></div>}
 
             <div>
               <Eyebrow>Allergens</Eyebrow>
@@ -4116,9 +4174,9 @@ function TheCurfewCellarApp() {
               {!beer.allergensVerified ? (
                 <div className="mt-2 flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-sm text-amber-800">
                   <span className="flex items-center gap-1.5"><AlertTriangle size={15} /> Not staff verified yet</span>
-                  {canService && <button onClick={() => verify(beer.id)} className="shrink-0 rounded-md bg-amber-800 px-2.5 py-1 text-xs font-medium text-white hover:bg-amber-900">Verify</button>}
+                  {canService && <button onClick={() => verify(beer.id)} className="shrink-0 rounded-md px-2.5 py-1 text-xs font-medium text-white transition hover:opacity-90" style={{ background: C.accent }}>Verify</button>}
                 </div>
-              ) : <p className="mt-2 flex items-center gap-1.5 text-sm text-emerald-700"><CheckCircle2 size={15} /> Verified by staff</p>}
+              ) : <p className="mt-2 flex items-center gap-1.5 text-sm" style={{ color: C.accent }}><CheckCircle2 size={15} /> Verified by staff</p>}
             </div>
 
             {openLine && (
@@ -4145,8 +4203,8 @@ function TheCurfewCellarApp() {
                     const cur = i === stageIdx;
                     return (
                       <div key={s.key} className="flex-1 text-center">
-                        <div className="h-1 rounded-full" style={{ background: done ? C.brass : "#E6E2D8" }} />
-                        <p className="mt-1 text-xs leading-tight" style={{ color: cur ? C.ink : "#A8AEB8", fontWeight: cur ? 600 : 400 }}>{s.key === "tapped" ? "Tapped" : s.label}</p>
+                        <div className="h-1 rounded-full" style={{ background: done ? (STAGE_ACCENT[key] || C.accent) : "#E6E2D8" }} />
+                        <p className="mt-1 text-xs leading-tight" style={{ color: cur ? C.ink : "#5E7278", fontWeight: cur ? 600 : 400 }}>{s.key === "tapped" ? "Tapped" : s.label}</p>
                       </div>
                     );
                   })}
@@ -4156,14 +4214,14 @@ function TheCurfewCellarApp() {
                 <div className="mt-3 flex gap-2">
                   {stageIdx > 0 && <button onClick={() => goBack(openLine.id)} className="inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-lg border bg-white px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><ArrowRight size={15} className="rotate-180" /> Back to {flow[stageIdx - 1] === "tapped" ? "Tapped" : STATUS_BY_KEY[flow[stageIdx - 1]].label}</button>}
                   {openLine.status === "on"
-                    ? <button onClick={() => finishAndChoose(openLine)} className="inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}><Check size={16} /> Line finished</button>
+                    ? <button onClick={() => finishAndChoose(openLine)} className="inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ background: C.ink }}><Check size={16} /> Line finished</button>
                     : stageIdx < flow.length - 1
-                      ? <button onClick={() => advance(openLine.id)} className="inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: C.ink }}>Advance to {flow[stageIdx + 1] === "tapped" ? "Tapped" : STATUS_BY_KEY[flow[stageIdx + 1]].label} <ArrowRight size={15} /></button>
+                      ? <button onClick={() => advance(openLine.id)} className="inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ background: C.ink }}>Advance to {flow[stageIdx + 1] === "tapped" ? "Tapped" : STATUS_BY_KEY[flow[stageIdx + 1]].label} <ArrowRight size={15} /></button>
                       : null}
                 </div>
                 )}
                 {openLine.status === "off" && openLine.drinkType !== "cider" && openLine.drinkType !== "keykeg" && (openLine.collected
-                  ? <p className="mt-2.5 flex items-center gap-1.5 text-sm text-emerald-700"><CheckCircle2 size={15} /> Empty collected</p>
+                  ? <p className="mt-2.5 flex items-center gap-1.5 text-sm" style={{ color: C.accent }}><CheckCircle2 size={15} /> Empty collected</p>
                   : canService && <button onClick={() => markCollected(openLine.id)} className="mt-2.5 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><Check size={15} /> Mark empty collected</button>)}
               </div>
             )}
@@ -4187,20 +4245,20 @@ function TheCurfewCellarApp() {
         <FontBoot />
         <div className="w-full max-w-xs">
           <div className="mb-6 text-center">
-            <Bell size={26} className="mx-auto mb-2.5" style={{ color: C.brassSoft }} aria-hidden="true" />
+            <img src={PUB_LOGO} alt="" className="mx-auto mb-2.5" style={{ width: 64, height: 64 }} />
             <p className="text-2xl font-bold" style={{ color: C.cream, fontFamily: "var(--font-brand)", letterSpacing: "0.03em" }}>{PUB_CONFIG.name}</p>
-            <p className="mt-1 text-xs uppercase tracking-widest" style={{ color: C.brassSoft }}>Cellar Management</p>
+            <p className="mt-1 text-xs uppercase tracking-widest" style={{ color: C.accentSoft }}>Cellar Management</p>
           </div>
           {authChecking ? (
-            <p className="text-center text-sm" style={{ color: C.brassSoft }}>Checking…</p>
+            <p className="text-center text-sm" style={{ color: C.accentSoft }}>Checking…</p>
           ) : !authed ? (
             <div className="space-y-3">
-              <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") doLogin(); }} placeholder="Pub password" autoFocus className="w-full rounded-lg px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" style={{ background: "rgba(255,255,255,0.08)", color: C.cream, border: `1px solid ${C.brass}` }} />
-              {authErr && <p className="text-xs" style={{ color: "#f3b4b4" }}>{authErr}</p>}
-              <button onClick={doLogin} disabled={authBusy || !pw.trim()} className="w-full rounded-lg px-4 py-3 text-sm font-semibold transition active:scale-95 disabled:opacity-50" style={{ background: C.brass, color: C.ink }}>{authBusy ? "Signing in…" : "Unlock"}</button>
+              <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") doLogin(); }} placeholder="Pub password" autoFocus className="w-full rounded-lg px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ background: "rgba(255,255,255,0.08)", color: C.cream, border: `1px solid ${C.accent}` }} />
+              {authErr && <p className="text-xs" style={{ color: "#E4958B" }}>{authErr}</p>}
+              <button onClick={doLogin} disabled={authBusy || !pw.trim()} className="w-full rounded-lg px-4 py-3 text-sm font-semibold transition active:scale-95 disabled:opacity-50" style={{ background: C.accent, color: C.ink }}>{authBusy ? "Signing in…" : "Unlock"}</button>
             </div>
           ) : (
-            <p className="text-center text-sm" style={{ color: C.brassSoft }}>Loading the cellar…</p>
+            <p className="text-center text-sm" style={{ color: C.accentSoft }}>Loading the cellar…</p>
           )}
         </div>
       </div>
@@ -4212,17 +4270,17 @@ function TheCurfewCellarApp() {
       <div className="flex min-h-screen w-full items-center justify-center p-6" style={{ background: C.ink }}>
         <FontBoot />
         <div className="w-full max-w-xs text-center">
-          <AlertTriangle className="mx-auto mb-3" size={28} color={C.brassSoft} />
+          <AlertTriangle className="mx-auto mb-3" size={28} color={C.accentSoft} />
           <p className="text-lg font-semibold" style={{ color: C.cream, fontFamily: "var(--font-display)" }}>Could not load the cellar</p>
           <p className="mt-2 text-sm" style={{ color: "rgba(243,239,230,0.7)" }}>Check your connection and try again. Editing stays paused until this loads, so nothing gets overwritten.</p>
-          <button onClick={() => loadCellar()} className="mt-4 w-full rounded-lg px-4 py-3 text-sm font-semibold transition active:scale-95" style={{ background: C.brass, color: C.ink }}>Try again</button>
+          <button onClick={() => loadCellar()} className="mt-4 w-full rounded-lg px-4 py-3 text-sm font-semibold transition active:scale-95" style={{ background: C.accent, color: C.ink }}>Try again</button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex w-full flex-col" style={{ background: "linear-gradient(180deg, #F6F1E4 0%, #EEE7D5 60%)", fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", height: "100dvh", overflow: "hidden" }}>
+    <div className="flex w-full flex-col" style={{ background: "linear-gradient(180deg, #D3E3E1 0%, #E9E9E6 40%, #F6EDE5 100%)", fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", height: "100dvh", overflow: "hidden" }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap');
 :root { --font-data: 'Archivo', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; --font-display: 'Archivo', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
 .cc-brandtrack{letter-spacing:0.04em;}
@@ -4249,29 +4307,39 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
 .cc-press:active{transform:scale(.975)}
 /* Layered elevation: a tight contact shadow plus a soft ambient one, so surfaces read as
    sitting on the page rather than drawn onto it. */
-.cc-elev{box-shadow:0 1px 2px rgba(30, 58, 70,0.05), 0 8px 20px -12px rgba(30, 58, 70,0.16);}
-.cc-elev-lg{box-shadow:0 1px 3px rgba(30, 58, 70,0.06), 0 16px 34px -18px rgba(30, 58, 70,0.22);}
-.cc-tile{box-shadow:0 1px 2px rgba(30, 58, 70,0.06), 0 6px 14px -8px rgba(30, 58, 70,0.18);transition:transform .16s cubic-bezier(.16,1,.3,1), box-shadow .2s ease}
-.cc-tile:hover{transform:translateY(-2px);box-shadow:0 2px 4px rgba(30, 58, 70,0.07), 0 12px 24px -10px rgba(30, 58, 70,0.24)}
+.cc-elev{box-shadow:0 1px 2px rgba(32, 59, 67,0.05), 0 8px 20px -12px rgba(32, 59, 67,0.16);}
+.cc-elev-lg{box-shadow:0 1px 3px rgba(32, 59, 67,0.06), 0 16px 34px -18px rgba(32, 59, 67,0.22);}
+.cc-tile{box-shadow:0 1px 2px rgba(32, 59, 67,0.06), 0 6px 14px -8px rgba(32, 59, 67,0.18);transition:transform .16s cubic-bezier(.16,1,.3,1), box-shadow .2s ease}
+.cc-tile:hover{transform:translateY(-2px);box-shadow:0 2px 4px rgba(32, 59, 67,0.07), 0 12px 24px -10px rgba(32, 59, 67,0.24)}
 .cc-tile:active{transform:scale(.975)}
 @media (prefers-reduced-motion: reduce){.cc-fade,.cc-rise,.cc-stagger>*,.cc-overlay,.cc-pop,.cc-sheet{animation:none}.cc-press{transition:none}}
 /* Retint Tailwind's default cool-blue slate scale to a warm, teal-tinted neutral so
    secondary text and hairlines sit with the brand instead of fighting its warm palette. */
-.text-slate-300{color:#B7BCB4!important}.text-slate-400{color:#96A19B!important}
-.text-slate-500{color:#778883!important}.text-slate-600{color:#59716C!important}
-.text-slate-700{color:#3C4F4B!important}.border-slate-200{border-color:#DEDBCD!important}
-.border-slate-300{border-color:#C7C6B7!important}.bg-slate-50{background-color:#F5F2E9!important}
-.bg-slate-100{background-color:#EDEADC!important}.hover\:bg-slate-50:hover{background-color:#F5F2E9!important}
-.hover\:text-slate-600:hover{color:#59716C!important}.hover\:text-slate-700:hover{color:#3C4F4B!important}
-.focus\:ring-slate-300:focus{--tw-ring-color:#C7C6B7!important}
-.focus\:ring-slate-400:focus{--tw-ring-color:#96A19B!important}`}</style>
+.text-slate-300{color:#99ADB2!important}.text-slate-400{color:#51666C!important}
+.text-slate-500{color:#4B5D63!important}.text-slate-600{color:#3B4A4E!important}
+.text-slate-700{color:#2E3A3D!important}.border-slate-200{border-color:#E0DAD4!important}
+.border-slate-300{border-color:#CFC7BF!important}.bg-slate-50{background-color:#F3EEE9!important}
+.bg-slate-100{background-color:#EAE3DC!important}.hover\:bg-slate-50:hover{background-color:#F3EEE9!important}
+.hover\:text-slate-600:hover{color:#3B4A4E!important}.hover\:text-slate-700:hover{color:#2E3A3D!important}
+.focus\:ring-slate-300:focus{--tw-ring-color:#CFC7BF!important}
+.focus\:ring-slate-400:focus{--tw-ring-color:#51666C!important}
+.focus\:ring-teal-300:focus{--tw-ring-color:#8ACFCE!important}
+input::placeholder,textarea::placeholder{color:#4A5D63!important;opacity:1!important}
+.text-slate-800{color:#263236!important}.text-slate-900{color:#1B2528!important}
+.text-emerald-700{color:#1F6B6A!important}.bg-emerald-50{background-color:#E7F1F0!important}
+.border-emerald-200{border-color:#BFD9D7!important}
+.text-red-600{color:#B23A2C!important}.text-red-700{color:#9A3226!important}
+.hover\:text-red-700:hover{color:#9A3226!important}
+.text-amber-500{color:#B23A2C!important}.text-amber-700{color:#8E3426!important}
+.text-amber-800{color:#7A2D21!important}.text-amber-900{color:#66261C!important}
+.bg-amber-50{background-color:#FBF0ED!important}.border-amber-200{border-color:#EFD3CC!important}`}</style>
       {view === "taplist" ? TapList() : (<>
-      <header className="no-print relative z-40 border-b" style={{ background: "linear-gradient(180deg, #254752 0%, #1E3A46 100%)", borderColor: "rgba(184,134,43,0.35)", boxShadow: "0 1px 0 rgba(184,134,43,0.22), 0 10px 26px -18px rgba(0,0,0,0.65)", paddingTop: "env(safe-area-inset-top)" }}>
+      <header className="no-print relative z-40 border-b" style={{ background: "linear-gradient(180deg, #274852 0%, #203B43 100%)", borderColor: "rgba(138, 207, 206,0.35)", boxShadow: "0 1px 0 rgba(138, 207, 206,0.22), 0 10px 26px -18px rgba(0,0,0,0.65)", paddingTop: "env(safe-area-inset-top)" }}>
         <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 py-2.5">
           <div className="flex items-center gap-2.5">
             <div className="relative">
-              <button onClick={() => setShowAlerts((v) => !v)} className="relative flex items-center rounded-lg p-0.5 transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-amber-300" aria-label={`Needs attention: ${attentionItems.length}`}>
-                <Bell size={19} style={{ color: attentionItems.length ? C.brassSoft : "rgba(209,164,74,0.6)", flexShrink: 0 }} />
+              <button onClick={() => setShowAlerts((v) => !v)} className="relative flex items-center rounded-lg p-0.5 transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-teal-300" aria-label={`Needs attention: ${attentionItems.length}`}>
+                <Bell size={19} style={{ color: attentionItems.length ? C.accentSoft : "rgba(138,207,206,0.6)", flexShrink: 0 }} />
                 {attentionItems.length > 0 && (
                   <span className="absolute -right-1 -top-1 grid place-items-center rounded-full px-1" style={{ height: 16, minWidth: 16, background: C.alert, color: "#fff", fontFamily: "var(--font-data)", fontSize: 10, fontWeight: 700, lineHeight: 1 }}>{attentionItems.length > 9 ? "9+" : attentionItems.length}</span>
                 )}
@@ -4281,12 +4349,12 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
                   <div className="fixed inset-0 z-40" onClick={() => setShowAlerts(false)} />
                   <div className="cc-pop absolute left-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-xl border bg-white shadow-xl" style={{ borderColor: C.line }}>
                     <div className="flex items-center gap-1.5 border-b px-3 py-2" style={{ borderColor: C.line }}>
-                      <AlertTriangle size={13} style={{ color: C.brass }} />
-                      <span className="uppercase" style={{ color: C.brass, fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}>Needs attention</span>
+                      <AlertTriangle size={13} style={{ color: C.accent }} />
+                      <span className="uppercase" style={{ color: C.accent, fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}>Needs attention</span>
                     </div>
                     {attentionItems.length === 0 ? (
                       <div className="px-3 py-6 text-center">
-                        <CheckCircle2 size={20} className="mx-auto mb-1.5" style={{ color: "#5E8C4F" }} />
+                        <CheckCircle2 size={20} className="mx-auto mb-1.5" style={{ color: C.accent }} />
                         <p className="text-sm text-slate-500">All good. Nothing needs a look right now.</p>
                       </div>
                     ) : (
@@ -4294,7 +4362,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
                         {attentionItems.map((a, i) => (
                           <li key={`${a.id}-${i}`}>
                             <button onClick={() => { setShowAlerts(false); a.backup ? go("backup") : a.lineCare ? go("lines") : (go("cellar"), setOpenId(a.id)); }} className="flex w-full items-start gap-2 px-3 py-2 text-left text-sm transition hover:bg-slate-50 focus:outline-none" style={{ color: a.warn ? C.alert : C.inkSoft }}>
-                              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: a.warn ? C.alert : C.brass }} />
+                              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: a.warn ? C.alert : C.accent }} />
                               <span className="min-w-0 flex-1">{a.text}</span>
                             </button>
                           </li>
@@ -4306,13 +4374,13 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
               )}
             </div>
             <p className="text-base font-semibold leading-none" style={{ color: C.cream, fontFamily: "var(--font-brand)", letterSpacing: "0.025em" }}>{PUB_CONFIG.name}</p>
-            <p className="hidden sm:inline" style={{ color: C.brassSoft, fontFamily: "var(--font-data)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.14em", lineHeight: 1 }}>Cellar</p>
+            <p className="hidden sm:inline" style={{ color: C.accentSoft, fontFamily: "var(--font-data)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.14em", lineHeight: 1 }}>Cellar</p>
           </div>
           <nav className="relative hidden items-center gap-1 sm:flex">
             <NavButton id="cellar" icon={ClipboardList} label="Cellar" view={view} go={go} />
             {canEdit && <NavButton id="add" icon={Plus} label="Add" view={view} go={go} />}
             <NavButton id="empties" icon={Package} label="Empties" view={view} go={go} />
-            <button onClick={() => setMenuOpen((v) => !v)} style={{ color: C.cream }} className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-amber-300"><MoreHorizontal size={16} /><span className="hidden sm:inline">More</span></button>
+            <button onClick={() => setMenuOpen((v) => !v)} style={{ color: C.cream }} className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-teal-300"><MoreHorizontal size={16} /><span className="hidden sm:inline">More</span></button>
             {menuOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
@@ -4335,7 +4403,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
             {VIEW_TITLES[view] && (
               <div className="no-print mb-5">
                 <h1 className="text-2xl font-bold" style={{ color: C.ink, fontFamily: "var(--font-brand)", letterSpacing: "0.02em" }}>{VIEW_TITLES[view]}</h1>
-                <div className="mt-2 h-1 w-10 rounded-full" style={{ background: C.brass }} />
+                <div className="mt-2 h-1 w-10 rounded-full" style={{ background: C.accent }} />
               </div>
             )}
             <div key={view} className="cc-fade">
@@ -4363,14 +4431,14 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
       </footer>
       </div>
 
-      <nav className="no-print fixed inset-x-0 bottom-0 z-40 border-t bg-white sm:hidden" style={{ borderColor: C.line, paddingBottom: "env(safe-area-inset-bottom)", boxShadow: "0 -6px 22px -14px rgba(30, 58, 70,0.4)" }}>
+      <nav className="no-print fixed inset-x-0 bottom-0 z-40 border-t bg-white sm:hidden" style={{ borderColor: C.line, paddingBottom: "env(safe-area-inset-bottom)", boxShadow: "0 -6px 22px -14px rgba(32, 59, 67,0.4)" }}>
         <div className="mx-auto flex max-w-md items-end justify-around px-2">
           <BottomTab id="cellar" icon={ClipboardList} label="Cellar" view={view} go={go} />
           <BottomTab id="library" icon={BookOpen} label="Library" view={view} go={go} />
           {canEdit && (
             <button onClick={() => go("add")} className="flex flex-1 flex-col items-center justify-center transition active:scale-95 focus:outline-none">
-              <span className="-mt-5 grid h-12 w-12 place-items-center rounded-full" style={{ background: C.brass, color: C.ink, boxShadow: "0 6px 16px -6px rgba(184,134,43,0.65)" }}><Plus size={24} /></span>
-              <span className="mt-0.5 text-xs font-medium" style={{ color: view === "add" ? C.brass : C.inkSoft }}>Add</span>
+              <span className="-mt-5 grid h-12 w-12 place-items-center rounded-full" style={{ background: C.accent, color: C.ink, boxShadow: "0 6px 16px -6px rgba(138, 207, 206,0.65)" }}><Plus size={24} /></span>
+              <span className="mt-0.5 text-xs font-medium" style={{ color: view === "add" ? C.accent : C.inkSoft }}>Add</span>
             </button>
           )}
           <BottomTab id="empties" icon={Package} label="Empties" view={view} go={go} />
@@ -4380,7 +4448,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
 
       {menuOpen && (
         <div className="no-print fixed inset-0 z-50 sm:hidden">
-          <div className="absolute inset-0 cc-overlay" style={{ background: "rgba(30, 58, 70,0.45)" }} onClick={() => setMenuOpen(false)} />
+          <div className="absolute inset-0 cc-overlay" style={{ background: "rgba(32, 59, 67,0.45)" }} onClick={() => setMenuOpen(false)} />
           <div className="cc-sheet absolute inset-x-0 bottom-0 rounded-t-2xl bg-white p-4" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 16px)" }}>
             <div className="mx-auto mb-3 h-1.5 w-10 rounded-full" style={{ background: C.line }} />
             <div className="grid grid-cols-3 gap-2.5">
@@ -4394,7 +4462,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
                   const lone = i === menuItems.length - 1 && menuItems.length % 3 === 1;
                   return (
                     <button key={id} onClick={() => { setMenuOpen(false); go(id); }} className={`flex flex-col items-center justify-center gap-1.5 rounded-xl border p-3 transition active:scale-95${lone ? " col-span-3" : ""}`} style={{ borderColor: C.line, color: C.ink, minHeight: 84 }}>
-                      <Icon size={20} style={{ color: C.brass }} />
+                      <Icon size={20} style={{ color: C.accent }} />
                       <span className="text-center text-xs font-medium leading-tight">{label}</span>
                     </button>
                   );
@@ -4408,7 +4476,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
       {toast && (
         <div className="no-print fixed inset-x-0 bottom-40 flex justify-center px-4 sm:bottom-16" style={{ zIndex: 60 }}>
           <div className="cc-pop flex items-center gap-2 rounded-full px-4 py-2 text-sm text-white shadow-lg" style={{ background: C.ink }}>
-            <AlertTriangle size={14} style={{ color: C.brassSoft }} />
+            <AlertTriangle size={14} style={{ color: C.accentSoft }} />
             <span>{toast}</span>
           </div>
         </div>
@@ -4417,7 +4485,7 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
         <div className="no-print fixed inset-x-0 bottom-24 z-50 flex justify-center px-4 sm:bottom-4">
           <div className="flex items-center gap-3 rounded-full px-4 py-2 text-sm text-white shadow-lg" style={{ background: C.ink }}>
             <span>{undoState.label}</span>
-            <button onClick={doUndo} className="font-semibold" style={{ color: C.brassSoft }}>Undo</button>
+            <button onClick={doUndo} className="font-semibold" style={{ color: C.accentSoft }}>Undo</button>
           </div>
         </div>
       )}
@@ -4440,11 +4508,11 @@ class ErrorBoundary extends React.Component {
   render() {
     if (!this.state.error) return this.props.children;
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center p-6 text-center" style={{ background: "linear-gradient(180deg, #F6F1E4 0%, #EEE7D5 60%)", fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif" }}>
+      <div className="flex min-h-screen flex-col items-center justify-center p-6 text-center" style={{ background: "linear-gradient(180deg, #D3E3E1 0%, #E9E9E6 40%, #F6EDE5 100%)", fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif" }}>
         <div className="w-full max-w-sm rounded-2xl border bg-white p-6" style={{ borderColor: "#E6E2D8" }}>
-          <p className="text-lg font-bold" style={{ color: "#1E3A46" }}>Something went wrong</p>
+          <p className="text-lg font-bold" style={{ color: "#203B43" }}>Something went wrong</p>
           <p className="mt-2 text-sm text-slate-600">The app hit a problem and needs a reload. Your cellar data lives in the cloud, not in this screen, so nothing here is lost, reloading is safe.</p>
-          <button onClick={() => window.location.reload()} className="mt-4 w-full rounded-lg px-4 py-2.5 text-sm font-semibold text-white" style={{ background: "#1E3A46" }}>Reload the app</button>
+          <button onClick={() => window.location.reload()} className="mt-4 w-full rounded-lg px-4 py-2.5 text-sm font-semibold text-white" style={{ background: "#203B43" }}>Reload the app</button>
           <button onClick={() => this.setState((s) => ({ showDetails: !s.showDetails }))} className="mt-3 text-xs text-slate-400 underline">{this.state.showDetails ? "Hide" : "Show"} technical details</button>
           {this.state.showDetails && <p className="mt-2 max-h-40 overflow-y-auto rounded-lg bg-slate-50 p-2 text-left text-xs text-slate-500" style={{ fontFamily: "monospace" }}>{String(this.state.error && this.state.error.message)}</p>}
         </div>
