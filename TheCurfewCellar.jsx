@@ -552,6 +552,12 @@ const GLUTEN_GRAINS = ["Barley (gluten)", "Wheat (gluten)", "Oats (gluten)", "Ry
 // the attention bell tells Kyle so the underlying data can be corrected.
 const glutenClaimConflict = (beer) => beer.glutenStatus === "Gluten-free" && (beer.allergens || []).some((a) => GLUTEN_GRAINS.includes(a));
 const isGlutenFree = (beer) => beer.glutenStatus === "Gluten-free" && !glutenClaimConflict(beer);
+// Same principle, same reason, for vegan: isinglass (a fish product used to clear the beer)
+// and milk/lactose both directly contradict a vegan claim. Drop the claim, keep the allergen
+// list showing in full, tell the bell so the real data can be fixed.
+const VEGAN_CONFLICTS = ["Fish (isinglass finings)", "Milk (lactose)"];
+const veganClaimConflict = (beer) => !!beer.vegan && (beer.allergens || []).some((a) => VEGAN_CONFLICTS.includes(a));
+const isVegan = (beer) => !!beer.vegan && !veganClaimConflict(beer);
 // When a beer's name already starts with its brewery ("Malvern" + "Malvern Gold") printing both
 // gives "Malvern Malvern Gold". Drop the repeated prefix so the weight split still reads as
 // brewery-then-beer without the stutter.
@@ -817,47 +823,12 @@ const CatDot = ({ category }) => {
   const c = CAT_ACCENT[category] || CAT_ACCENT.Misc;
   return <span className="inline-block shrink-0 rounded-full" style={{ width: 9, height: 9, background: c, boxShadow: "inset 0 0 0 1.25px rgba(32, 59, 67,0.35)" }} title={category || "Misc"} />;
 };
-// The Curfew's own signature graphic (the festival poster and banner): a row of pint glasses,
-// yellow through to brown, sitting beneath a viaduct of arches. Reused here at the foot of the
-// one screen the public actually sees, so it's recognisably The Curfew rather than a
-// well-made but generic beer list. Fixed palette, not the live category colours, since this is
-// branding, not a reflection of what's currently on tap.
-const BridgeMotif = () => {
-  // Proportions measured off the T-shirt artwork rather than guessed: each glass there is
-  // 2.75x taller than it is wide, with foam filling the top 16%. The first build had them at
-  // 1.12 and 57%, which is why they read as squat blocks with far too much head rather than
-  // a row of pints. The dome IS the arch, so the foam curve follows the arch top exactly,
-  // and the dark gaps between glasses do the work of the viaduct piers.
-  const colors = [BEER.yellow, BEER.gold, BEER.amber, BEER.red, BEER.brown];
-  const w = 30, gap = 12, H = 72, foamH = Math.round(H * 0.16);
-  const unit = w + gap, r = w / 2;
-  const totalW = colors.length * unit - gap;
-  const arch = (x) => `M ${x} ${H} L ${x} ${r} A ${r} ${r} 0 0 1 ${x + w} ${r} L ${x + w} ${H} Z`;
-  return (
-    <svg viewBox={`0 0 ${totalW} ${H}`} preserveAspectRatio="xMidYMax meet" style={{ width: "100%", maxWidth: 236, height: 78, display: "block", margin: "0 auto" }} aria-hidden="true">
-      <defs>
-        {colors.map((_, i) => (
-          <clipPath key={i} id={`ccglass${i}`}><path d={arch(i * unit)} /></clipPath>
-        ))}
-      </defs>
-      {colors.map((c, i) => {
-        const x = i * unit;
-        return (
-          <g key={i} clipPath={`url(#ccglass${i})`}>
-            <rect x={x} y={0} width={w} height={H} fill={c} />
-            <rect x={x} y={0} width={w} height={foamH} fill={C.cream} />
-          </g>
-        );
-      })}
-    </svg>
-  );
-};
 const Badge = ({ className = "", style, children }) => (
   <span style={style} className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${className}`}>{children}</span>
 );
 const DietaryBadges = ({ beer }) => (
   <div className="flex flex-wrap gap-1.5">
-    {beer.vegan && <Badge style={DIET_BADGE_STYLE.vegan}>Vegan</Badge>}
+    {isVegan(beer) && <Badge style={DIET_BADGE_STYLE.vegan}>Vegan</Badge>}
     {isGlutenFree(beer) && <Badge style={DIET_BADGE_STYLE.gluten}>Gluten-free</Badge>}
     {beer.glutenStatus === "Low gluten" && <Badge style={DIET_BADGE_STYLE.gluten}>Low gluten, &lt;20ppm</Badge>}
     {beer.clarity === "Hazy" && <Badge style={DIET_BADGE_STYLE.hazy}>Hazy</Badge>}
@@ -865,7 +836,7 @@ const DietaryBadges = ({ beer }) => (
 );
 const DietaryMini = ({ beer }) => {
   const items = [];
-  if (beer.vegan) items.push(["VG", "Vegan", DIET_BADGE_STYLE.vegan]);
+  if (isVegan(beer)) items.push(["VG", "Vegan", DIET_BADGE_STYLE.vegan]);
   if (isGlutenFree(beer)) items.push(["GF", "Gluten-free", DIET_BADGE_STYLE.gluten]);
   else if (beer.glutenStatus === "Low gluten") items.push(["<20ppm", "Low gluten, under 20ppm", DIET_BADGE_STYLE.gluten]);
   if (beer.clarity === "Hazy") items.push(["Hazy", "Hazy", DIET_BADGE_STYLE.hazy]);
@@ -1093,7 +1064,7 @@ const Item = ({ line, beerById }) => {
   if (!beer) return null;
   const tlp = priceTriple(line.price);
   const diet = [];
-  if (beer.vegan) diet.push("Vegan");
+  if (isVegan(beer)) diet.push("Vegan");
   if (isGlutenFree(beer)) diet.push("Gluten-free");
   else if (beer.glutenStatus === "Low gluten") diet.push("Low gluten, <20ppm");
   const allergenLine = beer.allergensVerified
@@ -1424,6 +1395,8 @@ function TheCurfewCellarApp() {
       if (l.status === "vented" && l.dates.vented && dayDiff(l.dates.vented, new Date().toISOString()) >= 2) out.push({ pri: 5, id: l.id, warn: false, text: `${nm}: vented ${dayDiff(l.dates.vented, new Date().toISOString())}d ago, ready to tap` });
       if (servable && !beer.allergensVerified) out.push({ pri: 2, id: l.id, warn: true, text: `${nm}: allergens not verified` });
       else if (servable && beer.allergens.length === 0) out.push({ pri: 3, id: l.id, warn: true, text: `${nm}: verified with no allergens listed, worth double-checking` });
+      if (servable && veganClaimConflict(beer)) out.push({ pri: 1, id: l.id, warn: true, text: `${nm}: marked vegan but isinglass or milk is listed, these aren't compatible` });
+      if (servable && glutenClaimConflict(beer)) out.push({ pri: 1, id: l.id, warn: true, text: `${nm}: marked gluten-free but a gluten grain is listed, these aren't compatible` });
     });
     const dueClean = linesDueClean();
     if (dueClean) out.push({ pri: 6, id: null, lineCare: true, warn: false, text: `${dueClean} line${dueClean === 1 ? "" : "s"} due a clean` });
@@ -1689,7 +1662,8 @@ function TheCurfewCellarApp() {
       const beerLine = (l, accentHex, opts) => {
         const o = opts || {};
         const b = beerById[l.beerId]; if (!b) return;
-        const name = `${b.brewery ? b.brewery + " - " : ""}${b.name || ""}`;
+        const nameParts = splitTitle(b.brewery, b.name, b.collabBrewery);
+        const name = nameParts.lead ? `${nameParts.lead} ${nameParts.rest}` : nameParts.rest;
         const dt = (DRINK_TYPES.find((t) => t.key === l.drinkType) || {}).label || l.drinkType;
         const meta = [dt, b.style, b.abv ? b.abv + "%" : "", locationDisplay(b), (l.caskOwner && l.drinkType !== "cider" && l.drinkType !== "keykeg") ? `Delivered by: ${l.caskOwner}` : ""].filter(Boolean).join("  ·  ");
         doc.setFont("helvetica", "bold"); doc.setFontSize(9.5);
@@ -1703,14 +1677,15 @@ function TheCurfewCellarApp() {
         ensure(rowH + 1.2);
 
         doc.setFillColor(paleBg[0], paleBg[1], paleBg[2]); doc.rect(M, y, W - 2 * M, rowH, "F");
-        const ac = hex(accentHex); doc.setFillColor(ac[0], ac[1], ac[2]); doc.rect(M, y, 1.4, rowH, "F");
+        doc.setFillColor(ink[0], ink[1], ink[2]); doc.rect(M, y, 2.1, rowH, "F");
+        const ac = hex(accentHex); doc.setFillColor(ac[0], ac[1], ac[2]); doc.rect(M + 0.45, y, 1.55, rowH, "F");
 
         let ty = y + topPad;
         doc.setFont("helvetica", "bold"); doc.setFontSize(9.5); doc.setTextColor(ink[0], ink[1], ink[2]);
         doc.text(nameLines, M + 4.5, ty); ty += lhName * nameLines.length;
         doc.setFont("helvetica", "normal"); doc.setFontSize(7.8); doc.setTextColor(gray[0], gray[1], gray[2]);
         doc.text(metaLines, M + 4.5, ty); ty += lhMeta * metaLines.length;
-        if (hasBB) { doc.setFont("helvetica", "bold"); doc.setFontSize(7.6); doc.setTextColor(170, 100, 40); doc.text(`Best before ${fmtD(l.bestBefore)}`, M + 4.5, ty); }
+        if (hasBB) { doc.setFont("helvetica", "bold"); doc.setFontSize(7.6); doc.setTextColor(178, 58, 44); doc.text(`Best before ${fmtD(l.bestBefore)}`, M + 4.5, ty); }
 
         const rx = W - M - 3;
         let ry = y + 4.4;
@@ -1813,10 +1788,11 @@ function TheCurfewCellarApp() {
 
       const beerLine = (l, accentRGB) => {
         const b = beerById[l.beerId]; if (!b) return;
-        const name = `${b.brewery ? b.brewery + " - " : ""}${b.name || ""}`;
+        const nameParts = splitTitle(b.brewery, b.name, b.collabBrewery);
+        const name = nameParts.lead ? `${nameParts.lead} ${nameParts.rest}` : nameParts.rest;
         const tlp = priceTriple(l.price);
         const meta = [b.style, b.abv ? b.abv + "%" : "", b.clarity === "Hazy" ? "Hazy" : "", locationDisplay(b)].filter(Boolean).join("  ·  ");
-        const diet = [b.vegan ? "Vegan" : "", isGlutenFree(b) ? "Gluten-free" : b.glutenStatus === "Low gluten" ? "Low gluten, <20ppm" : ""].filter(Boolean).join("  ·  ");
+        const diet = [isVegan(b) ? "Vegan" : "", isGlutenFree(b) ? "Gluten-free" : b.glutenStatus === "Low gluten" ? "Low gluten, <20ppm" : ""].filter(Boolean).join("  ·  ");
         const allergenLine = b.allergensVerified ? (b.allergens.length ? `Contains: ${b.allergens.join(", ")}` : "No declared allergens") : "Allergens: please ask at the bar";
         doc.setFont("helvetica", "bold"); doc.setFontSize(9.5);
         const nameLines = doc.splitTextToSize(name, W - 2 * M - 38);
@@ -1831,16 +1807,17 @@ function TheCurfewCellarApp() {
         ensure(rowH + 1.2);
 
         doc.setFillColor(paleBg[0], paleBg[1], paleBg[2]); doc.rect(M, y, W - 2 * M, rowH, "F");
-        doc.setFillColor(accentRGB[0], accentRGB[1], accentRGB[2]); doc.rect(M, y, 1.4, rowH, "F");
+        doc.setFillColor(ink[0], ink[1], ink[2]); doc.rect(M, y, 2.1, rowH, "F");
+        doc.setFillColor(accentRGB[0], accentRGB[1], accentRGB[2]); doc.rect(M + 0.45, y, 1.55, rowH, "F");
 
         let ty = y + topPad;
         doc.setFont("helvetica", "bold"); doc.setFontSize(9.5); doc.setTextColor(ink[0], ink[1], ink[2]);
         doc.text(nameLines, M + 4.5, ty); ty += lhName * nameLines.length;
         doc.setFont("helvetica", "normal"); doc.setFontSize(7.8); doc.setTextColor(gray[0], gray[1], gray[2]);
         doc.text(metaLines, M + 4.5, ty); ty += lhMeta * metaLines.length;
-        if (noteLines.length) { doc.setFont("helvetica", "italic"); doc.setFontSize(7.6); doc.setTextColor(110, 110, 110); doc.text(noteLines, M + 4.5, ty); ty += lhNote * noteLines.length; }
+        if (noteLines.length) { doc.setFont("helvetica", "italic"); doc.setFontSize(7.6); doc.setTextColor(gray[0], gray[1], gray[2]); doc.text(noteLines, M + 4.5, ty); ty += lhNote * noteLines.length; }
         if (diet) { doc.setFont("helvetica", "bold"); doc.setFontSize(7.4); doc.setTextColor(accent[0], accent[1], accent[2]); doc.text(diet, M + 4.5, ty); ty += lhDiet; }
-        doc.setFont("helvetica", "normal"); doc.setFontSize(7); doc.setTextColor(150, 150, 150);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(7); doc.setTextColor(gray[0], gray[1], gray[2]);
         doc.text(allergenLines, M + 4.5, ty);
 
         if (tlp) {
@@ -1954,8 +1931,9 @@ function TheCurfewCellarApp() {
 
       const beerLine = (l, accentRGB) => {
         const b = beerById[l.beerId]; if (!b) return;
-        const name = `${b.brewery ? b.brewery + " - " : ""}${b.name || ""}`;
-        const diet = [b.vegan ? "Vegan" : "", isGlutenFree(b) ? "Gluten-free" : b.glutenStatus === "Low gluten" ? "Low gluten, <20ppm" : ""].filter(Boolean).join("  ·  ");
+        const nameParts = splitTitle(b.brewery, b.name, b.collabBrewery);
+        const name = nameParts.lead ? `${nameParts.lead} ${nameParts.rest}` : nameParts.rest;
+        const diet = [isVegan(b) ? "Vegan" : "", isGlutenFree(b) ? "Gluten-free" : b.glutenStatus === "Low gluten" ? "Low gluten, <20ppm" : ""].filter(Boolean).join("  ·  ");
         const allergenText = (b.allergensVerified ? (b.allergens.length ? `Contains: ${b.allergens.join(", ")}` : "No declared allergens") : "Allergens: please ask at the bar") + (b.allergensVerified ? "" : "  ·  not staff verified");
         doc.setFont("helvetica", "bold"); doc.setFontSize(9.5);
         const nameLines = doc.splitTextToSize(name, W - 2 * M - 40);
@@ -1968,7 +1946,8 @@ function TheCurfewCellarApp() {
         ensure(rowH + 1.2);
 
         doc.setFillColor(paleBg[0], paleBg[1], paleBg[2]); doc.rect(M, y, W - 2 * M, rowH, "F");
-        doc.setFillColor(accentRGB[0], accentRGB[1], accentRGB[2]); doc.rect(M, y, 1.4, rowH, "F");
+        doc.setFillColor(ink[0], ink[1], ink[2]); doc.rect(M, y, 2.1, rowH, "F");
+        doc.setFillColor(accentRGB[0], accentRGB[1], accentRGB[2]); doc.rect(M + 0.45, y, 1.55, rowH, "F");
 
         let ty = y + topPad;
         doc.setFont("helvetica", "bold"); doc.setFontSize(9.5); doc.setTextColor(ink[0], ink[1], ink[2]);
@@ -1978,7 +1957,7 @@ function TheCurfewCellarApp() {
         doc.text(`${b.abv ? b.abv + "%" : ""}`, rx, y + topPad, { align: "right" });
         if (dietLines.length) { doc.setFont("helvetica", "bold"); doc.setFontSize(7.6); doc.setTextColor(accent[0], accent[1], accent[2]); doc.text(dietLines, M + 4.5, ty); ty += lhDiet * dietLines.length; }
         doc.setFont("helvetica", "normal"); doc.setFontSize(7.4);
-        if (b.allergensVerified) doc.setTextColor(130, 130, 130); else doc.setTextColor(180, 110, 50);
+        if (b.allergensVerified) doc.setTextColor(gray[0], gray[1], gray[2]); else doc.setTextColor(178, 58, 44);
         doc.text(allergenLines, M + 4.5, ty);
         y += rowH + 1.4;
       };
@@ -2083,7 +2062,7 @@ function TheCurfewCellarApp() {
     const now = new Date().toISOString();
     lastUpdatedRef.current = now;
     setLastUpdated(now);
-  }, [lines, library, lineCare, hydrated]);
+  }, [lines, library, lineCare, distributors, hydrated]);
 
   // Which overlay is topmost, in the order they actually nest in this app (opening one always
   // closes whatever was open before it, verified: Edit details closes CardModal in the same
@@ -3628,6 +3607,7 @@ function TheCurfewCellarApp() {
       const doc = new JsPDF({ unit: "mm", format: "a4" });
       const W = 210, H = 297, M = 14; let y = M;
       const ink = [32, 59, 67], accent = [31, 107, 106], accentSoft = [86, 139, 137], gray = [86, 111, 118], lineCol = [224, 218, 212], paleBg = [249, 246, 243];
+      const hex = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
       const ensure = (need) => { if (y + need > H - M) { doc.addPage(); y = M; } };
 
       doc.setFillColor(ink[0], ink[1], ink[2]); doc.rect(0, 0, W, 28, "F");
@@ -3643,7 +3623,8 @@ function TheCurfewCellarApp() {
 
       const beerLine = (l) => {
         const b = beerById[l.beerId]; if (!b) return;
-        const name = `${b.brewery ? b.brewery + " - " : ""}${b.name || ""}`;
+        const nameParts = splitTitle(b.brewery, b.name, b.collabBrewery);
+        const name = nameParts.lead ? `${nameParts.lead} ${nameParts.rest}` : nameParts.rest;
         const dt = (DRINK_TYPES.find((t) => t.key === l.drinkType) || {}).label || l.drinkType;
         const meta = [dt, b.style, b.abv ? b.abv + "%" : "", l.size || "", `Finished ${fmtDate(l.dates.off ? l.dates.off.slice(0, 10) : "")}`].filter(Boolean).join("  ·  ");
         doc.setFont("helvetica", "bold"); doc.setFontSize(9.5);
@@ -3654,7 +3635,8 @@ function TheCurfewCellarApp() {
         const rowH = Math.max(topPad + lhName * nameLines.length + lhMeta * metaLines.length + bottomPad, 10.5);
         ensure(rowH + 1.2);
         doc.setFillColor(paleBg[0], paleBg[1], paleBg[2]); doc.rect(M, y, W - 2 * M, rowH, "F");
-        doc.setFillColor(150, 161, 155); doc.rect(M, y, 1.4, rowH, "F");
+        doc.setFillColor(ink[0], ink[1], ink[2]); doc.rect(M, y, 2.1, rowH, "F");
+        const ac = hex(CAT_ACCENT[b.category] || CAT_ACCENT.Misc); doc.setFillColor(ac[0], ac[1], ac[2]); doc.rect(M + 0.45, y, 1.55, rowH, "F");
         let ty = y + topPad;
         doc.setFont("helvetica", "bold"); doc.setFontSize(9.5); doc.setTextColor(ink[0], ink[1], ink[2]);
         doc.text(nameLines, M + 4.5, ty); ty += lhName * nameLines.length;
@@ -3846,7 +3828,7 @@ function TheCurfewCellarApp() {
                 {g.items.map((l) => {
                   const beer = beerById[l.beerId];
                   if (!beer) return null;
-                  const diet = [beer.vegan ? "Vegan" : null, beer.glutenStatus === "Gluten-free" ? "Gluten-free" : beer.glutenStatus === "Low gluten" ? "Low gluten, <20ppm" : null].filter(Boolean).join(", ");
+                  const diet = [isVegan(beer) ? "Vegan" : null, isGlutenFree(beer) ? "Gluten-free" : beer.glutenStatus === "Low gluten" ? "Low gluten, <20ppm" : null].filter(Boolean).join(", ");
                   return (
                     <div key={l.id} className="py-2">
                       <div className="flex items-baseline justify-between gap-2">
@@ -3935,7 +3917,7 @@ function TheCurfewCellarApp() {
         <div className="mx-auto max-w-2xl px-5 py-8">
           <div style={{ borderTopLeftRadius: 130, borderTopRightRadius: 130, padding: "28px 22px 20px", background: "linear-gradient(180deg, #6FC4C3 0%, #A9D8D3 40%, #DCE6DF 72%, #F6EDE5 100%)", boxShadow: "0 10px 30px -18px rgba(32, 59, 67,0.5)" }}>
             <div className="flex flex-col items-center text-center">
-              <img src={PUB_LOGO_INK} alt="" style={{ width: 64, height: 64 }} />
+              <img src={PUB_LOGO_INK} alt="" style={{ width: 104, height: 104 }} />
               <p className="mt-2.5 text-2xl font-semibold leading-tight" style={{ color: C.ink, fontFamily: "var(--font-brand)", letterSpacing: "0.03em" }}>{PUB_CONFIG.name}</p>
               <p className="mt-0.5 text-xs font-semibold uppercase tracking-widest" style={{ color: C.ink }}>What's on today</p>
               {fmtUpdated(lastUpdated) && <p className="mt-2 text-xs" style={{ color: "rgba(32,59,67,0.6)" }}>Last updated: {fmtUpdated(lastUpdated)}</p>}
@@ -3976,7 +3958,6 @@ function TheCurfewCellarApp() {
             )}
 
 
-            <div className="mt-10 mb-5"><BridgeMotif /></div>
             <p className="text-center text-xs" style={{ color: C.muted }}>Please confirm allergens with staff before ordering.</p>
           </div>
         </div>
@@ -4250,7 +4231,7 @@ function TheCurfewCellarApp() {
         <FontBoot />
         <div className="w-full max-w-xs">
           <div className="mb-6 text-center">
-            <img src={PUB_LOGO} alt="" className="mx-auto mb-2.5" style={{ width: 64, height: 64 }} />
+            <img src={PUB_LOGO} alt="" className="mx-auto mb-2.5" style={{ width: 104, height: 104 }} />
             <p className="text-2xl font-bold" style={{ color: C.cream, fontFamily: "var(--font-brand)", letterSpacing: "0.03em" }}>{PUB_CONFIG.name}</p>
             <p className="mt-1 text-xs uppercase tracking-widest" style={{ color: C.accentSoft }}>Cellar Management</p>
           </div>
