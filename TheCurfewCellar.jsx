@@ -1092,34 +1092,40 @@ const Item = ({ line, beerById }) => {
   const beer = beerById[line.beerId];
   if (!beer) return null;
   const tlp = priceTriple(line.price);
-  const faint = "rgba(243,239,230,0.68)";
   const diet = [];
   if (beer.vegan) diet.push("Vegan");
   if (isGlutenFree(beer)) diet.push("Gluten-free");
   else if (beer.glutenStatus === "Low gluten") diet.push("Low gluten, <20ppm");
+  const allergenLine = beer.allergensVerified
+    ? (beer.allergens.length ? `Contains: ${beer.allergens.join(", ")}` : "No declared allergens")
+    : "Allergens: please ask at the bar";
+  // Same card language as every internal screen: cream card, teal-framed rail carrying the
+  // beer's own colour, bold brewery / normal name. Roomier than an internal row because a
+  // customer reads this rather than scans it, but structurally identical so the app doesn't
+  // change personality between the till and the table.
   return (
-    <div className="py-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+    <div className="relative mb-2.5 overflow-hidden rounded-xl border py-3 pr-4" style={{ background: C.paper, borderColor: C.line, paddingLeft: 22, boxShadow: "0 1px 2px rgba(32, 59, 67,0.04), 0 8px 20px -14px rgba(32, 59, 67,0.28)" }}>
+      <span aria-hidden="true" title={beer.category || "Misc"} style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 14, background: C.ink }}>
+        <span style={{ position: "absolute", left: 3, top: 0, bottom: 0, width: 11, background: CAT_ACCENT[beer.category] || CAT_ACCENT.Misc }} />
+      </span>
       <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-1 gap-1.5">
-          <span className="shrink-0" style={{ paddingTop: 9 }}><CatDot category={beer.category} /></span>
-          <p className="min-w-0 text-lg font-normal" style={{ color: C.cream, fontFamily: "var(--font-display)" }}>{(() => { const t = splitTitle(beer.brewery, beer.name, beer.collabBrewery); return <>{t.lead && <span className="font-semibold" style={{ color: C.cream }}>{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()}</p>
-        </div>
+        <p className="min-w-0 flex-1 text-lg font-normal leading-snug" style={{ color: C.ink, fontFamily: "var(--font-display)" }}>{(() => { const t = splitTitle(beer.brewery, beer.name, beer.collabBrewery); return <>{t.lead && <span className="font-semibold">{t.lead}</span>}{t.lead ? " " : ""}{t.rest}</>; })()}</p>
         <div className="shrink-0 text-right">
           {(tlp || line.price) ? (
-            <p className="text-lg font-semibold leading-tight" style={{ color: C.accentSoft, fontFamily: "var(--font-display)" }}>{tlp ? tlp.pint : `£${line.price}`}</p>
+            <p className="text-lg font-semibold leading-tight" style={{ color: C.accent, fontFamily: "var(--font-display)" }}>{tlp ? tlp.pint : `£${line.price}`}</p>
           ) : (
-            <p className="text-xs font-medium" style={{ color: "rgba(243,239,230,0.55)" }}>Ask at<br />the bar</p>
+            <p className="text-xs font-medium" style={{ color: C.muted }}>Ask at<br />the bar</p>
           )}
-          {tlp && <p className="text-xs leading-tight" style={{ color: "rgba(243,239,230,0.55)" }}>Half {tlp.half}</p>}
-          {tlp && <p className="text-xs leading-tight" style={{ color: "rgba(243,239,230,0.55)" }}>Schooner {tlp.schooner}</p>}
+          {tlp && <p className="text-xs leading-tight" style={{ color: C.muted }}>Half {tlp.half}</p>}
+          {tlp && <p className="text-xs leading-tight" style={{ color: C.muted }}>Schooner {tlp.schooner}</p>}
         </div>
       </div>
-      <p className="text-sm font-medium" style={{ color: "rgba(243,239,230,0.85)" }}>{beer.style}{extraSweetness(beer) ? ` · ${extraSweetness(beer)}` : ""} · {beer.abv}%{beer.clarity === "Hazy" ? " · Hazy" : ""}</p>
-      {locationDisplay(beer) && <p className="text-xs" style={{ color: "rgba(243,239,230,0.5)" }}>{locationDisplay(beer)}</p>}
-      {beer.notes && <ul className="mt-1 space-y-0.5">{splitNote(beer.notes).map((line, i) => <li key={i} className="flex gap-1.5 text-sm italic" style={{ color: faint }}><span>·</span><span>{line}.</span></li>)}</ul>}
-      <div className="mt-1.5">
-        {diet.length > 0 && <p className="flex flex-wrap gap-x-3 text-xs font-semibold uppercase tracking-wide" style={{ color: C.accentSoft }}>{diet.map((d) => <span key={d}>{d}</span>)}</p>}
-        <p className="mt-1 text-xs" style={{ color: "rgba(243,239,230,0.45)" }}>{beer.allergensVerified ? (beer.allergens.length ? `Contains: ${beer.allergens.join(", ")}` : "No declared allergens") : "Allergens: please ask at the bar"}</p>
+      <p className="mt-0.5 text-sm font-medium" style={{ color: C.inkSoft, fontFamily: "var(--font-data)" }}>{[beer.style, extraSweetness(beer), beer.abv ? `${beer.abv}%` : "", beer.clarity === "Hazy" ? "Hazy" : ""].filter(Boolean).join("  ·  ")}</p>
+      {locationDisplay(beer) && <p className="text-xs" style={{ color: C.muted, fontFamily: "var(--font-data)" }}>{locationDisplay(beer)}</p>}
+      {beer.notes && <ul className="mt-2 space-y-1">{splitNote(beer.notes).map((n, i) => <li key={i} className="flex gap-1.5 text-sm" style={{ color: C.inkSoft }}><span style={{ color: CAT_ACCENT[beer.category] || CAT_ACCENT.Misc }}>·</span><span>{n}.</span></li>)}</ul>}
+      <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 border-t pt-2" style={{ borderColor: C.line }}>
+        {diet.map((d) => <span key={d} className="rounded-full px-2 py-0.5 text-xs font-semibold" style={{ background: "rgba(31,107,106,0.10)", color: C.accent }}>{d}</span>)}
+        <span className="text-xs" style={{ color: C.muted, fontFamily: "var(--font-data)" }}>{allergenLine}</span>
       </div>
     </div>
   );
@@ -3922,17 +3928,16 @@ function TheCurfewCellarApp() {
     const keg = on.filter((l) => PUMP_DRINK(l.drinkType) === "keg").sort(byBB);
     const cider = on.filter((l) => l.drinkType === "cider").sort(byBB);
     const caskByCat = caskCategoryGroups(cask, (l) => beerById[l.beerId]?.category || "Misc").map(({ cat, items }) => ({ cat, items: items.slice().sort(byBB) }));
-    const faint = "rgba(243,239,230,0.68)";
 
 
     return (
-      <div className="flex-1 overflow-y-auto" style={{ background: C.ink, overscrollBehaviorY: "none", WebkitOverflowScrolling: "touch", touchAction: "manipulation" }}>
+      <div className="flex-1 overflow-y-auto" style={{ background: "linear-gradient(180deg, #D3E3E1 0%, #E9E9E6 40%, #F6EDE5 100%)", overscrollBehaviorY: "none", WebkitOverflowScrolling: "touch", touchAction: "manipulation" }}>
         <div className="mx-auto max-w-2xl px-5 py-8">
-          <div style={{ borderTopLeftRadius: 130, borderTopRightRadius: 130, padding: "28px 22px 20px", background: "linear-gradient(180deg, #8ACFCE 0%, #C5E0DA 45%, #E3E8E1 75%, #F6EDE5 100%)" }}>
+          <div style={{ borderTopLeftRadius: 130, borderTopRightRadius: 130, padding: "28px 22px 20px", background: "linear-gradient(180deg, #6FC4C3 0%, #A9D8D3 40%, #DCE6DF 72%, #F6EDE5 100%)", boxShadow: "0 10px 30px -18px rgba(32, 59, 67,0.5)" }}>
             <div className="flex flex-col items-center text-center">
               <img src={PUB_LOGO_INK} alt="" style={{ width: 64, height: 64 }} />
               <p className="mt-2.5 text-2xl font-semibold leading-tight" style={{ color: C.ink, fontFamily: "var(--font-brand)", letterSpacing: "0.03em" }}>{PUB_CONFIG.name}</p>
-              <p className="mt-0.5 text-xs uppercase tracking-widest" style={{ color: C.accent }}>What's on today</p>
+              <p className="mt-0.5 text-xs font-semibold uppercase tracking-widest" style={{ color: C.ink }}>What's on today</p>
               {fmtUpdated(lastUpdated) && <p className="mt-2 text-xs" style={{ color: "rgba(32,59,67,0.6)" }}>Last updated: {fmtUpdated(lastUpdated)}</p>}
               <div className="mt-1 flex items-center gap-4">
                 <button onClick={shareTapListPDF} disabled={pdfBusy} className="inline-flex items-center gap-1 px-0 py-1 text-xs font-medium transition hover:opacity-70 active:scale-95 disabled:opacity-40" style={{ color: C.accent }}>{pdfBusy ? <Loader2 className="animate-spin" size={12} /> : <Share size={12} />} Share</button>
@@ -3942,14 +3947,14 @@ function TheCurfewCellarApp() {
           </div>
 
           <div className="mt-6">
-            {on.length === 0 && <p className="py-12 text-center" style={{ color: "rgba(243,239,230,0.6)" }}>Nothing on right now. Check back soon.</p>}
+            {on.length === 0 && <p className="py-12 text-center" style={{ color: C.muted }}>Nothing on right now. Check back soon.</p>}
 
             {caskByCat.length > 0 && (
               <section className="mb-7">
-                <h2 className="mb-2 text-sm font-semibold uppercase tracking-widest" style={{ color: C.accent }}>Cask ale</h2>
+                <h2 className="mb-2 text-sm font-bold uppercase tracking-widest" style={{ color: C.accent, fontFamily: "var(--font-brand)" }}>Cask ale</h2>
                 {caskByCat.map((g) => (
                   <div key={g.cat} className="mb-3">
-                    <p className="text-xs uppercase tracking-wide" style={{ color: "rgba(243,239,230,0.5)" }}>{g.cat}</p>
+                    <p className="text-xs uppercase tracking-wide" style={{ color: C.muted, fontFamily: "var(--font-data)" }}>{g.cat}</p>
                     {g.items.map((l) => <Item key={l.id} line={l} beerById={beerById} />)}
                   </div>
                 ))}
@@ -3958,21 +3963,21 @@ function TheCurfewCellarApp() {
 
             {keg.length > 0 && (
               <section className="mb-7">
-                <h2 className="mb-2 text-sm font-semibold uppercase tracking-widest" style={{ color: C.accent }}>Keg</h2>
+                <h2 className="mb-2 text-sm font-bold uppercase tracking-widest" style={{ color: C.accent, fontFamily: "var(--font-brand)" }}>Keg</h2>
                 {keg.map((l) => <Item key={l.id} line={l} beerById={beerById} />)}
               </section>
             )}
 
             {cider.length > 0 && (
               <section className="mb-7">
-                <h2 className="mb-2 text-sm font-semibold uppercase tracking-widest" style={{ color: C.accent }}>Draught cider</h2>
+                <h2 className="mb-2 text-sm font-bold uppercase tracking-widest" style={{ color: C.accent, fontFamily: "var(--font-brand)" }}>Draught cider</h2>
                 {cider.map((l) => <Item key={l.id} line={l} beerById={beerById} />)}
               </section>
             )}
 
 
             <div className="mt-10 mb-5"><BridgeMotif /></div>
-            <p className="text-center text-xs" style={{ color: "rgba(243,239,230,0.4)" }}>Please confirm allergens with staff before ordering.</p>
+            <p className="text-center text-xs" style={{ color: C.muted }}>Please confirm allergens with staff before ordering.</p>
           </div>
         </div>
       </div>
