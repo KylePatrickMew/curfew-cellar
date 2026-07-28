@@ -1395,6 +1395,7 @@ function TheCurfewCellarApp() {
       if (l.status === "vented" && l.dates.vented && dayDiff(l.dates.vented, new Date().toISOString()) >= 2) out.push({ pri: 5, id: l.id, warn: false, text: `${nm}: vented ${dayDiff(l.dates.vented, new Date().toISOString())}d ago, ready to tap` });
       if (servable && !beer.allergensVerified) out.push({ pri: 2, id: l.id, warn: true, text: `${nm}: allergens not verified` });
       else if (servable && beer.allergens.length === 0) out.push({ pri: 3, id: l.id, warn: true, text: `${nm}: verified with no allergens listed, worth double-checking` });
+      if (servable && !l.price) out.push({ pri: 2, id: l.id, warn: true, text: `${nm}: no price set` });
       if (servable && veganClaimConflict(beer)) out.push({ pri: 1, id: l.id, warn: true, text: `${nm}: marked vegan but isinglass or milk is listed, these aren't compatible` });
       if (servable && glutenClaimConflict(beer)) out.push({ pri: 1, id: l.id, warn: true, text: `${nm}: marked gluten-free but a gluten grain is listed, these aren't compatible` });
     });
@@ -1626,8 +1627,22 @@ function TheCurfewCellarApp() {
       const doc = new JsPDF({ unit: "mm", format: "a4" });
       const W = 210, H = 297, M = 14; let y = M;
       const hex = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
-      const ink = [32, 59, 67], accent = [31, 107, 106], accentSoft = [86, 139, 137], gray = [86, 111, 118], lineCol = [224, 218, 212], paleBg = [249, 246, 243];
-      const ensure = (need) => { if (y + need > H - M) { doc.addPage(); y = M; } };
+      const ink = [32, 59, 67], accent = [31, 107, 106], accentSoft = [86, 139, 137], gray = [86, 111, 118], graySky = [58, 75, 80], lineCol = [224, 218, 212], paleBg = [249, 246, 243];
+      // Same sky gradient as the app: teal at the top settling to cream, same stops already
+      // checked against card and text contrast. jsPDF has no gradient fill, so it's drawn as
+      // thin horizontal strips, coarse enough to keep page weight reasonable, smooth enough
+      // not to show banding on a printed page.
+      const lerp3 = (a, b, t) => [0, 1, 2].map((i) => Math.round(a[i] + (b[i] - a[i]) * t));
+      const skyAt = (t) => {
+        const stops = [[0, [138, 207, 206]], [0.4, [233, 233, 230]], [1, [246, 237, 229]]];
+        for (let i = 0; i < stops.length - 1; i++) {
+          if (t <= stops[i + 1][0]) { const u = (t - stops[i][0]) / (stops[i + 1][0] - stops[i][0]); return lerp3(stops[i][1], stops[i + 1][1], u); }
+        }
+        return stops[stops.length - 1][1];
+      };
+      const paintPageBackground = () => { for (let py = 0; py < H; py += 1) { const c = skyAt(py / H); doc.setFillColor(c[0], c[1], c[2]); doc.rect(0, py, W, 1.05, "F"); } };
+      paintPageBackground();
+      const ensure = (need) => { if (y + need > H - M) { doc.addPage(); paintPageBackground(); y = M; } };
       const fmtD = (d) => { if (!d) return ""; try { return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" }); } catch (e) { return ""; } };
       const cmpBB = (a, b) => { const da = a.bestBefore ? new Date(a.bestBefore).getTime() : Infinity; const db = b.bestBefore ? new Date(b.bestBefore).getTime() : Infinity; return da - db; };
       const money2 = (v) => { const n = parseFloat(v); return isNaN(n) ? "" : `£${n.toFixed(2)}`; };
@@ -1650,12 +1665,12 @@ function TheCurfewCellarApp() {
         doc.setFillColor(accent[0], accent[1], accent[2]); doc.rect(M, y - 4, 2.2, 5.2, "F");
         doc.setFont("helvetica", "bold"); doc.setFontSize(11.5); doc.setTextColor(ink[0], ink[1], ink[2]);
         doc.text(t, M + 4.5, y);
-        doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(gray[0], gray[1], gray[2]);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(graySky[0], graySky[1], graySky[2]);
         doc.text(String(n), W - M, y, { align: "right" });
         y += 5.5;
       };
       const subHead = (t) => { ensure(11); y += 3.5; doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor(accent[0], accent[1], accent[2]); doc.text(t.toUpperCase(), M, y); y += 4.8; };
-      const catHead = (t) => { ensure(9); y += 2.4; doc.setFont("helvetica", "italic"); doc.setFontSize(7.5); doc.setTextColor(gray[0], gray[1], gray[2]); doc.text(t, M + 3, y); y += 4.2; };
+      const catHead = (t) => { ensure(9); y += 2.4; doc.setFont("helvetica", "italic"); doc.setFontSize(7.5); doc.setTextColor(graySky[0], graySky[1], graySky[2]); doc.text(t, M + 3, y); y += 4.2; };
 
       // One stock line as a card row: accent bar, name, meta, and a right column with
       // pump/stage pill, price, and best-before.
@@ -2611,7 +2626,8 @@ function TheCurfewCellarApp() {
     const name = p.name ? String(p.name) : "";
     const known = brewery && name ? findSavedBeer(brewery, name) : null;
     const carriedPrice = known ? latestPrice(known) : "";
-    return { id: "lb" + i + "_" + uid(), include: true, drinkType: dt, brewery, location: p.location ? String(p.location) : "", name, abv, price: carriedPrice, bestBefore: toISO(p.bestBefore), caskOwner: p.deliveredBy ? String(p.deliveredBy) : "", style, clarity: CLARITY_OPTIONS.includes(p.clarity) ? p.clarity : (p.clarity === "Cloudy" ? "Hazy" : "Clear"), glutenStatus: GLUTEN_OPTIONS.includes(p.glutenStatus) ? p.glutenStatus : "Standard", vegan: !!p.vegan, allergens: Array.isArray(p.allergens) ? p.allergens.filter((a) => ALLERGEN_OPTIONS.includes(a)) : [], notes: p.notes ? String(p.notes) : "", category: deriveCategory(dt, style, abv) };
+    const carriedSupplier = known ? latestSupplier(known) : "";
+    return { id: "lb" + i + "_" + uid(), include: true, drinkType: dt, brewery, location: p.location ? String(p.location) : "", name, abv, price: carriedPrice, bestBefore: toISO(p.bestBefore), caskOwner: (p.deliveredBy ? String(p.deliveredBy) : "") || carriedSupplier, style, clarity: CLARITY_OPTIONS.includes(p.clarity) ? p.clarity : (p.clarity === "Cloudy" ? "Hazy" : "Clear"), glutenStatus: GLUTEN_OPTIONS.includes(p.glutenStatus) ? p.glutenStatus : "Standard", vegan: !!p.vegan, allergens: Array.isArray(p.allergens) ? p.allergens.filter((a) => ALLERGEN_OPTIONS.includes(a)) : [], notes: p.notes ? String(p.notes) : "", category: deriveCategory(dt, style, abv) };
   };
   const scanLabel = async (file) => {
     setScanning(true); setScanError(null); setFillNote({ type: "loading", text: "Reading the label…" });
@@ -2654,7 +2670,8 @@ function TheCurfewCellarApp() {
         const qty = Math.max(1, Math.min(36, parseInt(x.qty, 10) || 1));
         const known = findSavedBeer(brewery, name);
         const carriedPrice = known ? latestPrice(known) : "";
-        for (let q = 0; q < qty; q++) expanded.push({ id: "inv" + expanded.length, brewery, name, abv: x.abv != null ? String(x.abv) : "", price: carriedPrice, caskOwner: x.deliveredBy ? String(x.deliveredBy) : "", drinkType: "cask", include: true });
+        const carriedSupplier = known ? latestSupplier(known) : "";
+        for (let q = 0; q < qty; q++) expanded.push({ id: "inv" + expanded.length, brewery, name, abv: x.abv != null ? String(x.abv) : "", price: carriedPrice, caskOwner: (x.deliveredBy ? String(x.deliveredBy) : "") || carriedSupplier, drinkType: "cask", include: true });
       });
       if (!expanded.length) throw new Error("empty");
       setInvoiceItems(expanded);
@@ -3128,7 +3145,7 @@ function TheCurfewCellarApp() {
     // Library array order is insertion order (new beers are always appended), so the last 10
     // entries are genuinely the 10 most recently added, same approach as the existing "Recently
     // added" list in the Add Stock picker.
-    const recentAdded = library.filter((b) => !b.archived).slice(-10).reverse();
+    const recentAdded = library.filter((b) => !b.archived).slice(-30).reverse();
     const histChrono = (b) => (b.history || []).slice().sort((x, y) => new Date(x.date) - new Date(y.date));
     const libRow = (b) => {
       const h = histChrono(b);
