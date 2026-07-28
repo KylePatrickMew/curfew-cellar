@@ -1674,7 +1674,7 @@ function TheCurfewCellarApp() {
 
       // One stock line as a card row: accent bar, name, meta, and a right column with
       // pump/stage pill, price, and best-before.
-      const beerLine = (l, accentHex, opts) => {
+      const beerLine = (l, opts) => {
         const o = opts || {};
         const b = beerById[l.beerId]; if (!b) return;
         const nameParts = splitTitle(b.brewery, b.name, b.collabBrewery);
@@ -1693,7 +1693,7 @@ function TheCurfewCellarApp() {
 
         doc.setFillColor(paleBg[0], paleBg[1], paleBg[2]); doc.rect(M, y, W - 2 * M, rowH, "F");
         doc.setFillColor(ink[0], ink[1], ink[2]); doc.rect(M, y, 2.1, rowH, "F");
-        const ac = hex(accentHex); doc.setFillColor(ac[0], ac[1], ac[2]); doc.rect(M + 0.45, y, 1.55, rowH, "F");
+        const ac = hex(CAT_ACCENT[b.category] || CAT_ACCENT.Misc); doc.setFillColor(ac[0], ac[1], ac[2]); doc.rect(M + 0.45, y, 1.55, rowH, "F");
 
         let ty = y + topPad;
         doc.setFont("helvetica", "bold"); doc.setFontSize(9.5); doc.setTextColor(ink[0], ink[1], ink[2]);
@@ -1723,12 +1723,12 @@ function TheCurfewCellarApp() {
 
       if (onL.length) {
         sectionHead("On", onL.length);
-        onL.forEach((l) => beerLine(l, TYPE_ACCENT[l.drinkType] || "#1F6B6A", { pill: (l.status === "on" && l.slot) ? PUMP_LABELS[l.slot] : null }));
+        onL.forEach((l) => beerLine(l, { pill: (l.status === "on" && l.slot) ? PUMP_LABELS[l.slot] : null }));
         y += 1.5;
       }
       if (prep.length) {
         sectionHead("In cellar", prep.length);
-        prep.forEach((l) => beerLine(l, TYPE_ACCENT[l.drinkType] || "#1F6B6A", { pill: (STATUS_BY_KEY[l.status] && STATUS_BY_KEY[l.status].label) || null }));
+        prep.forEach((l) => beerLine(l, { pill: (STATUS_BY_KEY[l.status] && STATUS_BY_KEY[l.status].label) || null }));
         y += 1.5;
       }
       if (storeL.length) {
@@ -1739,10 +1739,10 @@ function TheCurfewCellarApp() {
           subHead(label);
           if (dt === "cask") {
             caskCategoryGroups(items, (l) => (beerById[l.beerId] && beerById[l.beerId].category) || "Misc").forEach(({ cat, items: sub }) => {
-              catHead(cat); sub.slice().sort(cmpBB).forEach((l) => beerLine(l, CAT_ACCENT[cat] || "#7C8F96", {}));
+              catHead(cat); sub.slice().sort(cmpBB).forEach((l) => beerLine(l, {}));
             });
           } else {
-            items.slice().sort(cmpBB).forEach((l) => beerLine(l, TYPE_ACCENT[l.drinkType] || "#1F6B6A", {}));
+            items.slice().sort(cmpBB).forEach((l) => beerLine(l, {}));
           }
           y += 1;
         });
