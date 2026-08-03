@@ -4,31 +4,20 @@ import {
   Droplet, AlertTriangle, Clock, X, ArrowRight, Trash2, Search, Loader2, Bell, Calendar, History, ChevronDown, Database, Download, Upload, Copy, QrCode, Camera, FileText, Package, MoreHorizontal, BarChart3, Pencil, Printer, RotateCcw, Compass, Lock, Share, Wrench,
 } from "lucide-react";
 
-// ---------- Brand ----------
-// Taken directly from The Curfew's own T-shirt artwork (both CMYK masters), not estimated
-// from photographs. The Front artwork is 100% a single ink, #203B43, and the Reverse uses that
-// same ink for the tower, the viaduct and all type. The brand runs cool: dark teal, a light
-// teal sky, and cream. Every warm colour in the artwork is beer, never chrome, which is the
-// rule this palette follows too: the interface is teal and cream, and warmth only ever comes
-// from the drink itself.
 const C = {
-  ink: "#203B43",        // the brand ink, exact
-  inkSoft: "#376673",    // same hue, lifted, for secondary text (5.5:1 on cream)
-  accent: "#1F6B6A",     // the brand's teal hue at 179deg, deepened so it carries on cream (5.4:1)
-  accentSoft: "#8ACFCE", // the light teal at the top of the sky gradient, exact, for dark surfaces
-  cream: "#F6EDE5",      // the cream the gradient resolves into, and the foam on every pint, exact
-  paper: "#F9F6F3",      // cards, a touch lighter than the page
-  stone: "#ECE6E2",      // recessed fields
-  line: "#E0DAD4",       // hairlines
-  muted: "#51666C",      // quiet text, still readable at 4.6:1
-  alert: "#B23A2C",      // the artwork's red, deepened enough to read as text
+  ink: "#203B43",
+  inkSoft: "#376673",
+  accent: "#1F6B6A",
+  accentSoft: "#8ACFCE",
+  cream: "#F6EDE5",
+  paper: "#F9F6F3",
+  stone: "#ECE6E2",
+  line: "#E0DAD4",
+  muted: "#51666C",
+  alert: "#B23A2C",
 };
-// The five pints under the viaduct, sampled straight from the artwork. Warm colour in this app
-// means beer and nothing else, so these are the only warm values in the whole palette.
 const BEER = { yellow: "#E4C234", gold: "#E39E1A", amber: "#D6771C", red: "#CB4132", brown: "#974A31" };
 const TYPE_ACCENT = { cask: C.ink, keg: C.accent, keykeg: C.accent, cider: "#4C7C6F" };
-// One definition of each dietary badge's colour, warm and teal-tinted to match the app's
-// own palette. Used everywhere a badge appears, so they can't drift out of sync again.
 const DIET_BADGE_STYLE = {
   vegan: { background: "#EDF3E7", color: "#3F6B33", borderColor: "#C7DAB8" },
   gluten: { background: "#E8F2F1", color: "#1F5C54", borderColor: "#BFDDD9" },
@@ -37,32 +26,17 @@ const DIET_BADGE_STYLE = {
 const CAT_ACCENT = { IPA: BEER.gold, Pale: BEER.yellow, Bitter: BEER.amber, "Stout/Porter": BEER.brown, Stout: BEER.brown, Porter: BEER.brown, Cider: "#4C7C6F", Sour: BEER.red, Misc: "#7C8F96" };
 const STORE_KEY = "curfew-cellar:data:v1";
 const MODEL = "claude-sonnet-4-6";
-// Updated by hand every time a new App.jsx is handed over. Check this against what you were
-// just given, if it doesn't match, the deploy hasn't actually landed yet, whatever the app
-// looks like otherwise. Shown in Backup & Restore.
-const APP_BUILD = "2026-07-22 23:00";
-// ---- Cloud sync (active only in the deployed app; the preview uses window.storage) ----
+const APP_BUILD = "2026-07-29 11:48";
 const SB_URL = "https://fnqhrckxmzioinbokicb.supabase.co";
 const SB_KEY = "sb_publishable_RyO06sDdZg3bH7Mt6hwHEQ_EA9RNkJ8";
-// Three real Supabase accounts, one per role, checked in this order against whatever password
-// was typed. All three are dedicated accounts under Kyle's own curfewcellar.app domain, not
-// his personal email (manager was switched over from kyle.parkour@gmail.com once the dedicated
-// account existed). Each needs its own genuinely distinct password for the role system to
-// actually work: sign-in tries them in this order and stops at the first match, so if two
-// accounts share a password, whichever is tried first always wins and the other is unreachable.
-// These don't need to be real, working inboxes, Supabase only needs them as unique account
-// identifiers for password sign-in.
 const MANAGER_EMAIL = "manager@curfewcellar.app";
 const STAFF_EMAIL = "staff@curfewcellar.app";
 const READONLY_EMAIL = "readonly@curfewcellar.app";
 const ROLE_BY_EMAIL = { [MANAGER_EMAIL]: "manager", [STAFF_EMAIL]: "staff", [READONLY_EMAIL]: "readonly" };
-// Defaults to manager for any session that doesn't match one of the three (e.g. before the
-// staff/read-only accounts exist yet, or the same single account logging in as it always has),
-// so nothing about today's login changes until the new accounts are actually created and used.
 const roleFromSession = (session) => (session && session.user && ROLE_BY_EMAIL[session.user.email]) || "manager";
 const CLOUD_ID = "default";
 let _sb = null;
-let _rev = null; // last seen lastUpdated, used to ignore our own echoes
+let _rev = null;
 const _loadSB = () => new Promise((resolve, reject) => {
   if (typeof window === "undefined") return reject(new Error("no window"));
   if (window.supabase) return resolve(window.supabase);
@@ -79,10 +53,6 @@ const _client = async () => {
   return _sb;
 };
 const _revOf = (v) => { try { return JSON.parse(v).lastUpdated || null; } catch (e) { return null; } };
-// The deployed /api/anthropic proxy now requires a signed-in staff session (see anthropic.js),
-// so every call through it must carry the current Supabase access token as a bearer header.
-// In the preview sandbox there is no Supabase session and the AI calls are intercepted before
-// they ever reach that proxy, so falling back to a plain header there is safe, not a workaround.
 const authedFetchHeaders = async () => {
   try {
     const c = await _client();
@@ -121,9 +91,9 @@ const cloudStore = {
       const { data, error } = await c.from("cellar").select("data").eq("id", CLOUD_ID).maybeSingle();
       if (!error) {
         if (data && data.data) { const v = JSON.stringify(data.data); _rev = _revOf(v); try { localStorage.setItem(key, v); } catch (e) {} return { key, value: v, cloudOk: true }; }
-        return { key, value: null, cloudOk: true }; // reached the cloud, genuinely no row yet
+        return { key, value: null, cloudOk: true };
       }
-    } catch (e) { /* offline or failed: fall back to the local cache, but flag that we have not confirmed the cloud */ }
+    } catch (e) { }
     try { const v = localStorage.getItem(key); if (v) { _rev = _revOf(v); return { key, value: v, cloudOk: false }; } } catch (e) {}
     return { key, value: null, cloudOk: false };
   },
@@ -133,18 +103,14 @@ const cloudStore = {
     if (rev && rev === _rev) return { key, value };
     try {
       const c = await _client();
-      // Guard against clobbering a write that landed on another phone since we last synced:
-      // check what's actually in the row right now before overwriting it.
       const { data: current } = await c.from("cellar").select("data").eq("id", CLOUD_ID).maybeSingle();
       const remoteRev = current && current.data ? _revOf(JSON.stringify(current.data)) : null;
       if (remoteRev && _rev && remoteRev !== _rev) {
-        // Someone else's change is in the row and we haven't seen it yet. Don't overwrite
-        // it with our (now stale) snapshot; hand it back so the caller can pull it in instead.
         return { key, value, conflict: true, remoteValue: JSON.stringify(current.data) };
       }
       _rev = rev;
       await c.from("cellar").upsert({ id: CLOUD_ID, data: JSON.parse(value), updated_at: new Date().toISOString() }, { onConflict: "id" });
-    } catch (e) { /* offline: cache holds, resyncs on next change */ }
+    } catch (e) { }
     return { key, value };
   },
   async subscribe(onRemote) {
@@ -169,7 +135,6 @@ const cloudStore = {
 const store = (typeof window !== "undefined" && window.storage) ? window.storage : cloudStore;
 const clone = (x) => JSON.parse(JSON.stringify(x));
 
-// ---------- Reference data ----------
 const STATUSES = [
   { key: "in_cellar", label: "In Store", dateKey: "delivered" },
   { key: "racked", label: "Racked", dateKey: "racked" },
@@ -183,64 +148,31 @@ const FIRST_IDX = STATUS_INDEX["in_cellar"];
 const VISIBLE_STATUSES = STATUSES;
 const STATUS_BY_KEY = Object.fromEntries(STATUSES.map((s) => [s.key, s]));
 const CASK_FLOW = ["in_cellar", "racked", "vented", "tapped", "on", "off"];
-// One colour per lifecycle stage, running the pint gradient (pale straw through to brown),
-// the same family as the category dots and the bridge motif. The named pint colours cover
-// five of the six stages, so one pale stop was added ahead of yellow for In Store.
 const STAGE_ACCENT = { in_cellar: "#E8DFB0", racked: BEER.yellow, vented: BEER.gold, tapped: BEER.amber, on: BEER.red, off: BEER.brown };
 const SHORT_FLOW = ["in_cellar", "on", "off"];
 const flowFor = (drinkType) => (drinkType === "cask" ? CASK_FLOW : SHORT_FLOW);
 
-// Everything specific to THIS pub's actual bar and branding, gathered in one place. A
-// different pub would swap this whole object out; nothing else in the file should need to
-// change to support that. PUMPS/PUMP_LABELS/PUMP_NUMBER/caskPrefPumps below are kept as their
-// own top-level names, aliased from here, so none of their many existing call sites throughout
-// the file needed to change, this is a pure consolidation, not a behaviour change.
-// Deliberately NOT included here: STORE_KEY, the push notification tag, and exportData's "app"
-// id. Those are internal storage/sync identifiers rather than display branding; changing their
-// derivation risks silently orphaning a device's local storage or breaking push de-duplication,
-// so they stay as their own literals, untouched.
-// Also NOT included: the racked-preview six-slot mix (2 IPA, 2 Pale, 1 Bitter, 1 Stout). It's
-// tightly interleaved with which of two shared IPA/Pale candidates lands in which slot, not a
-// simple lookup, so folding it in here risked an off-by-one for no real benefit this session.
-// The Curfew's actual logo mark (tower, clock, flag), embedded directly so it travels with
-// this one file rather than needing a separate asset uploaded to the repo. Its own background
-// is a solid fill, not transparent, and that fill is the genuine brand teal, see the C.ink note
-// below for why that matters.
-const PUB_LOGO = "data:image/png;base64,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";
-// Same artwork, dark ink instead of cream, for use against the light sky gradient rather
-// than a flat dark surface.
-const PUB_LOGO_INK = "data:image/png;base64,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";
 const PUB_CONFIG = {
-  name: "The Curfew",             // short display name: header, tap list, allergen sheet, PDF titles
-  fullName: "The Curfew Micropub", // long form: PDF subtitle taglines, rendered upper-case there
-  typeLabel: "Micropub",           // bare descriptor, no name: used where the title above already says the pub name
-  shortName: "Curfew",             // share-sheet titles, backup validation message
-  slug: "curfew",                  // filenames and the backup download name
+  name: "The Curfew",
+  fullName: "The Curfew Micropub",
+  typeLabel: "Micropub",
+  shortName: "Curfew",
+  slug: "curfew",
   pumps: { cask: ["cask0", "cask1", "cask2", "cask3"], keg: ["keg0", "keg1", "keg2"], cider: ["cider0", "cider1", "cider2"] },
   pumpLabels: { cask0: "IPA", cask1: "Pale", cask2: "Bitter", cask3: "Stout", keg0: "Keg 1", keg1: "Keg 2", keg2: "Keg 3", cider0: "Cider 1", cider1: "Cider 2", cider2: "Cider 3" },
   pumpNumber: { cask0: 1, cask1: 2, cask2: 3, cask3: 4, keg0: 5, keg1: 6, keg2: 7, cider0: 8, cider1: 9, cider2: 10 },
-  // Racked IPA/Pale slots fill by ABV, strongest two go to IPA. Standing decision.
   caskPrefPumps: (cat) => (cat === "IPA" || cat === "Pale") ? ["cask0", "cask1"] : cat === "Bitter" ? ["cask2"] : cat === "Stout/Porter" ? ["cask3"] : [],
-  lineCleanDays: 7, // how often lines are due a clean; seven days is the usual cellar standard
+  lineCleanDays: 7,
 };
 const PUMPS = PUB_CONFIG.pumps;
 const PUMP_LABELS = PUB_CONFIG.pumpLabels;
 const PUMP_NUMBER = PUB_CONFIG.pumpNumber;
 const caskPrefPumps = PUB_CONFIG.caskPrefPumps;
-// Every pump in bar order, for anything that works across the whole bar rather than one
-// drink type (line cleaning being the obvious case: a line is a line).
 const ALL_PUMPS = [...PUMPS.cask, ...PUMPS.keg, ...PUMPS.cider];
-// Features built with the eventual sellable, multi-pub product in mind, not everything here is
-// right for The Curfew specifically. Each one defaults to whatever's correct for this pub; a
-// future paying tenant would flip theirs on. This only gates the navigation entry points below,
-// not the screen components themselves, so a flag can be flipped on temporarily to view and
-// keep developing a gated screen without it ever being reachable through Kyle's own day-to-day
-// navigation, and without needing to strip a guard back out first just to look at it.
 const TENANT_FEATURES = {
-  cellarStats: false, // Cellar Stats: useful for the wider product, not needed day-to-day here
+  cellarStats: false,
 };
 const bbCmp = (a, b) => (a.bestBefore || "9999-12-31").localeCompare(b.bestBefore || "9999-12-31");
-// Pin each "on" line to a physical pump so beers never jump between pumps.
 const assignPumps = (ls, catOf) => {
   const out = ls.map((l) => ({ ...l }));
   const onCask = out.filter((l) => l.status === "on" && l.drinkType === "cask");
@@ -261,10 +193,6 @@ const assignPumps = (ls, catOf) => {
   return out;
 };
 const catFromLib = (lib) => (l) => ((lib.find((b) => b.id === l.beerId) || {}).category) || "Misc";
-// Pint is the stored price. Half = pint/2 and Schooner = pint x 2/3, both rounded UP to the
-// nearest 5p so every measure is a round figure to take at the bar (2.87 becomes 2.90, 2.12
-// becomes 2.15). The epsilon stops floating-point error nudging a price that already sits
-// exactly on a 5p boundary (2.85) up to the next one.
 const money = (n) => `£${(Math.round(n * 100) / 100).toFixed(2)}`;
 const roundUpTo5p = (n) => Math.ceil((n * 100 - 1e-6) / 5) * 5 / 100;
 const priceTriple = (pint) => {
@@ -279,19 +207,9 @@ const DRINK_TYPES = [
   { key: "keykeg", label: "Key Keg" },
   { key: "cider", label: "Draught cider" },
 ];
-// Key kegs run through the keg taps, so they share the keg pump group.
 const PUMP_DRINK = (dt) => (dt === "keykeg" ? "keg" : dt);
-// An empty awaiting collection: finished, not yet collected, and returnable (ciders and one-way key kegs are not).
 const IS_EMPTY = (l) => l.status === "off" && !l.collected && l.drinkType !== "cider" && l.drinkType !== "keykeg";
 const CATEGORIES = ["IPA", "Pale", "Bitter", "Stout/Porter", "Misc"];
-// Groups a set of items by cask category, always in CATEGORIES' fixed order first, but never
-// silently dropping anything. A cask can carry a category CATEGORIES doesn't list (Sour is a
-// valid chip choice in BeerDetailsFields; Cider can be picked on a cask by mistake), and six
-// different screens and PDFs used to iterate CATEGORIES directly, so any such cask vanished
-// from the list body while still being counted in that same list's own header total. Any
-// leftover category actually present in the data gets one further group, named after itself,
-// appended after the fixed five. `catOf` resolves a category from whatever `items` holds
-// (a line via beerById, or a beer record directly), so this works for either.
 const caskCategoryGroups = (items, catOf) => {
   const groups = CATEGORIES.map((cat) => ({ cat, items: items.filter((it) => catOf(it) === cat) }));
   const known = new Set(CATEGORIES);
@@ -307,7 +225,6 @@ const GLUTEN_OPTIONS = ["Standard", "Low gluten", "Gluten-free"];
 const CLARITY_OPTIONS = ["Clear", "Hazy"];
 const CIDER_SWEETNESS = ["Sweet", "Medium Sweet", "Medium", "Medium Dry", "Dry"];
 
-// Web Push: the public half of the VAPID keypair (the private half lives only in Vercel).
 const PUSH_PUBLIC_KEY = "BN-lqhCSKqtRWwfwxJMnnsj_e9BZ5kXzaIya9Zi7P8eNYgQZHrBiT5xkhc0AyVixtzolnxD6fesELFarqisdwIE";
 const b64ToBytes = (b64) => {
   const pad = "=".repeat((4 - (b64.length % 4)) % 4);
@@ -346,22 +263,20 @@ const GUIDE_SECTIONS = [
   ]},
 ];
 
-// The unlock and error screens return before the main app shell (where the full style
-// block lives), so they need their own font bootstrap or the wordmark falls back to
-// the system font. The browser dedupes the duplicate @import.
 const FontBoot = () => <style>{`@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=DM+Sans:wght@500;600;700;800&display=swap');
 :root { --font-data: 'Archivo', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; --font-display: 'Archivo', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; --font-brand: 'DM Sans', 'Archivo', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }`}</style>;
 const VIEW_TITLES = { cellar: "Cellar", add: "Add Stock", library: "Library", allergens: "Allergen Sheet", stock: "Stock List", empties: "Empties to Return", lines: "Line Cleaning", libtools: "Library Tools", stats: "Cellar Stats", guide: "How to Use", notify: "Notifications", backup: "Backup & Restore" };
 const SIZE_OPTIONS = ["Bag-in-box 20L"];
-const FRESH_LIMIT = 4; // days on a cask before a quality check is worth a look
-const BB_SOON = 2;     // days before best-before to start flagging
+const FRESH_LIMIT = 4;
+const BB_SOON = 2;
 
-// ---------- Helpers ----------
+const PUB_LOGO = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAgAAAAIACAYAAAD0eNT6AAAfo0lEQVR42u3deZB1eV3f8Xc/3c8zMLIM+xI1GBYNRHBBDSoKKY0aNYYKGmMiFv9gUqgJRo2UGFKaEqJiGTVaGpLSqBgEAUFklxGUZVgEJewT2QZlmWFg9nl6yR/nnOrDnX56eZ7unu6e16vq1n2e2+eee8/pvvf7Ob/f7/zO0vVXXhEAcNtyyi4AAAEAABAAAAABAAAQAAAAAQAAEAAAAAEAABAAAAABAAAQAAAAAQAAEAAAAAEAABAAAAABAAAQAAAAAQAABAAAQAAAAAQAAEAAAAAEAABAAAAABAAAQAAAAAQAAEAAAAAEAABAAAAABAAAQAAAAAQAAEAAAAAEAAAQAAAAAQAAEAAAAAEAABAAAAABAAAQAAAAAQAAEAAAAAEAABAAAAABAAAQAAAAAQAAEAAAAAEAABAAAEAAAAAEAABAAAAABAAAQAAAAAQAAEAAAAAEAABAAAAABAAAQAAAAAQAAEAAAAAEAABAAAAABAAAQAAAAAEAABAAAAABAAAQAAAAAQAAEAAAAAEAABAAAAABAAAQAAAAAQAAEAAAAAEAABAAAAABAAAQAAAAAgAACAAAgAAAAAgAAIAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAgAAAAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAgAAAAAgAACAAAgAAAAAgAAMCJ8f8BYKyKJclIWfkAAAAASUVORK5CYII=";
+const PUB_LOGO_INK = "data:image/png;base64,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";
+
 const uid = () => Math.random().toString(36).slice(2, 9);
 const DAY = 86400000;
 const isoDaysAgo = (n, hour = 9) => { const d = new Date(Date.now() - n * DAY); d.setHours(hour, 0, 0, 0); return d.toISOString(); };
 const dateInDays = (n) => new Date(Date.now() + n * DAY).toISOString().slice(0, 10);
-// best-before comes off labels in all sorts of formats, normalise to YYYY-MM-DD (UK day/month order)
 const toISO = (s) => {
   if (!s) return "";
   const t = String(s).trim();
@@ -377,16 +292,6 @@ const fmt = (iso) => {
     d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 };
 const fmtDate = (s) => { if (!s) return "--"; return new Date(s + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" }); };
-// Splits a tasting note into a taste line and an optional fun-fact line, so it can be shown
-// as two short bullet-style lines instead of one paragraph, regardless of how it was entered.
-// One bullet per sentence, splitting on every ". " (not just the first), so notes with any
-// number of sentences display correctly, not just exactly two. Splitting on period-plus-space
-// specifically (not just period) means it won't misfire on a decimal like "4.5%" inside a note.
-// One bullet per sentence, splitting on a period followed by ANY whitespace, not just a literal
-// space. A note typed or pasted from elsewhere (Notes app, a website) can leave a non-breaking
-// space or similar after the full stop, which an exact ". " match silently fails to find,
-// producing one long bullet instead of several. \s in JS regex covers regular spaces, non-
-// breaking spaces, tabs and newlines, so this is a strict superset of the old behaviour.
 const splitNote = (notes) => {
   if (!notes) return [];
   return notes.trim().split(/\.\s+/).map((x) => x.trim().replace(/\.$/, "")).filter(Boolean);
@@ -395,7 +300,6 @@ const dayDiff = (aIso, bIso) => { const a = new Date(aIso); a.setHours(0, 0, 0, 
 const daysUntil = (dateStr) => { if (!dateStr) return null; const a = new Date(); a.setHours(0, 0, 0, 0); const b = new Date(dateStr + "T00:00:00"); return Math.round((b - a) / DAY); };
 const daysOn = (line) => { if (!line.dates.on) return null; return dayDiff(line.dates.on, line.dates.off || new Date().toISOString()); };
 
-// quality nudge for cask only, never a hard "bin it"
 const freshness = (line) => {
   if (line.drinkType !== "cask") return null;
   const d = daysOn(line);
@@ -417,14 +321,7 @@ const BB_STYLE = {
   ok: "bg-slate-50 text-slate-500 border-slate-200",
 };
 
-// auto-categorise by your rules; falls back to Misc when unsure
-// Some ciders end up with the same word in both Style and Sweetness (e.g. "Sweet" typed
-// into Style too), which would otherwise display as "Sweet · Sweet". Only show sweetness
-// as extra detail when it isn't just repeating the style.
 const extraSweetness = (beer) => (beer.sweetness && beer.sweetness.trim().toLowerCase() !== (beer.style || "").trim().toLowerCase()) ? beer.sweetness : "";
-// Groups empties by supplier, tolerant of case and stray whitespace (e.g. "6 Barrels" vs
-// "6 Barrells" won't split into two groups). `key` is the normalised match/state key; `label`
-// is the original casing of whichever entry was seen first, used for display.
 const ownerKey = (o) => (o || "Unknown").trim().toLowerCase() || "unknown";
 const groupByOwner = (items) => {
   const map = new Map();
@@ -436,10 +333,6 @@ const groupByOwner = (items) => {
   });
   return [...map.values()].sort((a, b) => (b.items.length - a.items.length) || a.label.localeCompare(b.label));
 };
-// Brewery names come back from the AI with company suffixes attached ("Ossett Brewing Company
-// Limited", "Wharfedale Brewery Ltd", "Weston's Cider Co"), which crowd out the beer's own name
-// in lists. Strip the trailing suffix words so only the distinctive part remains. Applied to AI
-// output only, never to what Kyle types by hand, and it never strips the name down to nothing.
 const cleanBrewery = (name) => {
   if (!name) return "";
   let out = String(name).trim();
@@ -450,12 +343,6 @@ const cleanBrewery = (name) => {
   }
   return out || String(name).trim();
 };
-// Duplicate detection for the library: the same real beer entered more than once, usually with
-// slightly different brewery text ("Weston's" vs "Weston's Cider", or a stray apostrophe). Only
-// flags a pair if BOTH the name matches (after normalising case, punctuation and whitespace) AND
-// the brewery matches after the same suffix-stripping cleanBrewery already does for autofill.
-// Matching on name alone would flag two different breweries that both happen to make a beer
-// called "IPA"; requiring both checks avoids that.
 const normalizeForMatch = (s) => (s || "").toLowerCase().replace(/['".,]/g, "").replace(/\s+/g, " ").trim();
 const breweryCore = (s) => normalizeForMatch(cleanBrewery(s));
 const findDuplicateCandidates = (library) => {
@@ -477,12 +364,6 @@ const findDuplicateCandidates = (library) => {
   });
   return pairs;
 };
-// A brewery has exactly one real location, unlike its ABV or style, which genuinely differ
-// beer to beer. More than one distinct location on file for the same brewery (fuzzy-matched
-// the same way duplicate beers are) is always a data error, never a legitimate difference, so
-// unlike findDuplicateCandidates this doesn't need a second signal to avoid false positives.
-// Groups by whichever location is most common, so the option Kyle is most likely to want to
-// keep is offered first.
 const findLocationClashes = (library) => {
   const groups = {};
   library.forEach((b) => {
@@ -502,10 +383,6 @@ const findLocationClashes = (library) => {
     .filter((g) => g.byLoc.size > 1)
     .map((g) => ({ brewery: g.brewery, options: [...g.byLoc.values()].sort((a, b) => b.beerIds.length - a.beerIds.length) }));
 };
-// Both autofill paths (Add Stock and Edit beer details) share this. Kept in one place so the
-// two can never drift apart. Wrong details cost real time behind the bar, so the model is told
-// to actually look things up and cross-check rather than answer from memory, and to admit when
-// it could not verify something instead of guessing confidently.
 const buildAutofillPrompt = (brewery, name, isCider) => `You help the cellar app for a UK micropub. Wrong details cost real time behind the bar and can mislead a customer with an allergy, so accuracy matters far more than filling every field.
 
 Product type: ${isCider ? "draught cider/perry" : "beer (cask or keg)"}
@@ -541,35 +418,18 @@ Return STRICT JSON only. No markdown, no backticks, no commentary.
 }
 
 JSON only.`;
-// Deterministic sanity check run on every AI-filled result, no AI involved, just logic. Catches
-// internally inconsistent combinations that can slip past even a well-sourced AI answer, e.g.
-// marked vegan while isinglass (a fish product) is listed as an allergen. Returns plain-English
-// warnings, or an empty array if nothing looks contradictory.
 const GLUTEN_GRAINS = ["Barley (gluten)", "Wheat (gluten)", "Oats (gluten)", "Rye (gluten)"];
-// Never present "Gluten-free" as a claim while a gluten grain is also listed as an allergen.
-// One of the two is wrong, and on something a coeliac customer reads, the safe direction is to
-// drop the reassuring claim rather than the warning. The allergen list still shows in full, and
-// the attention bell tells Kyle so the underlying data can be corrected.
 const glutenClaimConflict = (beer) => beer.glutenStatus === "Gluten-free" && (beer.allergens || []).some((a) => GLUTEN_GRAINS.includes(a));
 const isGlutenFree = (beer) => beer.glutenStatus === "Gluten-free" && !glutenClaimConflict(beer);
-// Same principle, same reason, for vegan: isinglass (a fish product used to clear the beer)
-// and milk/lactose both directly contradict a vegan claim. Drop the claim, keep the allergen
-// list showing in full, tell the bell so the real data can be fixed.
 const VEGAN_CONFLICTS = ["Fish (isinglass finings)", "Milk (lactose)"];
 const veganClaimConflict = (beer) => !!beer.vegan && (beer.allergens || []).some((a) => VEGAN_CONFLICTS.includes(a));
 const isVegan = (beer) => !!beer.vegan && !veganClaimConflict(beer);
-// When a beer's name already starts with its brewery ("Malvern" + "Malvern Gold") printing both
-// gives "Malvern Malvern Gold". Drop the repeated prefix so the weight split still reads as
-// brewery-then-beer without the stutter.
 const splitTitle = (brewery, name, collabBrewery) => {
   const b = (brewery || "").trim(), n = (name || "").trim(), c = (collabBrewery || "").trim();
   const lead = c ? `${b} X ${c}` : b;
   if (b && n.toLowerCase().startsWith(b.toLowerCase() + " ")) return { lead, rest: n.slice(b.length).trim() };
   return { lead, rest: n };
 };
-// A collaboration has two homes, not one. Shown as "Location X Second location" wherever a
-// beer's location appears, the same X convention as the brewery names above, so a card reads
-// as one obviously joint beer rather than one brewery with an unexplained second address.
 const locationDisplay = (b) => {
   const loc = (b.location || "").trim(), collabLoc = (b.collabLocation || "").trim();
   if (!collabLoc) return loc;
@@ -592,16 +452,11 @@ const checkContradictions = (f) => {
   }
   return warnings;
 };
-// Appends any contradiction warnings to a base note, without changing its type unless the base
-// note was otherwise a plain success (in which case a contradiction upgrades it to a warning).
 const withContradictionCheck = (note, fields) => {
   const warnings = checkContradictions(fields);
   if (!warnings.length) return note;
   return { type: "warn", text: `${note.text} ${warnings.join(" ")}` };
 };
-// One concise message after autofill. Kyle's call: no stacked warnings, just a clear pointer
-// to the brewery's official information. The only exception keeps a warning tone: when the
-// model could not confirm it found the right beer at all, sounding confident would be worse.
 const autofillNote = (p) => {
   if (p.confidence === "unsure") return { type: "warn", text: "This beer wasn't recognised, so treat the details as a guess. Always check against the brewery's official information." };
   return { type: "ai", text: "Filled in. Always check against the brewery's official information." };
@@ -619,12 +474,6 @@ const categorise = (style, abv) => {
   if (/dark|black/.test(s)) return "Stout/Porter";
   return "Misc";
 };
-// Every keg and cider was defaulting to grey (category "Misc") because nothing ever derived a
-// real category for them, cask was the only drink type that auto-categorised from style/ABV,
-// everything else fell back to a hardcoded "Misc" at every single write site (label scans,
-// invoice imports, form defaults). Cider always gets its own category, since drinkType already
-// tells us unambiguously what it is. Keg gets the same style-based derivation as cask, since keg
-// beers have real styles (IPA, Stout, Pale...) just as casks do.
 const deriveCategory = (drinkType, style, abv) => (drinkType === "cider" ? "Cider" : categorise(style, abv));
 const EMPTY_DATES = { ordered: null, delivered: null, racked: null, vented: null, tapped: null, on: null, off: null };
 const normaliseData = (data) => {
@@ -659,12 +508,6 @@ const normaliseData = (data) => {
   return { ...data, library: lib, lines };
 };
 
-// Local fallback draft, used only when the AI lookup can't be reached. This is a guess at
-// flavour and style only, never at dietary facts: vegan/gluten/allergens default to the
-// unverified, unsafe-to-assume position (vegan false, allergens empty, gluten Standard) rather
-// than a confident-looking guess, matching the rule the real autofill prompt itself follows.
-// Ciders still default to Sulphites and gluten-free, since that's true of the category as a
-// whole rather than a beer-specific claim, but never to vegan true.
 const aiDraft = (name) => {
   const l = (name || "").toLowerCase();
   let d = { style: "Pale Ale", abv: "4.2", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "Golden and sessionable, light citrus and a clean dry finish." };
@@ -676,7 +519,6 @@ const aiDraft = (name) => {
   return { ...d, allergensVerified: false };
 };
 
-// ---------- Demo data ----------
 const seedLibrary = [
   { id: "b1", brewery: "Ampersand", location: "Pewsey, Wiltshire", name: "Extra Pale Ale", style: "Extra Pale Ale", abv: "4.0", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)"], notes: "Light, crisp, citrus.", allergensVerified: false, category: "Pale" },
   { id: "b2", brewery: "Bank Top", location: "Bolton", name: "Harlequin", style: "Pale Ale", abv: "4.0", clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: ["Barley (gluten)"], notes: "Soft, tropical, easy-drinking.", allergensVerified: false, category: "Pale" },
@@ -813,12 +655,6 @@ const emptyForm = {
   status: "in_cellar", bestBefore: "", caskOwner: "", sweetness: "",
 };
 
-// ---------- UI atoms ----------
-// The second accent: a small dot for the beer's style/category (IPA, Pale, Stout...), sitting
-// beside the name. Kept separate from the left rail (which is drink type: Cask/Keg/Cider) on
-// purpose, two colours on one thin rail would both read as a muddy smudge. A dot next to the
-// name is where the eye already lands to read it, and it stays quiet enough not to compete with
-// the louder dietary/allergen colours (Ve/GF/Hazy) that share the same card.
 const CatDot = ({ category }) => {
   const c = CAT_ACCENT[category] || CAT_ACCENT.Misc;
   return <span className="inline-block shrink-0 rounded-full" style={{ width: 9, height: 9, background: c, boxShadow: "inset 0 0 0 1.25px rgba(32, 59, 67,0.35)" }} title={category || "Misc"} />;
@@ -856,17 +692,8 @@ const Field = ({ label, children }) => (
     {children}
   </label>
 );
-// The one definition of "a beer's details". Add Stock and Edit Beer Details both render
-// this, in this order, so they can't drift apart again the way they had. Anything specific
-// to a physical stock line (type, container, this cask's price, supplier, best before,
-// status) or specific to editing an existing library entry (its current live price,
-// archiving) stays in the screen that actually needs it, not here.
 const BeerDetailsFields = ({ values, onChange, onAutoFill, busy, note, toggleAllergen }) => {
   const chip = (on) => (on ? { background: C.ink, color: "#fff", borderColor: C.ink } : { borderColor: C.line, color: C.inkSoft });
-  // Collapsed by default: a genuine collaboration is rare, so it shouldn't cost every other
-  // beer a visible field. Expands automatically the moment either collab field actually has
-  // something in it, whether that's the user typing or an existing beer being loaded in, and
-  // never snaps shut again once open, so it can't yank the fields away mid-edit.
   const [showCollab, setShowCollab] = useState(() => !!(values.collabBrewery || values.collabLocation));
   useEffect(() => { if (values.collabBrewery || values.collabLocation) setShowCollab(true); }, [values.collabBrewery, values.collabLocation]);
   return (
@@ -950,10 +777,6 @@ const Eyebrow = ({ children, count }) => (
   </div>
 );
 
-// ---------- Main ----------
-// ---------- Cards ----------
-// A stock line's signal (what shows as its status pill and whether it needs attention).
-// Pure: only reads the line and module-scope helpers, no component state.
 const cardSignal = (line) => {
   const bb = bbStatus(line);
   const f = freshness(line);
@@ -972,8 +795,6 @@ const LineRow = ({ line, context, beerById, onOpen }) => {
   const sig = cardSignal(line);
   const storeBB = context === "store" && line.bestBefore && !sig.alert;
   const showBadge = context === "racked" || sig.alert || storeBB;
-  // Always a short pill on this compact card: never the long sentence form, regardless of
-  // which signal fired (best-before passed/soon, store-context BB, or a status label).
   const bb = bbStatus(line);
   let badgeText = sig.text;
   if (storeBB) badgeText = `BB ${fmtDate(line.bestBefore)}`;
@@ -1070,10 +891,6 @@ const Item = ({ line, beerById }) => {
   const allergenLine = beer.allergensVerified
     ? (beer.allergens.length ? `Contains: ${beer.allergens.join(", ")}` : "No declared allergens")
     : "Allergens: please ask at the bar";
-  // Same card language as every internal screen: cream card, teal-framed rail carrying the
-  // beer's own colour, bold brewery / normal name. Roomier than an internal row because a
-  // customer reads this rather than scans it, but structurally identical so the app doesn't
-  // change personality between the till and the table.
   return (
     <div className="relative mb-2.5 overflow-hidden rounded-xl border py-3 pr-4" style={{ background: C.paper, borderColor: C.line, paddingLeft: 22, boxShadow: "0 1px 2px rgba(32, 59, 67,0.04), 0 8px 20px -14px rgba(32, 59, 67,0.28)" }}>
       <span aria-hidden="true" title={beer.category || "Misc"} style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 14, background: C.ink }}>
@@ -1104,22 +921,15 @@ const Item = ({ line, beerById }) => {
 
 const EditBeer = ({
   editBeerId, editBeerLineId, beerById, lines, canEdit,
-  updateBeer, updateBeerPrice, setCaskOwner, setBestBefore, toggleBeerAllergen,
+  updateBeer, updateBeerPrice, setCaskOwner, setBestBefore, setLineDrinkType, toggleBeerAllergen,
   autoFillBeer, editBusy, editNote, latestPrice,
   setEditBeerId, setEditBeerLineId, setEditNote,
   deleteBeer, beerIsDeletable, beerArchiveDeletable,
 }) => {
   const beer = editBeerId ? beerById[editBeerId] : null;
   const editLine = editBeerLineId ? lines.find((l) => l.id === editBeerLineId) : null;
-  // Local drafts for price and "Delivered by": typing writes to a purely local value first,
-  // committing to updateBeerPrice/setCaskOwner (both of which remap the whole lines and/or
-  // library array) a short pause after the last keystroke rather than on every character. This
-  // is the flagged cause of the price-field typing lag. Resyncs from the real value whenever a
-  // different beer or line is opened, but not on every render, so it doesn't fight typing.
   const [priceDraft, setPriceDraft] = useState("");
   const [ownerDraft, setOwnerDraft] = useState("");
-  // 0 = no confirm shown, 1 = first confirm, 2 = final confirm (archive-delete only, since
-  // that path can also erase real stocking history and deserves an extra deliberate step).
   const [deleteStage, setDeleteStage] = useState(0);
   const priceTimer = useRef(null);
   const ownerTimer = useRef(null);
@@ -1139,13 +949,6 @@ const EditBeer = ({
     setEditBeerId(null); setEditBeerLineId(null); setEditNote(null);
   };
   const bb = editLine ? bbStatus(editLine) : null;
-  // Price lives on the LINE (each delivery can come in at a different price), and that is what
-  // the Cellar card, tap list and PDFs all display. The library's own `price` field is only a
-  // cache, written when someone types here, so it goes stale the moment a new delivery of the
-  // same beer arrives at a different price. So: if the beer has a live line, that line is the
-  // source of truth and Edit must agree with it. Only fall back to the library value (then the
-  // last recorded price) when there is no live line at all, i.e. archived or never stocked.
-  // updateBeerPrice writes to both, so committing here keeps the two in step.
   const commitPrice = (v) => {
     setPriceDraft(v);
     if (priceTimer.current) clearTimeout(priceTimer.current);
@@ -1162,6 +965,12 @@ const EditBeer = ({
     category: beer.category || "Misc", sweetness: beer.sweetness || "", clarity: beer.clarity || "Clear", glutenStatus: beer.glutenStatus || "Standard",
     vegan: !!beer.vegan, allergens: beer.allergens, allergensVerified: !!beer.allergensVerified, notes: beer.notes || "",
   };
+  // Changing a line's drink type is only ever safe In Store or Finished, the two statuses
+  // shared by both lifecycle flows with no pump slot attached. Cask has Racked/Vented/Tapped
+  // stages keg and cider don't have at all, and a live "on" line's slot belongs to a specific
+  // drink type's pump group, so changing type anywhere else would leave the line pointing at a
+  // stage or slot that doesn't exist for its new type.
+  const typeChangeAllowed = editLine && (editLine.status === "in_cellar" || editLine.status === "off");
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 cc-overlay" style={{ background: "rgba(32, 59, 67,0.45)" }} onClick={close}>
       <div className="w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white sm:rounded-2xl cc-pop" style={{ maxHeight: "92vh", overscrollBehaviorY: "none", WebkitOverflowScrolling: "touch", touchAction: "manipulation" }} onClick={(e) => e.stopPropagation()}>
@@ -1170,6 +979,18 @@ const EditBeer = ({
           <button onClick={close} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400"><X size={18} /></button>
         </div>
         <div className="space-y-3 p-4">
+          {editLine && (
+            <Field label="Type">
+              <div className="flex flex-wrap gap-2">
+                {DRINK_TYPES.map((t) => (
+                  <button key={t.key} disabled={!typeChangeAllowed} onClick={() => typeChangeAllowed && setLineDrinkType(editLine.id, t.key)}
+                    className="rounded-lg border px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:cursor-not-allowed disabled:opacity-50"
+                    style={editLine.drinkType === t.key ? { background: C.ink, color: "#fff", borderColor: C.ink } : { borderColor: C.line, color: C.inkSoft }}>{t.label}</button>
+                ))}
+              </div>
+              {!typeChangeAllowed && <p className="mt-1.5 text-xs text-slate-400">Only changeable while In Store or Finished. Racked, Vented, Tapped and Pouring all depend on knowing the type correctly, since cask, keg and cider each use their own pumps and stages.</p>}
+            </Field>
+          )}
           <BeerDetailsFields key={beer.id} values={detailValues} onChange={(patch) => updateBeer(beer.id, patch)} onAutoFill={() => autoFillBeer(beer)} busy={editBusy} note={editNote} toggleAllergen={(a) => toggleBeerAllergen(beer.id, a)} />
           <Field label="Price (£ per pint)"><input className={inputCls} inputMode="decimal" value={priceDraft} onChange={(e) => commitPrice(e.target.value)} placeholder="e.g. 4.40" /></Field>
           {editLine && (
@@ -1240,39 +1061,27 @@ function TheCurfewCellarApp() {
   const [form, setForm] = useState(emptyForm);
   const [fillNote, setFillNote] = useState(null);
   const [openId, setOpenId] = useState(null);
-  // Opening the beer detail modal from the Library, where there's no physical line, just the
-  // beer record itself. Kept separate from openId (which always refers to a real line) so
-  // CardModal can tell the two cases apart and hide whatever doesn't apply without one.
   const [libraryOpenId, setLibraryOpenId] = useState(null);
   const [editBeerId, setEditBeerId] = useState(null);
-  // Which physical line (if any) Edit details was opened from. Best before and Delivered by
-  // live on the line, not the library beer, so the edit screen needs this to know which one
-  // to show and write to. Null when editing was opened straight from the Library (no line).
   const [editBeerLineId, setEditBeerLineId] = useState(null);
   const [editBusy, setEditBusy] = useState(false);
   const [editNote, setEditNote] = useState(null);
   const [swap, setSwap] = useState(null);
   const [swapPreviewId, setSwapPreviewId] = useState(null);
   const [prefs, setPrefs] = useState({});
-  // Section collapse state: purely a per-device display preference, not cellar data, so it
-  // lives in localStorage only and never touches the shared cloud blob. Previously this was
-  // folded into `prefs` above and synced like everything else, so one device collapsing a
-  // section collapsed it for every device on the next sync.
   const [uiPrefs, setUiPrefs] = useState(() => {
     try {
       if (typeof window !== "undefined" && window.localStorage) {
         const raw = localStorage.getItem("curfew-cellar:ui-prefs:v1");
         if (raw) return { on: true, racked: true, store: false, empties: {}, libRecent: true, libAll: false, libArchived: false, ...JSON.parse(raw) };
       }
-    } catch (e) { /* ignore, fall through to default */ }
+    } catch (e) { }
     return { on: true, racked: true, store: false, empties: {}, libRecent: true, libAll: false, libArchived: false };
   });
   useEffect(() => {
-    try { if (typeof window !== "undefined" && window.localStorage) localStorage.setItem("curfew-cellar:ui-prefs:v1", JSON.stringify(uiPrefs)); } catch (e) { /* ignore */ }
+    try { if (typeof window !== "undefined" && window.localStorage) localStorage.setItem("curfew-cellar:ui-prefs:v1", JSON.stringify(uiPrefs)); } catch (e) { }
   }, [uiPrefs]);
   const [lastUpdated, setLastUpdated] = useState(() => new Date().toISOString());
-  // The realtime subscription is registered once, so it closes over stale state. Keep the
-  // newest lastUpdated in a ref so the staleness guard below always compares against reality.
   const lastUpdatedRef = useRef(lastUpdated);
   const bumpReady = useRef(false);
   const skipBump = useRef(false);
@@ -1329,12 +1138,7 @@ function TheCurfewCellarApp() {
   const [scanProgress, setScanProgress] = useState(null);
   const [batchSource, setBatchSource] = useState("invoice");
   const [distributors, setDistributors] = useState(seedDistributors);
-  // Last-cleaned timestamp per pump slot, e.g. { cask0: "2026-07-20T..." }. Synced like any
-  // other cellar data, since a clean done on one phone must be visible on the others.
   const [lineCare, setLineCare] = useState({});
-  // ---- Line cleaning ----
-  // A line with no recorded clean counts as due: better to prompt once for a line you've
-  // actually cleaned than to stay quiet about one that genuinely hasn't been.
   const lineCleanInfo = (slot) => {
     const last = lineCare[slot];
     if (!last) return { never: true, days: null, overdue: true };
@@ -1350,9 +1154,6 @@ function TheCurfewCellarApp() {
 
   const beerById = useMemo(() => Object.fromEntries(library.map((b) => [b.id, b])), [library]);
 
-  // If we've stocked this brewery before, trust what we already have on file over a fresh
-  // guess: most breweries only have one real location, so a single one-off entry (a typo,
-  // or an AI guess that was never corrected) shouldn't win over five consistent ones.
   const libraryLocationFor = (breweryName) => {
     const wanted = (breweryName || "").trim().toLowerCase();
     if (!wanted) return "";
@@ -1371,16 +1172,6 @@ function TheCurfewCellarApp() {
     return best ? best.loc : "";
   };
 
-  // "Needs attention": things a publican should see at a glance, computed from data the app
-  // already tracks. Shared by the header notification bell and its dropdown.
-  // Everything the bell can raise, each with a triage priority (lower = more urgent). Without
-  // this the list came out in line-iteration order, so a passed best-before on a cask you're
-  // actively serving could sit below a dozen slower-burn notices.
-  // Allergen checks are deliberately scoped to what's servable now (on) or about to be
-  // (tapped), not all live stock. An unverified cask in the cellar is housekeeping, not a live
-  // risk, and it's already surfaced three other ways: the Verify button in the swap picker when
-  // you choose what goes on, the same button in the card modal, and the amber icon on its
-  // Library row. Warning on every line instead just buried the urgent ones.
   const attentionItems = useMemo(() => {
     const out = [];
     lines.filter((l) => l.status !== "off").forEach((l) => {
@@ -1406,8 +1197,7 @@ function TheCurfewCellarApp() {
     return out.sort((a, b) => a.pri - b.pri);
   }, [lines, beerById, prefs.lastBackup, lineCare]);
 
-  // ---- Push notifications (managers get a ping when a beer goes on or finishes) ----
-  const [pushState, setPushState] = useState("checking"); // checking | unsupported | need-install | blocked | off | on
+  const [pushState, setPushState] = useState("checking");
   const [pushBusy, setPushBusy] = useState(false);
   const checkPush = async () => {
     if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) { setPushState("unsupported"); return; }
@@ -1437,7 +1227,7 @@ function TheCurfewCellarApp() {
       const c = await _client();
       const { error } = await c.from("push_subs").upsert({ endpoint: sub.endpoint, sub: sub.toJSON() }, { onConflict: "endpoint" });
       if (error) throw error;
-      try { localStorage.setItem("cc-push-endpoint", sub.endpoint); } catch (e) { /* ignore */ }
+      try { localStorage.setItem("cc-push-endpoint", sub.endpoint); } catch (e) { }
       setPushState("on");
       showToast("Notifications are on for this phone.");
     } catch (e) {
@@ -1451,10 +1241,10 @@ function TheCurfewCellarApp() {
       const reg = await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.getSubscription();
       if (sub) {
-        try { const c = await _client(); await c.from("push_subs").delete().eq("endpoint", sub.endpoint); } catch (e) { /* best effort */ }
+        try { const c = await _client(); await c.from("push_subs").delete().eq("endpoint", sub.endpoint); } catch (e) { }
         await sub.unsubscribe();
       }
-      try { localStorage.removeItem("cc-push-endpoint"); } catch (e) { /* ignore */ }
+      try { localStorage.removeItem("cc-push-endpoint"); } catch (e) { }
       setPushState("off");
       showToast("Notifications are off for this phone.");
     } catch (e) {
@@ -1470,9 +1260,9 @@ function TheCurfewCellarApp() {
         const token = data && data.session ? data.session.access_token : null;
         if (!token) return;
         let exclude = null;
-        try { exclude = localStorage.getItem("cc-push-endpoint"); } catch (e) { /* ignore */ }
+        try { exclude = localStorage.getItem("cc-push-endpoint"); } catch (e) { }
         await fetch("/api/notify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token, title, body, tag: "curfew-pump", exclude }) });
-      } catch (e) { /* never block the bar over a notification */ }
+      } catch (e) { }
     })();
   };
 
@@ -1480,14 +1270,6 @@ function TheCurfewCellarApp() {
   const findSavedBeer = (brewery, name) =>
     library.find((b) => breweryCore(b.brewery) === breweryCore(brewery) && normalizeForMatch(b.name) === normalizeForMatch(name));
 
-  // Apply a saved data blob to state. remote=true means it came from another device,
-  // so don't re-stamp "last updated" and don't echo it back to the cloud.
-  // Every migration's prefs gate flag was verified true against a live backup on 2026-07-19
-  // (see HANDOFF.md), so the historical migration chain (twelve one-off functions and ~150
-  // lines of retired seed data: launch prices, two empties batches, three generations of note
-  // rewrites) can never fire again on this data and has been removed. normaliseData still runs
-  // on every load, so a genuinely malformed line still gets a shape guard; this only removes
-  // the one-off content migrations, which have already done their job.
   const migrate = (json) => normaliseData(JSON.parse(json));
   const applyData = (data, remote) => {
     if (!data) return;
@@ -1500,7 +1282,6 @@ function TheCurfewCellarApp() {
     if (data.lastUpdated) { lastUpdatedRef.current = data.lastUpdated; setLastUpdated(data.lastUpdated); }
   };
 
-  // Load once on mount. In cloud mode the load waits for sign in (handled below).
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -1519,7 +1300,6 @@ function TheCurfewCellarApp() {
     return () => { cancelled = true; };
   }, []);
 
-  // Cloud: check for an existing signed-in session on this device
   useEffect(() => {
     if (!cloudMode) return;
     let cancelled = false;
@@ -1527,9 +1307,6 @@ function TheCurfewCellarApp() {
     return () => { cancelled = true; };
   }, []);
 
-  // Cloud: once signed in, pull the shared cellar and listen for live changes.
-  // Saving is blocked until cloudReady is true, so a failed fetch can never fall
-  // back to the device's built-in starter data and overwrite everyone else's stock.
   const loadCellar = async () => {
     setCloudLoadError(false);
     for (let attempt = 0; attempt < 4; attempt++) {
@@ -1540,7 +1317,7 @@ function TheCurfewCellarApp() {
           setCloudReady(true);
           return true;
         }
-      } catch (e) { /* retry */ }
+      } catch (e) { }
       if (attempt < 3) await new Promise((res) => setTimeout(res, 800 * (attempt + 1)));
     }
     setCloudLoadError(true);
@@ -1552,10 +1329,6 @@ function TheCurfewCellarApp() {
     let channel = null;
     (async () => {
       const ok = await loadCellar();
-      // Only ever apply a remote payload that is genuinely NEWER than what this device holds.
-      // Without this guard, any remote write lands wholesale, including a stale snapshot
-      // force-written by a device that was backgrounded, which silently reverts live lines
-      // (e.g. a beer that was Pouring reappearing In Store).
       if (!cancelled && ok) channel = await store.subscribe((j) => {
         try {
           const data = migrate(j);
@@ -1563,7 +1336,7 @@ function TheCurfewCellarApp() {
           const localAt = lastUpdatedRef.current ? Date.parse(lastUpdatedRef.current) : 0;
           if (!remoteAt || (localAt && remoteAt <= localAt)) return;
           applyData(data, true);
-        } catch (e) { /* ignore */ }
+        } catch (e) { }
       });
     })();
     return () => {
@@ -1572,15 +1345,12 @@ function TheCurfewCellarApp() {
     };
   }, [authed]);
 
-  // iOS suspends live subscriptions while the app is backgrounded and doesn't reliably
-  // reconnect them, so on returning to the foreground, pull fresh data once. Throttled
-  // so quick app switches don't hammer the cloud.
   const lastRefetch = useRef(0);
   useEffect(() => {
     if (!cloudMode || !authed || !cloudReady) return;
     const onVisible = () => {
       if (document.visibilityState !== "visible") return;
-      if (saveTimer.current || saveInFlight.current) return; // a local edit hasn't finished syncing yet; don't pull over it
+      if (saveTimer.current || saveInFlight.current) return;
       const now = Date.now();
       if (now - lastRefetch.current < 10000) return;
       lastRefetch.current = now;
@@ -1600,9 +1370,8 @@ function TheCurfewCellarApp() {
     setAuthBusy(false);
     setPw(""); setAuthed(true);
   };
-  const lock = async () => { try { await store.signOut(); } catch (e) { /* ignore */ } setView("cellar"); setOpenId(null); setAuthed(false); };
+  const lock = async () => { try { await store.signOut(); } catch (e) { } setView("cellar"); setOpenId(null); setAuthed(false); };
 
-  // Shares a finished jsPDF doc (mobile share sheet) or downloads it (desktop).
   const sharePdfDoc = async (doc, fname, title) => {
     const blob = doc.output("blob");
     try {
@@ -1613,11 +1382,10 @@ function TheCurfewCellarApp() {
         doc.save(fname);
       }
     } catch (e) {
-      if (!(e && e.name === "AbortError")) { try { doc.save(fname); } catch (e2) { /* ignore */ } }
+      if (!(e && e.name === "AbortError")) { try { doc.save(fname); } catch (e2) { } }
     }
   };
 
-  // Build the full stock list as a PDF and share it (mobile) or download it.
   const sharePDF = async () => {
     if (pdfBusy) return;
     setPdfBusy(true);
@@ -1628,10 +1396,6 @@ function TheCurfewCellarApp() {
       const W = 210, H = 297, M = 14; let y = M;
       const hex = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
       const ink = [32, 59, 67], accent = [31, 107, 106], accentSoft = [86, 139, 137], gray = [86, 111, 118], graySky = [58, 75, 80], lineCol = [224, 218, 212], paleBg = [249, 246, 243];
-      // Same sky gradient as the app: teal at the top settling to cream, same stops already
-      // checked against card and text contrast. jsPDF has no gradient fill, so it's drawn as
-      // thin horizontal strips, coarse enough to keep page weight reasonable, smooth enough
-      // not to show banding on a printed page.
       const lerp3 = (a, b, t) => [0, 1, 2].map((i) => Math.round(a[i] + (b[i] - a[i]) * t));
       const skyAt = (t) => {
         const stops = [[0, [138, 207, 206]], [0.4, [233, 233, 230]], [1, [246, 237, 229]]];
@@ -1647,7 +1411,6 @@ function TheCurfewCellarApp() {
       const cmpBB = (a, b) => { const da = a.bestBefore ? new Date(a.bestBefore).getTime() : Infinity; const db = b.bestBefore ? new Date(b.bestBefore).getTime() : Infinity; return da - db; };
       const money2 = (v) => { const n = parseFloat(v); return isNaN(n) ? "" : `£${n.toFixed(2)}`; };
 
-      // Header band
       doc.setFillColor(ink[0], ink[1], ink[2]); doc.rect(0, 0, W, 28, "F");
       doc.setFont("helvetica", "bold"); doc.setFontSize(19); doc.setTextColor(243, 239, 230);
       doc.text(PUB_CONFIG.name, M, 14);
@@ -1672,8 +1435,6 @@ function TheCurfewCellarApp() {
       const subHead = (t) => { ensure(11); y += 3.5; doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor(accent[0], accent[1], accent[2]); doc.text(t.toUpperCase(), M, y); y += 4.8; };
       const catHead = (t) => { ensure(9); y += 2.4; doc.setFont("helvetica", "italic"); doc.setFontSize(7.5); doc.setTextColor(graySky[0], graySky[1], graySky[2]); doc.text(t, M + 3, y); y += 4.2; };
 
-      // One stock line as a card row: accent bar, name, meta, and a right column with
-      // pump/stage pill, price, and best-before.
       const beerLine = (l, opts) => {
         const o = opts || {};
         const b = beerById[l.beerId]; if (!b) return;
@@ -1767,7 +1528,7 @@ function TheCurfewCellarApp() {
           doc.save(fname);
         }
       } catch (e) {
-        if (!(e && e.name === "AbortError")) { try { doc.save(fname); } catch (e2) { /* ignore */ } }
+        if (!(e && e.name === "AbortError")) { try { doc.save(fname); } catch (e2) { } }
       }
     } catch (e) {
       showToast("Could not make the PDF just now. Check your connection and try again.");
@@ -1776,7 +1537,6 @@ function TheCurfewCellarApp() {
     }
   };
 
-  // Builds the customer tap list as a shareable PDF: what's on, grouped and priced.
   const shareTapListPDF = async () => {
     if (pdfBusy) return;
     setPdfBusy(true);
@@ -1877,7 +1637,6 @@ function TheCurfewCellarApp() {
     }
   };
 
-  // Builds the allergen and dietary guide as a shareable PDF.
   const shareGuidePDF = async () => {
     if (pdfBusy) return;
     setPdfBusy(true);
@@ -2004,8 +1763,6 @@ function TheCurfewCellarApp() {
     }
   };
 
-  // Save when data changes, debounced so fast typing (e.g. prices) stays smooth.
-  // The write (full serialise + cloud upsert) runs ~half a second after the last change.
   const saveTimer = useRef(null);
   const saveInFlight = useRef(false);
   useEffect(() => {
@@ -2018,26 +1775,22 @@ function TheCurfewCellarApp() {
         try {
           const r = await store.set(STORE_KEY, JSON.stringify({ library, lines, distributors, lineCare, prefs, lastUpdated }), false);
           if (r && r.conflict) { applyData(migrate(r.remoteValue), true); showToast("Another phone saved changes just before yours. Showing the latest, please redo your last change."); }
-        } catch (e) { /* ignore */ }
+        } catch (e) { }
         finally { saveInFlight.current = false; }
       })();
     }, 500);
     return () => { if (saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = null; } };
   }, [library, lines, distributors, lineCare, prefs, lastUpdated, hydrated, storageOk, authed, cloudReady]);
 
-  // iOS can suspend or kill a backgrounded tab before the 500ms debounce above fires,
-  // so a tap made right before switching apps could be lost. Keep the latest snapshot
-  // in a ref and force an immediate (best-effort; no delivery guarantee) write the
-  // moment the page is hidden or closed, if a save was still pending.
   const pendingSnapshot = useRef(null);
   useEffect(() => { pendingSnapshot.current = { library, lines, distributors, lineCare, prefs, lastUpdated }; }, [library, lines, distributors, lineCare, prefs, lastUpdated]);
   useEffect(() => {
     if (typeof document === "undefined") return;
     const flush = () => {
-      if (!saveTimer.current) return; // nothing pending, already saved
+      if (!saveTimer.current) return;
       clearTimeout(saveTimer.current); saveTimer.current = null;
       if (!store || storageOk !== true || (cloudMode && (!authed || !cloudReady))) return;
-      try { store.set(STORE_KEY, JSON.stringify(pendingSnapshot.current), false); } catch (e) { /* best-effort only */ }
+      try { store.set(STORE_KEY, JSON.stringify(pendingSnapshot.current), false); } catch (e) { }
     };
     const onVisibility = () => { if (document.visibilityState === "hidden") flush(); };
     document.addEventListener("visibilitychange", onVisibility);
@@ -2045,12 +1798,6 @@ function TheCurfewCellarApp() {
     return () => { document.removeEventListener("visibilitychange", onVisibility); window.removeEventListener("pagehide", flush); };
   }, [store, storageOk, cloudMode, authed, cloudReady]);
 
-  // iOS's own "keep the focused field above the keyboard" behaviour is tied to the page
-  // scrolling naturally; now that real scrolling happens in one dedicated inner region
-  // instead of the document, iOS doesn't reliably account for the keyboard there anymore.
-  // Scroll the focused field into view ourselves once the keyboard has actually finished
-  // animating in (via visualViewport's resize event, with a fallback timer in case that
-  // doesn't fire), rather than fighting or guessing at a fixed delay.
   useEffect(() => {
     if (typeof document === "undefined") return;
     const scrollIntoView = (el) => { if (document.activeElement === el) el.scrollIntoView({ block: "center", behavior: "smooth" }); };
@@ -2069,7 +1816,6 @@ function TheCurfewCellarApp() {
     return () => document.removeEventListener("focusin", onFocusIn);
   }, []);
 
-  // Stamp "last updated" whenever a beer is added or changed (not on first load or a remote sync)
   useEffect(() => {
     if (!hydrated) return;
     if (skipBump.current) { skipBump.current = false; return; }
@@ -2079,10 +1825,6 @@ function TheCurfewCellarApp() {
     setLastUpdated(now);
   }, [lines, library, lineCare, distributors, hydrated]);
 
-  // Which overlay is topmost, in the order they actually nest in this app (opening one always
-  // closes whatever was open before it, verified: Edit details closes CardModal in the same
-  // click handler that opens EditBeer). Shared by Escape and the Android back button below, so
-  // both close exactly the one thing that's actually on top, not everything at once.
   const topModal = () => {
     if (combineCandidate) return "combine";
     if (editBeerId) return "editBeer";
@@ -2108,10 +1850,6 @@ function TheCurfewCellarApp() {
     return () => { document.removeEventListener("keydown", onKey); };
   }, [openId, libraryOpenId, editBeerId, swap, showAlerts, menuOpen, combineCandidate]);
 
-  // Android's back gesture/button navigates browser history by default, which for a PWA with
-  // no other history entries just exits the app. modalHistoryRef tracks whether WE pushed the
-  // current history entry (for an open modal), so we never pop or react to entries we didn't
-  // push ourselves.
   const modalHistoryRef = useRef(false);
   useEffect(() => {
     const isOpen = !!topModal();
@@ -2120,8 +1858,6 @@ function TheCurfewCellarApp() {
       modalHistoryRef.current = true;
     } else if (!isOpen && modalHistoryRef.current) {
       modalHistoryRef.current = false;
-      // Closed by something other than the back button (X, tap outside, Escape): pop the
-      // entry we pushed for it, so history depth stays in sync and back still works normally.
       window.history.back();
     }
   }, [openId, libraryOpenId, editBeerId, swap, showAlerts, menuOpen, combineCandidate]);
@@ -2162,7 +1898,7 @@ function TheCurfewCellarApp() {
     setPrefs(nextPrefs);
     if (saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = null; }
     if (store && storageOk === true && (!cloudMode || (authed && cloudReady))) {
-      (async () => { try { await store.set(STORE_KEY, JSON.stringify({ library, lines, distributors, lineCare, prefs: nextPrefs, lastUpdated }), false); } catch (e) { /* ignore */ } })();
+      (async () => { try { await store.set(STORE_KEY, JSON.stringify({ library, lines, distributors, lineCare, prefs: nextPrefs, lastUpdated }), false); } catch (e) { } })();
     }
   };
   const copyBackup = async () => {
@@ -2245,7 +1981,7 @@ function TheCurfewCellarApp() {
       try {
         p = JSON.parse(text.replace(/```json/gi, "").replace(/```/g, "").trim());
       } catch {
-        const m = text.match(/\{[\s\S]*\}/); // pull the JSON out if it came back wrapped in text
+        const m = text.match(/\{[\s\S]*\}/);
         if (!m) throw new Error("no json");
         p = JSON.parse(m[0]);
       }
@@ -2303,8 +2039,6 @@ function TheCurfewCellarApp() {
         return;
       }
     }
-    // Duplicate guard: if this beer already has a live line in the cellar, ask once before
-    // adding another. A second tap of the button confirms (multiple casks is legitimate).
     const dupSaved = findSavedBeer(form.brewery, form.name);
     const liveDupes = dupSaved ? lines.filter((l) => l.beerId === dupSaved.id && l.status !== "off").length : 0;
     if (liveDupes > 0 && !confirmDupe) {
@@ -2387,6 +2121,22 @@ function TheCurfewCellarApp() {
     return { ...c, status: flow[i - 1], dates, slot: c.status === "on" ? null : c.slot };
   }));
   const setBestBefore = (id, v) => setLines((ls) => ls.map((c) => (c.id === id ? { ...c, bestBefore: v } : c)));
+  // Only safe while In Store or Finished, see the note in EditBeer for the full reasoning:
+  // Racked/Vented/Tapped only exist in the cask flow, and a live pump slot belongs to a
+  // specific drink type's pump group. The UI only offers this control in those two states,
+  // this check is a backstop, not the only guard.
+  const setLineDrinkType = (id, newType) => {
+    const line = lines.find((l) => l.id === id);
+    if (!line || (line.status !== "in_cellar" && line.status !== "off") || line.drinkType === newType) return;
+    const wasCider = line.drinkType === "cider", isCider = newType === "cider";
+    setLines((ls) => ls.map((c) => (c.id === id ? { ...c, drinkType: newType, slot: null } : c)));
+    // Category only genuinely depends on drink type at the cider boundary: cider always gets
+    // its own category regardless of style, cask and keg both derive it from style identically.
+    if (wasCider !== isCider) {
+      const beer = beerById[line.beerId];
+      if (beer) updateBeer(beer.id, { category: deriveCategory(newType, beer.style, beer.abv) });
+    }
+  };
   const finishAndChoose = (line) => {
     const beer = beerById[line.beerId];
     sendCellarPush("Line finished", beer ? `${beer.brewery ? beer.brewery + " - " : ""}${beer.name}` : "A beer");
@@ -2430,14 +2180,6 @@ function TheCurfewCellarApp() {
   const setLineCategory = (id, beerId, cat) => { setLibrary((lib) => lib.map((b) => (b.id === beerId ? { ...b, category: cat } : b))); };
   const verify = (beerId) => setLibrary((lib) => lib.map((b) => (b.id === beerId ? { ...b, allergensVerified: true } : b)));
   const updateBeer = (id, patch) => setLibrary((lib) => lib.map((b) => (b.id === id ? { ...b, ...patch } : b)));
-  // Writes the price to the library (as a cache for beers with no live line) and to the beer's
-  // live lines. Deliberately does NOT touch finished ("off") lines: those casks have already
-  // been sold and returned, and rewriting their price would retroactively falsify what was
-  // actually charged. Past prices are preserved in each beer's history entries.
-  // A price correction has to land in the beer's history too, not just on the beer and its live
-  // lines. latestPrice() reads the most recent history entry, and that drives the carried-forward
-  // price on the next delivery, the Library's "Previous: £x" line and the price history table.
-  // Updating only beer.price left all three showing the pre-correction figure indefinitely.
   const updateBeerPrice = (id, v) => {
     setLibrary((lib) => lib.map((b) => {
       if (b.id !== id) return b;
@@ -2448,6 +2190,7 @@ function TheCurfewCellarApp() {
     setLines((ls) => ls.map((c) => (c.beerId === id && c.status !== "off" ? { ...c, price: v } : c)));
   };
   const toggleBeerAllergen = (id, a) => setLibrary((lib) => lib.map((b) => (b.id === id ? { ...b, allergens: b.allergens.includes(a) ? b.allergens.filter((x) => x !== a) : [...b.allergens, a] } : b)));
+
   const autoFillBeer = async (beer) => {
     if (!beer.name || !beer.name.trim()) { setEditNote({ type: "warn", text: "Add a name first." }); return; }
     setEditBusy(true); setEditNote({ type: "loading", text: "Filling in a draft…" });
@@ -2489,12 +2232,6 @@ function TheCurfewCellarApp() {
     } finally { setEditBusy(false); }
   };
   const removeLine = (id) => { snapshotUndo("Removed from cellar"); setLines((ls) => ls.filter((c) => c.id !== id)); setOpenId(null); };
-  // Another one of the same beer, e.g. two casks of the same ale in one delivery. It lands In
-  // Store (a second cask can't already be on the bar) with a fresh lifecycle, but keeps the
-  // price, supplier, best before and container so nothing needs re-typing.
-  // Closes the modal deliberately: leaving it open (or worse, re-pointing it at the new copy)
-  // looks identical to the original, reads as "nothing happened", and invites repeat taps that
-  // each duplicate again. Closing makes the action visibly complete and removes the button.
   const duplicateLine = (id) => {
     const src = lines.find((c) => c.id === id);
     if (!src) return;
@@ -2505,10 +2242,6 @@ function TheCurfewCellarApp() {
     showToast("Duplicated. The copy is In Store.");
   };
   const beerIsDeletable = (beer) => !!beer && (beer.history || []).length === 0 && !lines.some((l) => l.beerId === beer.id);
-  // A beer with real history can only ever be deleted once it's archived (archive first, then
-  // decide later), and only if nothing referencing it is still actually active on the bar or in
-  // the cellar. Off-status (finished) lines are fine, that's the history being deleted along
-  // with it; anything else means it's still physically in play and must be finished first.
   const beerArchiveDeletable = (beer) => !!beer && !!beer.archived && !lines.some((l) => l.beerId === beer.id && l.status !== "off");
   const deleteBeer = (id) => {
     const beer = library.find((b) => b.id === id);
@@ -2520,9 +2253,6 @@ function TheCurfewCellarApp() {
       return;
     }
     if (beerArchiveDeletable(beer)) {
-      // Also remove its (finished, off-status) lines, since leaving them behind would just
-      // orphan them, pointing at a beer that no longer exists and silently vanishing from
-      // every screen and PDF that looks it up, rather than actually being gone.
       snapshotUndo("Beer deleted");
       setLibrary((lib) => lib.filter((b) => b.id !== id));
       setLines((ls) => ls.filter((l) => l.beerId !== id));
@@ -2561,11 +2291,6 @@ function TheCurfewCellarApp() {
   const removeDistributor = (name) => setDistributors((ds) => ds.filter((d) => d !== name));
   const latestPrice = (beer) => { const h = beer.history || []; return h.length ? h[h.length - 1].price : ""; };
   const latestSupplier = (beer) => { const h = beer.history || []; for (let i = h.length - 1; i >= 0; i--) { if (h[i].caskOwner) return h[i].caskOwner; } return ""; };
-  // Loading a beer back from the library for a new delivery. Everything genuinely carries over
-  // except best before (a new delivery has its own date) and allergensVerified, which always
-  // resets to false: a beer being verified once doesn't mean THIS new delivery has been looked
-  // at, ingredients and allergens can change between batches, so every arrival needs its own
-  // fresh check regardless of history.
   const loadBeerIntoForm = (beer) => { setConfirmDupe(false); return setForm({ ...emptyForm, drinkType: beer.pendingDrinkType || "cask", brewery: beer.brewery, location: beer.location, collabBrewery: beer.collabBrewery || "", collabLocation: beer.collabLocation || "", name: beer.name, style: beer.style, abv: beer.abv, clarity: beer.clarity, glutenStatus: beer.glutenStatus, vegan: beer.vegan, allergens: beer.allergens, notes: beer.notes, allergensVerified: false, category: beer.category || categorise(beer.style, beer.abv), sweetness: beer.sweetness || "", price: latestPrice(beer) || beer.pendingPrice || "", bestBefore: beer.pendingBestBefore || "", caskOwner: latestSupplier(beer) || beer.pendingCaskOwner || "" }); };
   const pickBeer = (beer) => { loadBeerIntoForm(beer); setFillNote({ type: "ok", text: `Loaded "${beer.name}" from your library. Set the best before, then confirm allergens.` }); setAddMode("form"); };
   const startNewBeer = () => { setForm(emptyForm); setFillNote(null); setAddMode("form"); };
@@ -2578,7 +2303,6 @@ function TheCurfewCellarApp() {
     r.onerror = () => reject(new Error("read"));
     r.readAsDataURL(file);
   });
-  // phone photos are huge; shrink them so the upload stays small and quick
   const imageToScaledB64 = (file, maxEdge = 1600, quality = 0.82) => new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const img = new Image();
@@ -2598,7 +2322,6 @@ function TheCurfewCellarApp() {
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("image load failed")); };
     img.src = url;
   });
-  // scan output isn't always clean json, this is a bit rough but does the job
   const parseLooseJSON = (text) => { try { return JSON.parse(text.replace(/```json/gi, "").replace(/```/g, "").trim()); } catch { const m = text.match(/[\[{][\s\S]*[\]}]/); if (!m) throw new Error("no json"); return JSON.parse(m[0]); } };
   const visionCall = async (file, promptText, useSearch = false) => {
     const isPdf = file.type === "application/pdf";
@@ -2648,7 +2371,7 @@ function TheCurfewCellarApp() {
     try {
       for (let i = 0; i < files.length; i++) {
         setScanProgress(`Reading label ${i + 1} of ${files.length}…`);
-        try { arr.push(labelToItem(parseLooseJSON(await visionCall(files[i], labelPrompt, true)), i)); } catch (e) { /* skip unreadable */ }
+        try { arr.push(labelToItem(parseLooseJSON(await visionCall(files[i], labelPrompt, true)), i)); } catch (e) { }
       }
       if (!arr.length) throw new Error("none");
       setInvoiceItems(arr); setBatchSource("labels"); setInvoiceOwner(""); setAddMode("invoice");
@@ -2681,8 +2404,6 @@ function TheCurfewCellarApp() {
     } finally { setScanning(false); }
   };
   const updateInvoice = (idx, patch) => setInvoiceItems((items) => items.map((x, i) => (i === idx ? { ...x, ...patch } : x)));
-  // Two casks of the same beer arrive together often enough that re-typing the row is a chore.
-  // Inserts a copy directly beneath the original so they stay side by side while reviewing.
   const duplicateInvoice = (idx) => setInvoiceItems((items) => {
     const copy = { ...items[idx], id: "dup" + uid(), include: true };
     return [...items.slice(0, idx + 1), copy, ...items.slice(idx + 1)];
@@ -2697,8 +2418,6 @@ function TheCurfewCellarApp() {
       const existing = lib.find((b) => breweryCore(b.brewery) === breweryCore(x.brewery) && normalizeForMatch(b.name) === normalizeForMatch(x.name));
       const entry = { date: nowIso, abv: x.abv, price: x.price, caskOwner: (x.caskOwner || x.brewery || "").trim() };
       let beerId;
-      // Reviewed and confirmed here, on this screen, so this is going straight to the
-      // cellar: no separate "just added, please check" step needed afterwards.
       if (existing) { beerId = existing.id; lib = lib.map((b) => (b.id === existing.id ? { ...b, abv: x.abv || b.abv, price: x.price || b.price, history: [...(b.history || []), entry] } : b)); }
       else {
         beerId = uid();
@@ -2755,8 +2474,6 @@ function TheCurfewCellarApp() {
     return { cask, keg, cider, all: [...cask, ...keg, ...cider] };
   };
 
-  // ---------- Cards ----------
-
   const Cellar = () => {
     const live = lines.filter((l) => l.status !== "off");
     const empties = lines.filter(IS_EMPTY);
@@ -2769,9 +2486,6 @@ function TheCurfewCellarApp() {
     const catOf = (l) => beerById[l.beerId]?.category || "Misc";
     const abvOf = (l) => parseFloat(beerById[l.beerId]?.abv) || 0;
     const rackedCask = live.filter((l) => l.drinkType === "cask" && (l.status === "racked" || l.status === "vented" || l.status === "tapped"));
-    // IPA and Pale share four racked slots. Rather than category label, the two highest-ABV
-    // beers fill the IPA slots and the two lowest-ABV fill the Pale slots, since that's the
-    // meaningful distinction behind the bar. Ties fall back to best-before order.
     const rIpaPale = rackedCask.filter((l) => catOf(l) === "IPA" || catOf(l) === "Pale").sort((a, b) => abvOf(b) - abvOf(a) || byBB(a, b));
     const rBitter = rackedCask.filter((l) => catOf(l) === "Bitter").sort(byBB);
     const rStout = rackedCask.filter((l) => catOf(l) === "Stout/Porter").sort(byBB);
@@ -3077,9 +2791,6 @@ function TheCurfewCellarApp() {
     const priceNeedsConfirm = !!carriedPrice && form.price.trim() === carriedPrice.trim();
     const carriedSupplier = knownBeer ? latestSupplier(knownBeer) : "";
     const supplierNeedsConfirm = !!carriedSupplier && form.caskOwner.trim() === carriedSupplier.trim();
-    // Style/ABV changes still auto-suggest a cask's category as before; every other field
-    // is a plain pass-through. This is the only Add-Stock-specific behaviour BeerDetailsFields
-    // itself doesn't need to know about.
     const handleFieldChange = (patch) => {
       if ("brewery" in patch || "name" in patch) setConfirmDupe(false);
       if (form.drinkType === "cask" && ("style" in patch || "abv" in patch)) {
@@ -3142,9 +2853,6 @@ function TheCurfewCellarApp() {
       if (a.allergensVerified !== b.allergensVerified) return a.allergensVerified ? 1 : -1;
       return (a.brewery || "").localeCompare(b.brewery || "") || (a.name || "").localeCompare(b.name || "");
     });
-    // Library array order is insertion order (new beers are always appended), so the last 10
-    // entries are genuinely the 10 most recently added, same approach as the existing "Recently
-    // added" list in the Add Stock picker.
     const recentAdded = library.filter((b) => !b.archived).slice(-30).reverse();
     const histChrono = (b) => (b.history || []).slice().sort((x, y) => new Date(x.date) - new Date(y.date));
     const libRow = (b) => {
@@ -3411,10 +3119,8 @@ function TheCurfewCellarApp() {
     const histOf = (b) => (b.history || []).slice().sort((x, y) => new Date(x.date) - new Date(y.date));
     const active = library.filter((b) => !b.archived);
 
-    // Most restocked: how many times each beer has been delivered
     const restocked = active.map((b) => ({ b, n: (b.history || []).length })).filter((x) => x.n >= 2).sort((a, z) => z.n - a.n).slice(0, 5);
 
-    // Price rises: beers whose latest price is above their first recorded price
     const risers = active.map((b) => {
       const h = histOf(b).filter((e) => e.price && !isNaN(parseFloat(e.price)));
       if (h.length < 2) return null;
@@ -3423,13 +3129,11 @@ function TheCurfewCellarApp() {
       return { b, first, last, up: last - first };
     }).filter(Boolean).sort((a, z) => z.up - a.up).slice(0, 5);
 
-    // Deliveries by supplier, from history entries
     const bySupplier = {};
     active.forEach((b) => (b.history || []).forEach((e) => { const k = e.caskOwner || null; if (k) bySupplier[k] = (bySupplier[k] || 0) + 1; }));
     const suppliers = Object.entries(bySupplier).sort((a, z) => z[1] - a[1]).slice(0, 6);
     const supMax = suppliers.length ? suppliers[0][1] : 0;
 
-    // Average cask lifespan from finished cask lines with real on/off dates
     const finishedCasks = lines.filter((l) => l.drinkType === "cask" && l.status === "off" && l.dates.on && l.dates.off);
     const avgDays = finishedCasks.length ? Math.round(finishedCasks.reduce((t, l) => t + dayDiff(l.dates.on, l.dates.off), 0) / finishedCasks.length * 10) / 10 : null;
 
@@ -3500,11 +3204,6 @@ function TheCurfewCellarApp() {
     );
   };
 
-  // Clears whatever might be holding a stale copy of the app's own code (service worker
-  // registrations, the Cache Storage API), then forces a hard, cache-busted reload. Does NOT
-  // touch cellar data, that lives in Supabase and your own device storage, entirely separate
-  // from this. This exists because iOS home-screen PWAs cache very aggressively, sometimes
-  // persisting through an ordinary reload.
   const resetAppCache = async () => {
     setConfirmCacheReset(false);
     setCacheResetMsg({ type: "loading", text: "Clearing cache…" });
@@ -3517,7 +3216,7 @@ function TheCurfewCellarApp() {
         const keys = await caches.keys();
         await Promise.all(keys.map((k) => caches.delete(k)));
       }
-    } catch (e) { /* proceed to reload regardless */ }
+    } catch (e) { }
     const url = new URL(window.location.href);
     url.searchParams.set("_cachebust", Date.now().toString());
     window.location.href = url.toString();
@@ -3870,15 +3569,10 @@ function TheCurfewCellarApp() {
     const prep = lines.filter((l) => ["tapped", "vented", "racked"].includes(l.status)).sort((a, b) => prepOrder[a.status] - prepOrder[b.status]);
     const storeL = lines.filter((l) => l.status === "in_cellar");
     const total = onL.length + prep.length + storeL.length;
-    // Same style order and grouping the Cellar screen uses, so this reads exactly like it: cask
-    // styles in priority order, stage shown per row since Racked lumps together three different
-    // stages (tapped/vented/racked), then best before within each style.
     const prepGroups = caskCategoryGroups(prep, (l) => beerById[l.beerId]?.category || "Misc").map(({ cat, items }) => ({
       label: cat === "Stout/Porter" ? "Stout & Porter" : cat,
       items: items.slice().sort((a, b) => prepOrder[a.status] - prepOrder[b.status] || byBB(a, b)),
     }));
-    // Cellar's own In Store order: cask styles first, then Keg, then Cider, flowing as one
-    // continuous list rather than separate Cask/Keg/Cider top-level sections.
     const storeCask = storeL.filter((l) => l.drinkType === "cask");
     const storeGroups = [
       ...caskCategoryGroups(storeCask, (l) => beerById[l.beerId]?.category || "Misc").map(({ cat, items }) => ({ label: cat === "Stout/Porter" ? "Stout & Porter" : cat, items: items.slice().sort(byBB) })),
@@ -4115,7 +3809,7 @@ function TheCurfewCellarApp() {
   const EditBeerScreen = () => (
     <EditBeer
       editBeerId={editBeerId} editBeerLineId={editBeerLineId} beerById={beerById} lines={lines} canEdit={canEdit}
-      updateBeer={updateBeer} updateBeerPrice={updateBeerPrice} setCaskOwner={setCaskOwner} setBestBefore={setBestBefore} toggleBeerAllergen={toggleBeerAllergen}
+      updateBeer={updateBeer} updateBeerPrice={updateBeerPrice} setCaskOwner={setCaskOwner} setBestBefore={setBestBefore} setLineDrinkType={setLineDrinkType} toggleBeerAllergen={toggleBeerAllergen}
       autoFillBeer={autoFillBeer} editBusy={editBusy} editNote={editNote} latestPrice={latestPrice}
       setEditBeerId={setEditBeerId} setEditBeerLineId={setEditBeerLineId} setEditNote={setEditNote}
       deleteBeer={deleteBeer} beerIsDeletable={beerIsDeletable} beerArchiveDeletable={beerArchiveDeletable}
@@ -4308,16 +4002,12 @@ body { touch-action: manipulation; overscroll-behavior-y: none; }
 @keyframes ccsheet{from{transform:translateY(100%)}to{transform:none}}
 .cc-press{transition:transform .12s ease, box-shadow .2s ease}
 .cc-press:active{transform:scale(.975)}
-/* Layered elevation: a tight contact shadow plus a soft ambient one, so surfaces read as
-   sitting on the page rather than drawn onto it. */
 .cc-elev{box-shadow:0 1px 2px rgba(32, 59, 67,0.05), 0 8px 20px -12px rgba(32, 59, 67,0.16);}
 .cc-elev-lg{box-shadow:0 1px 3px rgba(32, 59, 67,0.06), 0 16px 34px -18px rgba(32, 59, 67,0.22);}
 .cc-tile{box-shadow:0 1px 2px rgba(32, 59, 67,0.06), 0 6px 14px -8px rgba(32, 59, 67,0.18);transition:transform .16s cubic-bezier(.16,1,.3,1), box-shadow .2s ease}
 .cc-tile:hover{transform:translateY(-2px);box-shadow:0 2px 4px rgba(32, 59, 67,0.07), 0 12px 24px -10px rgba(32, 59, 67,0.24)}
 .cc-tile:active{transform:scale(.975)}
 @media (prefers-reduced-motion: reduce){.cc-fade,.cc-rise,.cc-stagger>*,.cc-overlay,.cc-pop,.cc-sheet{animation:none}.cc-press{transition:none}}
-/* Retint Tailwind's default cool-blue slate scale to a warm, teal-tinted neutral so
-   secondary text and hairlines sit with the brand instead of fighting its warm palette. */
 .text-slate-300{color:#99ADB2!important}.text-slate-400{color:#51666C!important}
 .text-slate-500{color:#4B5D63!important}.text-slate-600{color:#3B4A4E!important}
 .text-slate-700{color:#2E3A3D!important}.border-slate-200{border-color:#E0DAD4!important}
@@ -4456,10 +4146,6 @@ input::placeholder,textarea::placeholder{color:#4A5D63!important;opacity:1!impor
             <div className="mx-auto mb-3 h-1.5 w-10 rounded-full" style={{ background: C.line }} />
             <div className="grid grid-cols-3 gap-2.5">
               {(() => {
-                // Seven items in a three-column grid left one tile stranded beside two empty
-                // cells, and the two longest labels wrapped while the rest didn't, so rows sat
-                // at different heights. A fixed tile height evens the rows out, and a lone
-                // trailing tile stretches across the row rather than leaving a gap.
                 const menuItems = [["guide", "How to Use", Compass], ["stock", "Stock List", Beer], ["allergens", "Allergen Sheet", FileText], ["taplist", "Customer Tap List", QrCode], ["lines", "Line Cleaning", Droplet], ...(canEdit ? [["libtools", "Library Tools", Wrench]] : []), ...(TENANT_FEATURES.cellarStats ? [["stats", "Cellar Stats", BarChart3]] : []), ["notify", "Notifications", Bell], ...(canEdit ? [["backup", "Backup & Restore", Database]] : [])];
                 return menuItems.map(([id, label, Icon], i) => {
                   const lone = i === menuItems.length - 1 && menuItems.length % 3 === 1;
@@ -4500,10 +4186,6 @@ input::placeholder,textarea::placeholder{color:#4A5D63!important;opacity:1!impor
   );
 }
 
-// If any component throws, this catches it and shows a calm recovery screen instead of a blank
-// white void, which is what React gives you by default and is the worst possible thing to hit
-// mid-service behind a bar. Must be a class component: React only supports error boundaries via
-// componentDidCatch/getDerivedStateFromError, there is no hook equivalent.
 class ErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { error: null, showDetails: false }; }
   static getDerivedStateFromError(error) { return { error }; }
