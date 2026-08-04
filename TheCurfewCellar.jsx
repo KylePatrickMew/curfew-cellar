@@ -26,7 +26,7 @@ const DIET_BADGE_STYLE = {
 const CAT_ACCENT = { IPA: BEER.gold, Pale: BEER.yellow, Bitter: BEER.amber, "Stout/Porter": BEER.brown, Stout: BEER.brown, Porter: BEER.brown, Cider: "#4C7C6F", Sour: BEER.red, Misc: "#7C8F96" };
 const STORE_KEY = "curfew-cellar:data:v1";
 const MODEL = "claude-sonnet-4-6";
-const APP_BUILD = "2026-07-29 11:48";
+const APP_BUILD = "2026-08-04 00:00";
 const SB_URL = "https://fnqhrckxmzioinbokicb.supabase.co";
 const SB_KEY = "sb_publishable_RyO06sDdZg3bH7Mt6hwHEQ_EA9RNkJ8";
 const MANAGER_EMAIL = "manager@curfewcellar.app";
@@ -347,7 +347,7 @@ const cleanBrewery = (name) => {
   }
   return out || String(name).trim();
 };
-const normalizeForMatch = (s) => (s || "").toLowerCase().replace(/['".,]/g, "").replace(/\s+/g, " ").trim();
+const normalizeForMatch = (s) => (s || "").toLowerCase().replace(/-/g, " ").replace(/['".,]/g, "").replace(/\s+/g, " ").trim();
 const breweryCore = (s) => normalizeForMatch(cleanBrewery(s));
 const findDuplicateCandidates = (library) => {
   const groups = {};
@@ -3640,7 +3640,7 @@ function TheCurfewCellarApp() {
         <div className="mx-auto max-w-2xl px-5 py-8">
           <div style={{ borderTopLeftRadius: 130, borderTopRightRadius: 130, padding: "28px 22px 20px", background: "linear-gradient(180deg, #6FC4C3 0%, #A9D8D3 40%, #DCE6DF 72%, #F6EDE5 100%)", boxShadow: "0 10px 30px -18px rgba(32, 59, 67,0.5)" }}>
             <div className="flex flex-col items-center text-center">
-              <img src={PUB_LOGO_INK} alt="" style={{ width: 104, height: 104 }} />
+              <Bell size={48} style={{ color: C.ink }} aria-hidden="true" />
               <p className="mt-2.5 text-2xl font-semibold leading-tight" style={{ color: C.ink, fontFamily: "var(--font-brand)", letterSpacing: "0.03em" }}>{PUB_CONFIG.name}</p>
               <p className="mt-0.5 text-xs font-semibold uppercase tracking-widest" style={{ color: C.ink }}>What's on today</p>
               {fmtUpdated(lastUpdated) && <p className="mt-2 text-xs" style={{ color: "rgba(32,59,67,0.6)" }}>Last updated: {fmtUpdated(lastUpdated)}</p>}
@@ -3954,7 +3954,7 @@ function TheCurfewCellarApp() {
         <FontBoot />
         <div className="w-full max-w-xs">
           <div className="mb-6 text-center">
-            <img src={PUB_LOGO} alt="" className="mx-auto mb-2.5" style={{ width: 104, height: 104 }} />
+            <Bell size={48} className="mx-auto mb-2.5" style={{ color: C.accentSoft }} aria-hidden="true" />
             <p className="text-2xl font-bold" style={{ color: C.cream, fontFamily: "var(--font-brand)", letterSpacing: "0.03em" }}>{PUB_CONFIG.name}</p>
             <p className="mt-1 text-xs uppercase tracking-widest" style={{ color: C.accentSoft }}>Cellar Management</p>
           </div>
