@@ -26,7 +26,7 @@ const DIET_BADGE_STYLE = {
 const CAT_ACCENT = { IPA: BEER.gold, Pale: BEER.yellow, Bitter: BEER.amber, "Stout/Porter": BEER.brown, Stout: BEER.brown, Porter: BEER.brown, Cider: "#4C7C6F", Sour: BEER.red, Misc: "#7C8F96" };
 const STORE_KEY = "curfew-cellar:data:v1";
 const MODEL = "claude-sonnet-4-6";
-const APP_BUILD = "2026-08-04 12:15";
+const APP_BUILD = "2026-08-04 13:40";
 const SB_URL = "https://fnqhrckxmzioinbokicb.supabase.co";
 const SB_KEY = "sb_publishable_RyO06sDdZg3bH7Mt6hwHEQ_EA9RNkJ8";
 const MANAGER_EMAIL = "manager@curfewcellar.app";
@@ -1192,22 +1192,44 @@ function TheCurfewCellarApp() {
       const nm = `${beer.brewery ? beer.brewery + " - " : ""}${beer.name}`;
       const servable = l.status === "on" || l.status === "tapped";
       const bb = bbStatus(l);
-      if (bb && bb.level === "past") out.push({ pri: 1, id: l.id, warn: true, text: `${nm}: best before has passed` });
-      else if (bb && bb.level === "soon") out.push({ pri: 4, id: l.id, warn: true, text: `${nm}: best before ${daysUntil(l.bestBefore) === 0 ? "today" : `in ${daysUntil(l.bestBefore)}d`}` });
+      if (bb && bb.level === "past") out.push({ pri: 1, id: l.id, warn: true, kind: "bbPast", text: `${nm}: best before has passed` });
+      else if (bb && bb.level === "soon") out.push({ pri: 4, id: l.id, warn: true, kind: "bbSoon", text: `${nm}: best before ${daysUntil(l.bestBefore) === 0 ? "today" : `in ${daysUntil(l.bestBefore)}d`}` });
+      else if (!bb) out.push({ pri: 3, id: l.id, warn: true, kind: "bbMissing", text: `${nm}: no best before date set` });
       const f = freshness(l);
-      if (l.status === "on" && f && f.level === "check") out.push({ pri: 6, id: l.id, warn: false, text: `${nm}: on for ${daysOn(l)} days, check quality` });
-      if (l.status === "vented" && l.dates.vented && dayDiff(l.dates.vented, new Date().toISOString()) >= 2) out.push({ pri: 5, id: l.id, warn: false, text: `${nm}: vented ${dayDiff(l.dates.vented, new Date().toISOString())}d ago, ready to tap` });
-      if (servable && !beer.allergensVerified) out.push({ pri: 2, id: l.id, warn: true, text: `${nm}: allergens not verified` });
-      else if (servable && beer.allergens.length === 0) out.push({ pri: 3, id: l.id, warn: true, text: `${nm}: verified with no allergens listed, worth double-checking` });
-      if (servable && !l.price) out.push({ pri: 2, id: l.id, warn: true, text: `${nm}: no price set` });
-      if (servable && veganClaimConflict(beer)) out.push({ pri: 1, id: l.id, warn: true, text: `${nm}: marked vegan but isinglass or milk is listed, these aren't compatible` });
+      if (l.status === "on" && f && f.level === "check") out.push({ pri: 6, id: l.id, warn: false, kind: "freshCheck", text: `${nm}: on for ${daysOn(l)} days, check quality` });
+      if (l.status === "vented" && l.dates.vented && dayDiff(l.dates.vented, new Date().toISOString()) >= 2) out.push({ pri: 5, id: l.id, warn: false, kind: "ventedReady", text: `${nm}: vented ${dayDiff(l.dates.vented, new Date().toISOString())}d ago, ready to tap` });
+      if (servable && !beer.allergensVerified) out.push({ pri: 2, id: l.id, warn: true, kind: "allergensUnverified", text: `${nm}: allergens not verified` });
+      else if (servable && beer.allergens.length === 0) out.push({ pri: 3, id: l.id, warn: true, kind: "allergensEmpty", text: `${nm}: verified with no allergens listed, worth double-checking` });
+      if (servable && !l.price) out.push({ pri: 2, id: l.id, warn: true, kind: "noPrice", text: `${nm}: no price set` });
+      if (servable && veganClaimConflict(beer)) out.push({ pri: 1, id: l.id, warn: true, kind: "veganConflict", text: `${nm}: marked vegan but isinglass or milk is listed, these aren't compatible` });
+      const noteWords = (beer.notes || "").trim() ? beer.notes.trim().split(/\s+/).filter(Boolean).length : 0;
+      if (noteWords < 20) out.push({ pri: 6, id: l.id, warn: false, kind: "notesThin", text: `${nm}: Tasting notes need improvement` });
     });
     const dueClean = linesDueClean();
-    if (dueClean) out.push({ pri: 6, id: null, lineCare: true, warn: false, text: `${dueClean} line${dueClean === 1 ? "" : "s"} due a clean` });
+    if (dueClean) out.push({ pri: 6, id: null, lineCare: true, warn: false, kind: "dueClean", text: `${dueClean} line${dueClean === 1 ? "" : "s"} due a clean` });
     const backupAge = prefs.lastBackup ? dayDiff(prefs.lastBackup, new Date().toISOString()) : null;
-    if (lines.length > 3 && (backupAge === null || backupAge > 30)) out.push({ pri: 7, id: null, warn: false, backup: true, text: backupAge === null ? "No backup saved yet. Takes ten seconds" : `Last backup ${backupAge} days ago. Worth a fresh one` });
-    return out.sort((a, b) => a.pri - b.pri);
+    if (lines.length > 3 && (backupAge === null || backupAge > 30)) out.push({ pri: 7, id: null, warn: false, backup: true, kind: "backup", text: backupAge === null ? "No backup saved yet. Takes ten seconds" : `Last backup ${backupAge} days ago. Worth a fresh one` });
+    return out.sort((a, b) => a.pri - b.pri).map((a) => ({ ...a, key: `${a.kind}:${a.id || ""}` }));
   }, [lines, beerById, prefs.lastBackup, lineCare]);
+
+  const [dismissedAlerts, setDismissedAlerts] = useState(() => {
+    try {
+      if (typeof window !== "undefined" && window.localStorage) {
+        const raw = localStorage.getItem("curfew-cellar:dismissed-alerts:v1");
+        if (raw) return JSON.parse(raw);
+      }
+    } catch (e) { }
+    return [];
+  });
+  useEffect(() => {
+    try { if (typeof window !== "undefined" && window.localStorage) localStorage.setItem("curfew-cellar:dismissed-alerts:v1", JSON.stringify(dismissedAlerts)); } catch (e) { }
+  }, [dismissedAlerts]);
+  useEffect(() => {
+    const validKeys = new Set(attentionItems.map((a) => a.key));
+    setDismissedAlerts((d) => { const kept = d.filter((k) => validKeys.has(k)); return kept.length === d.length ? d : kept; });
+  }, [attentionItems]);
+  const dismissAlert = (key) => setDismissedAlerts((d) => (d.includes(key) ? d : [...d, key]));
+  const visibleAttentionItems = useMemo(() => attentionItems.filter((a) => !dismissedAlerts.includes(a.key)), [attentionItems, dismissedAlerts]);
 
   const [pushState, setPushState] = useState("checking");
   const [pushBusy, setPushBusy] = useState(false);
@@ -4046,10 +4068,10 @@ input::placeholder,textarea::placeholder{color:#4A5D63!important;opacity:1!impor
         <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 py-2.5">
           <div className="flex items-center gap-2.5">
             <div className="relative">
-              <button onClick={() => setShowAlerts((v) => !v)} className="relative flex items-center rounded-lg p-0.5 transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-teal-300" aria-label={`Needs attention: ${attentionItems.length}`}>
-                <Bell size={19} style={{ color: attentionItems.length ? C.accentSoft : "rgba(138,207,206,0.6)", flexShrink: 0 }} />
-                {attentionItems.length > 0 && (
-                  <span className="absolute -right-1 -top-1 grid place-items-center rounded-full px-1" style={{ height: 16, minWidth: 16, background: C.alert, color: "#fff", fontFamily: "var(--font-data)", fontSize: 10, fontWeight: 700, lineHeight: 1 }}>{attentionItems.length > 9 ? "9+" : attentionItems.length}</span>
+              <button onClick={() => setShowAlerts((v) => !v)} className="relative flex items-center rounded-lg p-0.5 transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-teal-300" aria-label={`Needs attention: ${visibleAttentionItems.length}`}>
+                <Bell size={19} style={{ color: visibleAttentionItems.length ? C.accentSoft : "rgba(138,207,206,0.6)", flexShrink: 0 }} />
+                {visibleAttentionItems.length > 0 && (
+                  <span className="absolute -right-1 -top-1 grid place-items-center rounded-full px-1" style={{ height: 16, minWidth: 16, background: C.alert, color: "#fff", fontFamily: "var(--font-data)", fontSize: 10, fontWeight: 700, lineHeight: 1 }}>{visibleAttentionItems.length > 9 ? "9+" : visibleAttentionItems.length}</span>
                 )}
               </button>
               {showAlerts && (
@@ -4060,18 +4082,21 @@ input::placeholder,textarea::placeholder{color:#4A5D63!important;opacity:1!impor
                       <AlertTriangle size={13} style={{ color: C.accent }} />
                       <span className="uppercase" style={{ color: C.accent, fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}>Needs attention</span>
                     </div>
-                    {attentionItems.length === 0 ? (
+                    {visibleAttentionItems.length === 0 ? (
                       <div className="px-3 py-6 text-center">
                         <CheckCircle2 size={20} className="mx-auto mb-1.5" style={{ color: C.accent }} />
                         <p className="text-sm text-slate-500">All good. Nothing needs a look right now.</p>
                       </div>
                     ) : (
                       <ul className="max-h-80 overflow-y-auto py-1" style={{ overscrollBehaviorY: "none", WebkitOverflowScrolling: "touch", touchAction: "manipulation" }}>
-                        {attentionItems.map((a, i) => (
-                          <li key={`${a.id}-${i}`}>
-                            <button onClick={() => { setShowAlerts(false); a.backup ? go("backup") : a.lineCare ? go("lines") : (go("cellar"), setOpenId(a.id)); }} className="flex w-full items-start gap-2 px-3 py-2 text-left text-sm transition hover:bg-slate-50 focus:outline-none" style={{ color: a.warn ? C.alert : C.inkSoft }}>
+                        {visibleAttentionItems.map((a, i) => (
+                          <li key={`${a.key}-${i}`} className="flex items-start">
+                            <button onClick={() => { setShowAlerts(false); a.backup ? go("backup") : a.lineCare ? go("lines") : (go("cellar"), setOpenId(a.id)); }} className="flex min-w-0 flex-1 items-start gap-2 px-3 py-2 text-left text-sm transition hover:bg-slate-50 focus:outline-none" style={{ color: a.warn ? C.alert : C.inkSoft }}>
                               <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: a.warn ? C.alert : C.accent }} />
                               <span className="min-w-0 flex-1">{a.text}</span>
+                            </button>
+                            <button onClick={(e) => { e.stopPropagation(); dismissAlert(a.key); }} className="mr-1 mt-1 shrink-0 rounded-md p-1.5 text-slate-300 transition hover:bg-slate-100 hover:text-slate-500 focus:outline-none focus:ring-2 focus:ring-teal-300" aria-label="Dismiss">
+                              <X size={13} />
                             </button>
                           </li>
                         ))}
