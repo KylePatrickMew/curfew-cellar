@@ -419,8 +419,22 @@ Return STRICT JSON only. No markdown, no backticks, no commentary.
 
 JSON only.`;
 const GLUTEN_GRAINS = ["Barley (gluten)", "Wheat (gluten)", "Oats (gluten)", "Rye (gluten)"];
-const glutenClaimConflict = (beer) => beer.glutenStatus === "Gluten-free" && (beer.allergens || []).some((a) => GLUTEN_GRAINS.includes(a));
+// A gluten-free claim alongside a gluten grain is only ever a genuine data error when the beer
+// hasn't been marked as enzyme-treated. Enzyme treatment (e.g. Brewers Clarex) breaks down
+// gluten protein in a barley or wheat beer, and testing under 20ppm is a real, legitimate route
+// to a gluten-free claim under UK/EU rules, distinct from a beer that never contained gluten
+// grains at all. This must always be a deliberate, manual mark, never inferred from an
+// allergen list or set by autofill, the standard ELISA test used to verify the 20ppm threshold
+// is built to detect intact gluten protein and can't fully confirm the broken-down fragments
+// left by enzyme treatment are harmless, which is exactly why some coeliac patients react to
+// beers that test clean. Getting this wrong in either direction is a real safety issue, so it
+// only ever reflects what's been explicitly recorded, not a guess.
+const glutenClaimConflict = (beer) => beer.glutenStatus === "Gluten-free" && !beer.enzymeTreatedGF && (beer.allergens || []).some((a) => GLUTEN_GRAINS.includes(a));
 const isGlutenFree = (beer) => beer.glutenStatus === "Gluten-free" && !glutenClaimConflict(beer);
+// The customer-facing label always distinguishes the two routes, since that's the entire point,
+// a customer avoiding gluten for a milder reason may be fine with enzyme-treated beer, someone
+// with coeliac disease needs to know it wasn't naturally gluten-free to make their own call.
+const glutenFreeLabel = (beer) => (beer.enzymeTreatedGF ? "Gluten-free (enzyme treated)" : "Gluten-free");
 const VEGAN_CONFLICTS = ["Fish (isinglass finings)", "Milk (lactose)"];
 const veganClaimConflict = (beer) => !!beer.vegan && (beer.allergens || []).some((a) => VEGAN_CONFLICTS.includes(a));
 const isVegan = (beer) => !!beer.vegan && !veganClaimConflict(beer);
@@ -650,7 +664,7 @@ const seedDistributors = ["HB Clark", "LWC", "6 Barrells"];
 
 const emptyForm = {
   drinkType: "cask", brewery: "", location: "", collabBrewery: "", collabLocation: "", name: "", style: "", abv: "",
-  clarity: "Clear", glutenStatus: "Standard", vegan: false, allergens: [], notes: "",
+  clarity: "Clear", glutenStatus: "Standard", enzymeTreatedGF: false, vegan: false, allergens: [], notes: "",
   allergensVerified: false, category: "Misc", size: "", price: "",
   status: "in_cellar", bestBefore: "", caskOwner: "", sweetness: "",
 };
@@ -665,7 +679,7 @@ const Badge = ({ className = "", style, children }) => (
 const DietaryBadges = ({ beer }) => (
   <div className="flex flex-wrap gap-1.5">
     {isVegan(beer) && <Badge style={DIET_BADGE_STYLE.vegan}>Vegan</Badge>}
-    {isGlutenFree(beer) && <Badge style={DIET_BADGE_STYLE.gluten}>Gluten-free</Badge>}
+    {isGlutenFree(beer) && <Badge style={DIET_BADGE_STYLE.gluten}>{glutenFreeLabel(beer)}</Badge>}
     {beer.glutenStatus === "Low gluten" && <Badge style={DIET_BADGE_STYLE.gluten}>Low gluten, &lt;20ppm</Badge>}
     {beer.clarity === "Hazy" && <Badge style={DIET_BADGE_STYLE.hazy}>Hazy</Badge>}
   </div>
@@ -673,7 +687,7 @@ const DietaryBadges = ({ beer }) => (
 const DietaryMini = ({ beer }) => {
   const items = [];
   if (isVegan(beer)) items.push(["VG", "Vegan", DIET_BADGE_STYLE.vegan]);
-  if (isGlutenFree(beer)) items.push(["GF", "Gluten-free", DIET_BADGE_STYLE.gluten]);
+  if (isGlutenFree(beer)) items.push([beer.enzymeTreatedGF ? "GF*" : "GF", glutenFreeLabel(beer), DIET_BADGE_STYLE.gluten]);
   else if (beer.glutenStatus === "Low gluten") items.push(["<20ppm", "Low gluten, under 20ppm", DIET_BADGE_STYLE.gluten]);
   if (beer.clarity === "Hazy") items.push(["Hazy", "Hazy", DIET_BADGE_STYLE.hazy]);
   if (!items.length) return null;
@@ -754,8 +768,14 @@ const BeerDetailsFields = ({ values, onChange, onAutoFill, busy, note, toggleAll
             ))}
           </div>
         </Field>
-        <Field label="Gluten status"><select className={inputCls} value={values.glutenStatus} onChange={(e) => onChange({ glutenStatus: e.target.value })}>{GLUTEN_OPTIONS.map((g) => <option key={g}>{g}</option>)}</select></Field>
+        <Field label="Gluten status"><select className={inputCls} value={values.glutenStatus} onChange={(e) => onChange({ glutenStatus: e.target.value, ...(e.target.value !== "Gluten-free" ? { enzymeTreatedGF: false } : {}) })}>{GLUTEN_OPTIONS.map((g) => <option key={g}>{g}</option>)}</select></Field>
       </div>
+      {values.glutenStatus === "Gluten-free" && (
+        <label className="flex items-start gap-2 rounded-lg border p-2.5 text-sm" style={{ borderColor: C.line, background: C.stone }}>
+          <input type="checkbox" checked={!!values.enzymeTreatedGF} onChange={(e) => onChange({ enzymeTreatedGF: e.target.checked })} className="mt-0.5 h-4 w-4" />
+          <span style={{ color: C.inkSoft }}>Brewed with a gluten grain, then enzyme-treated to bring it under 20ppm (rather than naturally gluten-free). Shown to customers as "Gluten-free (enzyme treated)". Only tick this if you know it for certain, never guess.</span>
+        </label>
+      )}
       <button onClick={() => onChange({ vegan: !values.vegan })} className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-400" style={chip(!!values.vegan)}>{values.vegan ? <Check size={15} /> : null} Vegan</button>
       <Field label="Allergens">
         <div className="flex flex-wrap gap-2">
@@ -886,7 +906,7 @@ const Item = ({ line, beerById }) => {
   const tlp = priceTriple(line.price);
   const diet = [];
   if (isVegan(beer)) diet.push("Vegan");
-  if (isGlutenFree(beer)) diet.push("Gluten-free");
+  if (isGlutenFree(beer)) diet.push(glutenFreeLabel(beer));
   else if (beer.glutenStatus === "Low gluten") diet.push("Low gluten, <20ppm");
   const allergenLine = beer.allergensVerified
     ? (beer.allergens.length ? `Contains: ${beer.allergens.join(", ")}` : "No declared allergens")
@@ -962,7 +982,7 @@ const EditBeer = ({
   };
   const detailValues = {
     name: beer.name, brewery: beer.brewery, location: beer.location || "", collabBrewery: beer.collabBrewery || "", collabLocation: beer.collabLocation || "", style: beer.style || "", abv: beer.abv || "",
-    category: beer.category || "Misc", sweetness: beer.sweetness || "", clarity: beer.clarity || "Clear", glutenStatus: beer.glutenStatus || "Standard",
+    category: beer.category || "Misc", sweetness: beer.sweetness || "", clarity: beer.clarity || "Clear", glutenStatus: beer.glutenStatus || "Standard", enzymeTreatedGF: !!beer.enzymeTreatedGF,
     vegan: !!beer.vegan, allergens: beer.allergens, allergensVerified: !!beer.allergensVerified, notes: beer.notes || "",
   };
   // Changing a line's drink type is only ever safe In Store or Finished, the two statuses
@@ -1567,7 +1587,7 @@ function TheCurfewCellarApp() {
         const name = nameParts.lead ? `${nameParts.lead} ${nameParts.rest}` : nameParts.rest;
         const tlp = priceTriple(l.price);
         const meta = [b.style, b.abv ? b.abv + "%" : "", b.clarity === "Hazy" ? "Hazy" : "", locationDisplay(b)].filter(Boolean).join("  ·  ");
-        const diet = [isVegan(b) ? "Vegan" : "", isGlutenFree(b) ? "Gluten-free" : b.glutenStatus === "Low gluten" ? "Low gluten, <20ppm" : ""].filter(Boolean).join("  ·  ");
+        const diet = [isVegan(b) ? "Vegan" : "", isGlutenFree(b) ? glutenFreeLabel(b) : b.glutenStatus === "Low gluten" ? "Low gluten, <20ppm" : ""].filter(Boolean).join("  ·  ");
         const allergenLine = b.allergensVerified ? (b.allergens.length ? `Contains: ${b.allergens.join(", ")}` : "No declared allergens") : "Allergens: please ask at the bar";
         doc.setFont("helvetica", "bold"); doc.setFontSize(9.5);
         const nameLines = doc.splitTextToSize(name, W - 2 * M - 38);
@@ -1707,7 +1727,7 @@ function TheCurfewCellarApp() {
         const b = beerById[l.beerId]; if (!b) return;
         const nameParts = splitTitle(b.brewery, b.name, b.collabBrewery);
         const name = nameParts.lead ? `${nameParts.lead} ${nameParts.rest}` : nameParts.rest;
-        const diet = [isVegan(b) ? "Vegan" : "", isGlutenFree(b) ? "Gluten-free" : b.glutenStatus === "Low gluten" ? "Low gluten, <20ppm" : ""].filter(Boolean).join("  ·  ");
+        const diet = [isVegan(b) ? "Vegan" : "", isGlutenFree(b) ? glutenFreeLabel(b) : b.glutenStatus === "Low gluten" ? "Low gluten, <20ppm" : ""].filter(Boolean).join("  ·  ");
         const allergenText = (b.allergensVerified ? (b.allergens.length ? `Contains: ${b.allergens.join(", ")}` : "No declared allergens") : "Allergens: please ask at the bar") + (b.allergensVerified ? "" : "  ·  not staff verified");
         doc.setFont("helvetica", "bold"); doc.setFontSize(9.5);
         const nameLines = doc.splitTextToSize(name, W - 2 * M - 40);
@@ -2050,7 +2070,7 @@ function TheCurfewCellarApp() {
     const category = form.drinkType === "cask" ? (form.category || categorise(form.style, form.abv)) : (form.category || "Misc");
     const beerFields = {
       brewery: form.brewery.trim(), location: form.location.trim(), collabBrewery: form.collabBrewery.trim(), collabLocation: form.collabLocation.trim(), name: form.name.trim(),
-      style: form.style.trim(), abv: form.abv.trim(), clarity: form.clarity, glutenStatus: form.glutenStatus,
+      style: form.style.trim(), abv: form.abv.trim(), clarity: form.clarity, glutenStatus: form.glutenStatus, enzymeTreatedGF: form.glutenStatus === "Gluten-free" && !!form.enzymeTreatedGF,
       vegan: form.vegan, allergens: form.allergens, notes: form.notes.trim(), allergensVerified: form.allergensVerified, category, sweetness: form.sweetness,
       price: form.price.trim(),
     };
@@ -3544,7 +3564,7 @@ function TheCurfewCellarApp() {
                 {g.items.map((l) => {
                   const beer = beerById[l.beerId];
                   if (!beer) return null;
-                  const diet = [isVegan(beer) ? "Vegan" : null, isGlutenFree(beer) ? "Gluten-free" : beer.glutenStatus === "Low gluten" ? "Low gluten, <20ppm" : null].filter(Boolean).join(", ");
+                  const diet = [isVegan(beer) ? "Vegan" : null, isGlutenFree(beer) ? glutenFreeLabel(beer) : beer.glutenStatus === "Low gluten" ? "Low gluten, <20ppm" : null].filter(Boolean).join(", ");
                   return (
                     <div key={l.id} className="py-2">
                       <div className="flex items-baseline justify-between gap-2">
