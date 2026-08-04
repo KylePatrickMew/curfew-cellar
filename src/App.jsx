@@ -26,7 +26,7 @@ const DIET_BADGE_STYLE = {
 const CAT_ACCENT = { IPA: BEER.gold, Pale: BEER.yellow, Bitter: BEER.amber, "Stout/Porter": BEER.brown, Stout: BEER.brown, Porter: BEER.brown, Cider: "#4C7C6F", Sour: BEER.red, Misc: "#7C8F96" };
 const STORE_KEY = "curfew-cellar:data:v1";
 const MODEL = "claude-sonnet-4-6";
-const APP_BUILD = "2026-08-04 00:00";
+const APP_BUILD = "2026-08-04 12:15";
 const SB_URL = "https://fnqhrckxmzioinbokicb.supabase.co";
 const SB_KEY = "sb_publishable_RyO06sDdZg3bH7Mt6hwHEQ_EA9RNkJ8";
 const MANAGER_EMAIL = "manager@curfewcellar.app";
@@ -3700,7 +3700,10 @@ function TheCurfewCellarApp() {
     const pool = lines.filter((l) => l.drinkType === swap.drink && candStatuses.includes(l.status));
     const matching = allowedCats ? pool.filter((l) => allowedCats.includes(beerById[l.beerId]?.category || "Misc")) : pool;
     const base = matching.length ? matching : pool;
-    const list = base.slice().sort((a, b) => (statusRank[a.status] - statusRank[b.status]) || ((dateForStatus(a) || "").localeCompare(dateForStatus(b) || "")));
+    const catRank = (l) => { const i = CATEGORIES.indexOf(beerById[l.beerId]?.category || "Misc"); return i === -1 ? CATEGORIES.length : i; };
+    const list = base.slice().sort((a, b) => swap.toRack
+      ? (catRank(a) - catRank(b)) || byBB(a, b)
+      : (statusRank[a.status] - statusRank[b.status]) || ((dateForStatus(a) || "").localeCompare(dateForStatus(b) || "")));
     const groupDefs = swap.toRack ? [["in_cellar", "In Store"]] : (isCask ? [["tapped", "Tapped and Ready"], ["vented", "Vented"], ["racked", "Racked"]] : [["in_cellar", "Ready to go on"]]);
     const groups = groupDefs.map(([k, label]) => ({ k, label, items: list.filter((l) => l.status === k) })).filter((g) => g.items.length);
     const emptyMsg = swap.toRack ? "Nothing in the store to rack. Add a cask from your library first." : (isCask ? "Nothing racked, vented or tapped yet. Rack and vent a cask to get one ready." : `Nothing in the store to put on. Add ${swap.drink === "keg" ? "a keg" : "a cider"} first.`);
