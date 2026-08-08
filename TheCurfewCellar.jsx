@@ -26,7 +26,7 @@ const DIET_BADGE_STYLE = {
 const CAT_ACCENT = { IPA: BEER.gold, Pale: BEER.yellow, Bitter: BEER.amber, "Stout/Porter": BEER.brown, Stout: BEER.brown, Porter: BEER.brown, Cider: "#4C7C6F", Sour: BEER.red, Misc: "#7C8F96" };
 const STORE_KEY = "curfew-cellar:data:v1";
 const MODEL = "claude-sonnet-4-6";
-const APP_BUILD = "2026-08-04 13:40";
+const APP_BUILD = "2026-08-04 14:05";
 const SB_URL = "https://fnqhrckxmzioinbokicb.supabase.co";
 const SB_KEY = "sb_publishable_RyO06sDdZg3bH7Mt6hwHEQ_EA9RNkJ8";
 const MANAGER_EMAIL = "manager@curfewcellar.app";
@@ -2178,7 +2178,7 @@ function TheCurfewCellarApp() {
     const now = new Date().toISOString();
     setLines((ls) => ls.map((c) => (c.id === line.id ? { ...c, status: "off", slot: null, dates: { ...c.dates, off: now } } : c)));
     setOpenId(null);
-    setSwap({ drink: line.drinkType, category: line.drinkType === "cask" ? (beer ? (beer.category || "Misc") : null) : null, oldId: null, slot: line.slot || null });
+    setSwap({ drink: PUMP_DRINK(line.drinkType), category: line.drinkType === "cask" ? (beer ? (beer.category || "Misc") : null) : null, oldId: null, slot: line.slot || null });
   };
   const openPump = (slot) => {
     const cat = slot.drink === "cask" ? (slot.slot === "cask2" ? "Bitter" : slot.slot === "cask3" ? "Stout/Porter" : "IPA") : null;
@@ -3719,7 +3719,7 @@ function TheCurfewCellarApp() {
     const candStatuses = isCask ? (swap.toRack ? ["in_cellar"] : ["tapped", "vented", "racked"]) : ["in_cellar"];
     const statusRank = { tapped: 0, vented: 1, racked: 2, in_cellar: 3 };
     const dateForStatus = (l) => l.status === "tapped" ? l.dates.tapped : l.status === "vented" ? l.dates.vented : l.status === "racked" ? l.dates.racked : l.dates.delivered;
-    const pool = lines.filter((l) => l.drinkType === swap.drink && candStatuses.includes(l.status));
+    const pool = lines.filter((l) => PUMP_DRINK(l.drinkType) === swap.drink && candStatuses.includes(l.status));
     const matching = allowedCats ? pool.filter((l) => allowedCats.includes(beerById[l.beerId]?.category || "Misc")) : pool;
     const base = matching.length ? matching : pool;
     const catRank = (l) => { const i = CATEGORIES.indexOf(beerById[l.beerId]?.category || "Misc"); return i === -1 ? CATEGORIES.length : i; };
