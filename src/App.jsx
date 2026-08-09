@@ -23,10 +23,10 @@ const DIET_BADGE_STYLE = {
   gluten: { background: "#E8F2F1", color: "#1F5C54", borderColor: "#BFDDD9" },
   hazy: { background: "#F7E9E7", color: C.alert, borderColor: "#E8CCC8" },
 };
-const CAT_ACCENT = { IPA: BEER.gold, Pale: BEER.yellow, Bitter: BEER.amber, "Stout/Porter": BEER.brown, Stout: BEER.brown, Porter: BEER.brown, Cider: "#4C7C6F", Sour: BEER.red, Misc: "#7C8F96" };
+const CAT_ACCENT = { IPA: BEER.gold, Pale: BEER.yellow, Bitter: BEER.amber, "Stout/Porter": BEER.brown, Stout: BEER.brown, Porter: BEER.brown, Cider: "#4C7C6F", Sour: BEER.red, Wheat: C.cream, Lager: "#DD9D28", Misc: "#7C8F96" };
 const STORE_KEY = "curfew-cellar:data:v1";
 const MODEL = "claude-sonnet-4-6";
-const APP_BUILD = "2026-08-04 14:05";
+const APP_BUILD = "2026-08-04 15:25";
 const SB_URL = "https://fnqhrckxmzioinbokicb.supabase.co";
 const SB_KEY = "sb_publishable_RyO06sDdZg3bH7Mt6hwHEQ_EA9RNkJ8";
 const MANAGER_EMAIL = "manager@curfewcellar.app";
@@ -471,6 +471,8 @@ const categorise = (style, abv) => {
   const s = (style || "").toLowerCase();
   if (/sour/.test(s)) return "Sour";
   if (/stout|porter/.test(s)) return "Stout/Porter";
+  if (/\bwheat\b|hefe|weizen|\bwit(?:bier)?\b|weissbier|\bweisse\b/.test(s)) return "Wheat";
+  if (/\blager\b|helles|pilsner|\bpils\b|kellerbier|zwickel/.test(s)) return "Lager";
   if (/bitter|mild|scottish|shilling|esb/.test(s)) return "Bitter";
   if (/ipa|pale|blonde|golden/.test(s)) {
     const n = parseFloat(abv);
@@ -745,7 +747,7 @@ const BeerDetailsFields = ({ values, onChange, onAutoFill, busy, note, toggleAll
       </div>
       <Field label="Category">
         <div className="flex flex-wrap gap-2">
-          {[...CATEGORIES, "Cider", "Sour"].map((cat) => (
+          {[...CATEGORIES, "Cider", "Sour", "Wheat", "Lager"].map((cat) => (
             <button key={cat} onClick={() => onChange({ category: cat })} className="rounded-full border px-3 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-slate-400" style={chip(values.category === cat)}>{cat}</button>
           ))}
         </div>
@@ -1212,23 +1214,16 @@ function TheCurfewCellarApp() {
     return out.sort((a, b) => a.pri - b.pri).map((a) => ({ ...a, key: `${a.kind}:${a.id || ""}` }));
   }, [lines, beerById, prefs.lastBackup, lineCare]);
 
-  const [dismissedAlerts, setDismissedAlerts] = useState(() => {
-    try {
-      if (typeof window !== "undefined" && window.localStorage) {
-        const raw = localStorage.getItem("curfew-cellar:dismissed-alerts:v1");
-        if (raw) return JSON.parse(raw);
-      }
-    } catch (e) { }
-    return [];
-  });
-  useEffect(() => {
-    try { if (typeof window !== "undefined" && window.localStorage) localStorage.setItem("curfew-cellar:dismissed-alerts:v1", JSON.stringify(dismissedAlerts)); } catch (e) { }
-  }, [dismissedAlerts]);
+  const dismissedAlerts = prefs.dismissedAlerts || [];
   useEffect(() => {
     const validKeys = new Set(attentionItems.map((a) => a.key));
-    setDismissedAlerts((d) => { const kept = d.filter((k) => validKeys.has(k)); return kept.length === d.length ? d : kept; });
+    setPrefs((p) => {
+      const cur = p.dismissedAlerts || [];
+      const kept = cur.filter((k) => validKeys.has(k));
+      return kept.length === cur.length ? p : { ...p, dismissedAlerts: kept };
+    });
   }, [attentionItems]);
-  const dismissAlert = (key) => setDismissedAlerts((d) => (d.includes(key) ? d : [...d, key]));
+  const dismissAlert = (key) => setPrefs((p) => { const cur = p.dismissedAlerts || []; return cur.includes(key) ? p : { ...p, dismissedAlerts: [...cur, key] }; });
   const visibleAttentionItems = useMemo(() => attentionItems.filter((a) => !dismissedAlerts.includes(a.key)), [attentionItems, dismissedAlerts]);
 
   const [pushState, setPushState] = useState("checking");
@@ -1313,6 +1308,7 @@ function TheCurfewCellarApp() {
     if (Array.isArray(data.distributors)) setDistributors(data.distributors);
     if (data.lineCare && typeof data.lineCare === "object") setLineCare(data.lineCare);
     if (data.prefs && data.prefs.lastBackup) setPrefs((p) => ({ ...p, lastBackup: data.prefs.lastBackup }));
+    if (data.prefs && Array.isArray(data.prefs.dismissedAlerts)) setPrefs((p) => ({ ...p, dismissedAlerts: data.prefs.dismissedAlerts }));
     if (data.lastUpdated) { lastUpdatedRef.current = data.lastUpdated; setLastUpdated(data.lastUpdated); }
   };
 
@@ -1974,6 +1970,7 @@ function TheCurfewCellarApp() {
     if (Array.isArray(data.distributors)) setDistributors(data.distributors);
     if (data.lineCare && typeof data.lineCare === "object") setLineCare(data.lineCare);
     if (data.prefs && typeof data.prefs === "object" && data.prefs.lastBackup) setPrefs((p) => ({ ...p, lastBackup: data.prefs.lastBackup }));
+    if (data.prefs && typeof data.prefs === "object" && Array.isArray(data.prefs.dismissedAlerts)) setPrefs((p) => ({ ...p, dismissedAlerts: data.prefs.dismissedAlerts }));
     setOpenId(null); setHistoryOpen({}); setView("cellar");
   };
   const confirmImport = () => {
