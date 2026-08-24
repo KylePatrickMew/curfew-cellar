@@ -26,7 +26,7 @@ const DIET_BADGE_STYLE = {
 const CAT_ACCENT = { IPA: BEER.gold, Pale: BEER.yellow, Bitter: BEER.amber, "Stout/Porter": BEER.brown, Stout: BEER.brown, Porter: BEER.brown, Cider: "#4C7C6F", Sour: BEER.red, Wheat: C.cream, Lager: "#DD9D28", Misc: "#7C8F96" };
 const STORE_KEY = "curfew-cellar:data:v1";
 const MODEL = "claude-sonnet-4-6";
-const APP_BUILD = "2026-08-04 15:25";
+const APP_BUILD = "2026-08-04 16:05";
 const SB_URL = "https://fnqhrckxmzioinbokicb.supabase.co";
 const SB_KEY = "sb_publishable_RyO06sDdZg3bH7Mt6hwHEQ_EA9RNkJ8";
 const MANAGER_EMAIL = "manager@curfewcellar.app";
@@ -1024,7 +1024,7 @@ const EditBeer = ({
           <button onClick={() => { updateBeer(beer.id, { archived: !beer.archived }); close(); }} className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium text-slate-500 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>
             <Package size={15} /> {beer.archived ? "Restore from archive" : "Archive this beer"}
           </button>
-          {!beer.archived && <p className="text-xs text-slate-400">Archiving hides it from your library and search without deleting its history. You can restore it any time.</p>}
+          {!beer.archived && <p className="text-xs text-slate-400">Archiving hides this beer from your library and search without deleting its history. You can restore it any time. It does not touch any cask or keg of it in the cellar, remove those from the cellar screen.</p>}
           {beerIsDeletable(beer) ? (
             deleteStage > 0 ? (
               <div className="rounded-lg border border-red-200 bg-red-50 p-2.5">
@@ -2167,6 +2167,12 @@ function TheCurfewCellarApp() {
       const beer = beerById[line.beerId];
       if (beer) updateBeer(beer.id, { category: deriveCategory(newType, beer.style, beer.abv) });
     }
+  };
+  const finishWithoutPouring = (id) => {
+    snapshotUndo("Marked finished");
+    const now = new Date().toISOString();
+    setLines((ls) => ls.map((c) => (c.id === id ? { ...c, status: "off", slot: null, dates: { ...c.dates, off: c.dates.off || now } } : c)));
+    showToast("Marked finished. It never went on a pump.");
   };
   const finishAndChoose = (line) => {
     const beer = beerById[line.beerId];
@@ -3951,6 +3957,9 @@ function TheCurfewCellarApp() {
                       : null}
                 </div>
                 )}
+                {canService && openLine.status !== "on" && openLine.status !== "off" && (
+                  <button onClick={() => finishWithoutPouring(openLine.id)} className="mt-2 text-xs font-medium transition hover:opacity-70" style={{ color: C.muted }}>Never poured, mark finished</button>
+                )}
                 {openLine.status === "off" && openLine.drinkType !== "cider" && openLine.drinkType !== "keykeg" && (openLine.collected
                   ? <p className="mt-2.5 flex items-center gap-1.5 text-sm" style={{ color: C.accent }}><CheckCircle2 size={15} /> Empty collected</p>
                   : canService && <button onClick={() => markCollected(openLine.id)} className="mt-2.5 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><Check size={15} /> Mark empty collected</button>)}
@@ -3961,7 +3970,7 @@ function TheCurfewCellarApp() {
             <div className="flex items-center justify-between border-t pt-4" style={{ borderColor: C.line }}>
               <button onClick={() => { setEditBeerId(beer.id); setEditBeerLineId(openLine ? openLine.id : null); close(); }} className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 transition hover:text-slate-900"><Pencil size={15} /> Edit details</button>
               {openLine && <button onClick={() => duplicateLine(openLine.id)} className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 transition hover:text-slate-900"><Copy size={15} /> Duplicate</button>}
-              {openLine && <button onClick={() => removeLine(openLine.id)} className="inline-flex items-center gap-1.5 text-sm font-medium text-red-600 transition hover:text-red-700"><Trash2 size={15} /> Remove</button>}
+              {openLine && <button onClick={() => removeLine(openLine.id)} className="inline-flex items-center gap-1.5 text-sm font-medium text-red-600 transition hover:text-red-700"><Trash2 size={15} /> Remove {openLine.drinkType === "cider" ? "cider" : openLine.drinkType === "cask" ? "cask" : "keg"}</button>}
             </div>
             )}
           </div>
