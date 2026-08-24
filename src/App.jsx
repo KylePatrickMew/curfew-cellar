@@ -26,7 +26,7 @@ const DIET_BADGE_STYLE = {
 const CAT_ACCENT = { IPA: BEER.gold, Pale: BEER.yellow, Bitter: BEER.amber, "Stout/Porter": BEER.brown, Stout: BEER.brown, Porter: BEER.brown, Cider: "#4C7C6F", Sour: BEER.red, Wheat: C.cream, Lager: "#DD9D28", Misc: "#7C8F96" };
 const STORE_KEY = "curfew-cellar:data:v1";
 const MODEL = "claude-sonnet-4-6";
-const APP_BUILD = "2026-08-04 16:05";
+const APP_BUILD = "2026-08-04 16:25";
 const SB_URL = "https://fnqhrckxmzioinbokicb.supabase.co";
 const SB_KEY = "sb_publishable_RyO06sDdZg3bH7Mt6hwHEQ_EA9RNkJ8";
 const MANAGER_EMAIL = "manager@curfewcellar.app";
@@ -2168,11 +2168,16 @@ function TheCurfewCellarApp() {
       if (beer) updateBeer(beer.id, { category: deriveCategory(newType, beer.style, beer.abv) });
     }
   };
-  const finishWithoutPouring = (id) => {
+  const jumpToFinished = (id, poured) => {
     snapshotUndo("Marked finished");
     const now = new Date().toISOString();
-    setLines((ls) => ls.map((c) => (c.id === id ? { ...c, status: "off", slot: null, dates: { ...c.dates, off: c.dates.off || now } } : c)));
-    showToast("Marked finished. It never went on a pump.");
+    setLines((ls) => ls.map((c) => {
+      if (c.id !== id) return c;
+      const dates = { ...c.dates, off: c.dates.off || now };
+      if (poured && !dates.on) dates.on = now;
+      return { ...c, status: "off", slot: null, dates };
+    }));
+    showToast(poured ? "Marked finished. Logged as having poured." : "Marked finished. It never went on a pump.");
   };
   const finishAndChoose = (line) => {
     const beer = beerById[line.beerId];
@@ -3958,7 +3963,10 @@ function TheCurfewCellarApp() {
                 </div>
                 )}
                 {canService && openLine.status !== "on" && openLine.status !== "off" && (
-                  <button onClick={() => finishWithoutPouring(openLine.id)} className="mt-2 text-xs font-medium transition hover:opacity-70" style={{ color: C.muted }}>Never poured, mark finished</button>
+                  <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+                    <button onClick={() => jumpToFinished(openLine.id, true)} className="text-xs font-medium transition hover:opacity-70" style={{ color: C.muted }}>Been on and finished already</button>
+                    <button onClick={() => jumpToFinished(openLine.id, false)} className="text-xs font-medium transition hover:opacity-70" style={{ color: C.muted }}>Never poured, mark finished</button>
+                  </div>
                 )}
                 {openLine.status === "off" && openLine.drinkType !== "cider" && openLine.drinkType !== "keykeg" && (openLine.collected
                   ? <p className="mt-2.5 flex items-center gap-1.5 text-sm" style={{ color: C.accent }}><CheckCircle2 size={15} /> Empty collected</p>
