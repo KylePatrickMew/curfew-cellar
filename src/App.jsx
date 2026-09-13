@@ -23,10 +23,10 @@ const DIET_BADGE_STYLE = {
   gluten: { background: "#E8F2F1", color: "#1F5C54", borderColor: "#BFDDD9" },
   hazy: { background: "#F7E9E7", color: C.alert, borderColor: "#E8CCC8" },
 };
-const CAT_ACCENT = { IPA: BEER.gold, Pale: BEER.yellow, Bitter: BEER.amber, "Stout/Porter": BEER.brown, Stout: BEER.brown, Porter: BEER.brown, Cider: "#4C7C6F", Sour: BEER.red, Wheat: C.cream, Lager: "#DD9D28", Misc: "#7C8F96" };
+const CAT_ACCENT = { IPA: BEER.gold, Pale: BEER.yellow, Bitter: BEER.amber, "Stout/Porter": BEER.brown, Stout: BEER.brown, Porter: BEER.brown, Cider: "#4C7C6F", Sour: BEER.red, Misc: "#7C8F96" };
 const STORE_KEY = "curfew-cellar:data:v1";
 const MODEL = "claude-sonnet-4-6";
-const APP_BUILD = "2026-08-04 16:25";
+const APP_BUILD = "2026-08-04 00:00";
 const SB_URL = "https://fnqhrckxmzioinbokicb.supabase.co";
 const SB_KEY = "sb_publishable_RyO06sDdZg3bH7Mt6hwHEQ_EA9RNkJ8";
 const MANAGER_EMAIL = "manager@curfewcellar.app";
@@ -471,8 +471,6 @@ const categorise = (style, abv) => {
   const s = (style || "").toLowerCase();
   if (/sour/.test(s)) return "Sour";
   if (/stout|porter/.test(s)) return "Stout/Porter";
-  if (/\bwheat\b|hefe|weizen|\bwit(?:bier)?\b|weissbier|\bweisse\b/.test(s)) return "Wheat";
-  if (/\blager\b|helles|pilsner|\bpils\b|kellerbier|zwickel/.test(s)) return "Lager";
   if (/bitter|mild|scottish|shilling|esb/.test(s)) return "Bitter";
   if (/ipa|pale|blonde|golden/.test(s)) {
     const n = parseFloat(abv);
@@ -747,7 +745,7 @@ const BeerDetailsFields = ({ values, onChange, onAutoFill, busy, note, toggleAll
       </div>
       <Field label="Category">
         <div className="flex flex-wrap gap-2">
-          {[...CATEGORIES, "Cider", "Sour", "Wheat", "Lager"].map((cat) => (
+          {[...CATEGORIES, "Cider", "Sour"].map((cat) => (
             <button key={cat} onClick={() => onChange({ category: cat })} className="rounded-full border px-3 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-slate-400" style={chip(values.category === cat)}>{cat}</button>
           ))}
         </div>
@@ -1024,7 +1022,7 @@ const EditBeer = ({
           <button onClick={() => { updateBeer(beer.id, { archived: !beer.archived }); close(); }} className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium text-slate-500 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}>
             <Package size={15} /> {beer.archived ? "Restore from archive" : "Archive this beer"}
           </button>
-          {!beer.archived && <p className="text-xs text-slate-400">Archiving hides this beer from your library and search without deleting its history. You can restore it any time. It does not touch any cask or keg of it in the cellar, remove those from the cellar screen.</p>}
+          {!beer.archived && <p className="text-xs text-slate-400">Archiving hides it from your library and search without deleting its history. You can restore it any time.</p>}
           {beerIsDeletable(beer) ? (
             deleteStage > 0 ? (
               <div className="rounded-lg border border-red-200 bg-red-50 p-2.5">
@@ -1194,37 +1192,22 @@ function TheCurfewCellarApp() {
       const nm = `${beer.brewery ? beer.brewery + " - " : ""}${beer.name}`;
       const servable = l.status === "on" || l.status === "tapped";
       const bb = bbStatus(l);
-      if (bb && bb.level === "past") out.push({ pri: 1, id: l.id, warn: true, kind: "bbPast", text: `${nm}: best before has passed` });
-      else if (bb && bb.level === "soon") out.push({ pri: 4, id: l.id, warn: true, kind: "bbSoon", text: `${nm}: best before ${daysUntil(l.bestBefore) === 0 ? "today" : `in ${daysUntil(l.bestBefore)}d`}` });
-      else if (!bb) out.push({ pri: 3, id: l.id, warn: true, kind: "bbMissing", text: `${nm}: no best before date set` });
+      if (bb && bb.level === "past") out.push({ pri: 1, id: l.id, warn: true, text: `${nm}: best before has passed` });
+      else if (bb && bb.level === "soon") out.push({ pri: 4, id: l.id, warn: true, text: `${nm}: best before ${daysUntil(l.bestBefore) === 0 ? "today" : `in ${daysUntil(l.bestBefore)}d`}` });
       const f = freshness(l);
-      if (l.status === "on" && f && f.level === "check") out.push({ pri: 6, id: l.id, warn: false, kind: "freshCheck", text: `${nm}: on for ${daysOn(l)} days, check quality` });
-      if (l.status === "vented" && l.dates.vented && dayDiff(l.dates.vented, new Date().toISOString()) >= 2) out.push({ pri: 5, id: l.id, warn: false, kind: "ventedReady", text: `${nm}: vented ${dayDiff(l.dates.vented, new Date().toISOString())}d ago, ready to tap` });
-      if (servable && !beer.allergensVerified) out.push({ pri: 2, id: l.id, warn: true, kind: "allergensUnverified", text: `${nm}: allergens not verified` });
-      else if (servable && beer.allergens.length === 0) out.push({ pri: 3, id: l.id, warn: true, kind: "allergensEmpty", text: `${nm}: verified with no allergens listed, worth double-checking` });
-      if (servable && !l.price) out.push({ pri: 2, id: l.id, warn: true, kind: "noPrice", text: `${nm}: no price set` });
-      if (servable && veganClaimConflict(beer)) out.push({ pri: 1, id: l.id, warn: true, kind: "veganConflict", text: `${nm}: marked vegan but isinglass or milk is listed, these aren't compatible` });
-      const noteWords = (beer.notes || "").trim() ? beer.notes.trim().split(/\s+/).filter(Boolean).length : 0;
-      if (noteWords < 20) out.push({ pri: 6, id: l.id, warn: false, kind: "notesThin", text: `${nm}: Tasting notes need improvement` });
+      if (l.status === "on" && f && f.level === "check") out.push({ pri: 6, id: l.id, warn: false, text: `${nm}: on for ${daysOn(l)} days, check quality` });
+      if (l.status === "vented" && l.dates.vented && dayDiff(l.dates.vented, new Date().toISOString()) >= 2) out.push({ pri: 5, id: l.id, warn: false, text: `${nm}: vented ${dayDiff(l.dates.vented, new Date().toISOString())}d ago, ready to tap` });
+      if (servable && !beer.allergensVerified) out.push({ pri: 2, id: l.id, warn: true, text: `${nm}: allergens not verified` });
+      else if (servable && beer.allergens.length === 0) out.push({ pri: 3, id: l.id, warn: true, text: `${nm}: verified with no allergens listed, worth double-checking` });
+      if (servable && !l.price) out.push({ pri: 2, id: l.id, warn: true, text: `${nm}: no price set` });
+      if (servable && veganClaimConflict(beer)) out.push({ pri: 1, id: l.id, warn: true, text: `${nm}: marked vegan but isinglass or milk is listed, these aren't compatible` });
     });
     const dueClean = linesDueClean();
-    if (dueClean) out.push({ pri: 6, id: null, lineCare: true, warn: false, kind: "dueClean", text: `${dueClean} line${dueClean === 1 ? "" : "s"} due a clean` });
+    if (dueClean) out.push({ pri: 6, id: null, lineCare: true, warn: false, text: `${dueClean} line${dueClean === 1 ? "" : "s"} due a clean` });
     const backupAge = prefs.lastBackup ? dayDiff(prefs.lastBackup, new Date().toISOString()) : null;
-    if (lines.length > 3 && (backupAge === null || backupAge > 30)) out.push({ pri: 7, id: null, warn: false, backup: true, kind: "backup", text: backupAge === null ? "No backup saved yet. Takes ten seconds" : `Last backup ${backupAge} days ago. Worth a fresh one` });
-    return out.sort((a, b) => a.pri - b.pri).map((a) => ({ ...a, key: `${a.kind}:${a.id || ""}` }));
+    if (lines.length > 3 && (backupAge === null || backupAge > 30)) out.push({ pri: 7, id: null, warn: false, backup: true, text: backupAge === null ? "No backup saved yet. Takes ten seconds" : `Last backup ${backupAge} days ago. Worth a fresh one` });
+    return out.sort((a, b) => a.pri - b.pri);
   }, [lines, beerById, prefs.lastBackup, lineCare]);
-
-  const dismissedAlerts = prefs.dismissedAlerts || [];
-  useEffect(() => {
-    const validKeys = new Set(attentionItems.map((a) => a.key));
-    setPrefs((p) => {
-      const cur = p.dismissedAlerts || [];
-      const kept = cur.filter((k) => validKeys.has(k));
-      return kept.length === cur.length ? p : { ...p, dismissedAlerts: kept };
-    });
-  }, [attentionItems]);
-  const dismissAlert = (key) => setPrefs((p) => { const cur = p.dismissedAlerts || []; return cur.includes(key) ? p : { ...p, dismissedAlerts: [...cur, key] }; });
-  const visibleAttentionItems = useMemo(() => attentionItems.filter((a) => !dismissedAlerts.includes(a.key)), [attentionItems, dismissedAlerts]);
 
   const [pushState, setPushState] = useState("checking");
   const [pushBusy, setPushBusy] = useState(false);
@@ -1308,7 +1291,6 @@ function TheCurfewCellarApp() {
     if (Array.isArray(data.distributors)) setDistributors(data.distributors);
     if (data.lineCare && typeof data.lineCare === "object") setLineCare(data.lineCare);
     if (data.prefs && data.prefs.lastBackup) setPrefs((p) => ({ ...p, lastBackup: data.prefs.lastBackup }));
-    if (data.prefs && Array.isArray(data.prefs.dismissedAlerts)) setPrefs((p) => ({ ...p, dismissedAlerts: data.prefs.dismissedAlerts }));
     if (data.lastUpdated) { lastUpdatedRef.current = data.lastUpdated; setLastUpdated(data.lastUpdated); }
   };
 
@@ -1970,7 +1952,6 @@ function TheCurfewCellarApp() {
     if (Array.isArray(data.distributors)) setDistributors(data.distributors);
     if (data.lineCare && typeof data.lineCare === "object") setLineCare(data.lineCare);
     if (data.prefs && typeof data.prefs === "object" && data.prefs.lastBackup) setPrefs((p) => ({ ...p, lastBackup: data.prefs.lastBackup }));
-    if (data.prefs && typeof data.prefs === "object" && Array.isArray(data.prefs.dismissedAlerts)) setPrefs((p) => ({ ...p, dismissedAlerts: data.prefs.dismissedAlerts }));
     setOpenId(null); setHistoryOpen({}); setView("cellar");
   };
   const confirmImport = () => {
@@ -2168,17 +2149,6 @@ function TheCurfewCellarApp() {
       if (beer) updateBeer(beer.id, { category: deriveCategory(newType, beer.style, beer.abv) });
     }
   };
-  const jumpToFinished = (id, poured) => {
-    snapshotUndo("Marked finished");
-    const now = new Date().toISOString();
-    setLines((ls) => ls.map((c) => {
-      if (c.id !== id) return c;
-      const dates = { ...c.dates, off: c.dates.off || now };
-      if (poured && !dates.on) dates.on = now;
-      return { ...c, status: "off", slot: null, dates };
-    }));
-    showToast(poured ? "Marked finished. Logged as having poured." : "Marked finished. It never went on a pump.");
-  };
   const finishAndChoose = (line) => {
     const beer = beerById[line.beerId];
     sendCellarPush("Line finished", beer ? `${beer.brewery ? beer.brewery + " - " : ""}${beer.name}` : "A beer");
@@ -2186,7 +2156,7 @@ function TheCurfewCellarApp() {
     const now = new Date().toISOString();
     setLines((ls) => ls.map((c) => (c.id === line.id ? { ...c, status: "off", slot: null, dates: { ...c.dates, off: now } } : c)));
     setOpenId(null);
-    setSwap({ drink: PUMP_DRINK(line.drinkType), category: line.drinkType === "cask" ? (beer ? (beer.category || "Misc") : null) : null, oldId: null, slot: line.slot || null });
+    setSwap({ drink: line.drinkType, category: line.drinkType === "cask" ? (beer ? (beer.category || "Misc") : null) : null, oldId: null, slot: line.slot || null });
   };
   const openPump = (slot) => {
     const cat = slot.drink === "cask" ? (slot.slot === "cask2" ? "Bitter" : slot.slot === "cask3" ? "Stout/Porter" : "IPA") : null;
@@ -3727,13 +3697,10 @@ function TheCurfewCellarApp() {
     const candStatuses = isCask ? (swap.toRack ? ["in_cellar"] : ["tapped", "vented", "racked"]) : ["in_cellar"];
     const statusRank = { tapped: 0, vented: 1, racked: 2, in_cellar: 3 };
     const dateForStatus = (l) => l.status === "tapped" ? l.dates.tapped : l.status === "vented" ? l.dates.vented : l.status === "racked" ? l.dates.racked : l.dates.delivered;
-    const pool = lines.filter((l) => PUMP_DRINK(l.drinkType) === swap.drink && candStatuses.includes(l.status));
+    const pool = lines.filter((l) => l.drinkType === swap.drink && candStatuses.includes(l.status));
     const matching = allowedCats ? pool.filter((l) => allowedCats.includes(beerById[l.beerId]?.category || "Misc")) : pool;
     const base = matching.length ? matching : pool;
-    const catRank = (l) => { const i = CATEGORIES.indexOf(beerById[l.beerId]?.category || "Misc"); return i === -1 ? CATEGORIES.length : i; };
-    const list = base.slice().sort((a, b) => swap.toRack
-      ? (catRank(a) - catRank(b)) || byBB(a, b)
-      : (statusRank[a.status] - statusRank[b.status]) || ((dateForStatus(a) || "").localeCompare(dateForStatus(b) || "")));
+    const list = base.slice().sort((a, b) => (statusRank[a.status] - statusRank[b.status]) || ((dateForStatus(a) || "").localeCompare(dateForStatus(b) || "")));
     const groupDefs = swap.toRack ? [["in_cellar", "In Store"]] : (isCask ? [["tapped", "Tapped and Ready"], ["vented", "Vented"], ["racked", "Racked"]] : [["in_cellar", "Ready to go on"]]);
     const groups = groupDefs.map(([k, label]) => ({ k, label, items: list.filter((l) => l.status === k) })).filter((g) => g.items.length);
     const emptyMsg = swap.toRack ? "Nothing in the store to rack. Add a cask from your library first." : (isCask ? "Nothing racked, vented or tapped yet. Rack and vent a cask to get one ready." : `Nothing in the store to put on. Add ${swap.drink === "keg" ? "a keg" : "a cider"} first.`);
@@ -3962,12 +3929,6 @@ function TheCurfewCellarApp() {
                       : null}
                 </div>
                 )}
-                {canService && openLine.status !== "on" && openLine.status !== "off" && (
-                  <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
-                    <button onClick={() => jumpToFinished(openLine.id, true)} className="text-xs font-medium transition hover:opacity-70" style={{ color: C.muted }}>Been on and finished already</button>
-                    <button onClick={() => jumpToFinished(openLine.id, false)} className="text-xs font-medium transition hover:opacity-70" style={{ color: C.muted }}>Never poured, mark finished</button>
-                  </div>
-                )}
                 {openLine.status === "off" && openLine.drinkType !== "cider" && openLine.drinkType !== "keykeg" && (openLine.collected
                   ? <p className="mt-2.5 flex items-center gap-1.5 text-sm" style={{ color: C.accent }}><CheckCircle2 size={15} /> Empty collected</p>
                   : canService && <button onClick={() => markCollected(openLine.id)} className="mt-2.5 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-slate-400" style={{ borderColor: C.line }}><Check size={15} /> Mark empty collected</button>)}
@@ -3978,7 +3939,7 @@ function TheCurfewCellarApp() {
             <div className="flex items-center justify-between border-t pt-4" style={{ borderColor: C.line }}>
               <button onClick={() => { setEditBeerId(beer.id); setEditBeerLineId(openLine ? openLine.id : null); close(); }} className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 transition hover:text-slate-900"><Pencil size={15} /> Edit details</button>
               {openLine && <button onClick={() => duplicateLine(openLine.id)} className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 transition hover:text-slate-900"><Copy size={15} /> Duplicate</button>}
-              {openLine && <button onClick={() => removeLine(openLine.id)} className="inline-flex items-center gap-1.5 text-sm font-medium text-red-600 transition hover:text-red-700"><Trash2 size={15} /> Remove {openLine.drinkType === "cider" ? "cider" : openLine.drinkType === "cask" ? "cask" : "keg"}</button>}
+              {openLine && <button onClick={() => removeLine(openLine.id)} className="inline-flex items-center gap-1.5 text-sm font-medium text-red-600 transition hover:text-red-700"><Trash2 size={15} /> Remove</button>}
             </div>
             )}
           </div>
@@ -4082,10 +4043,10 @@ input::placeholder,textarea::placeholder{color:#4A5D63!important;opacity:1!impor
         <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 py-2.5">
           <div className="flex items-center gap-2.5">
             <div className="relative">
-              <button onClick={() => setShowAlerts((v) => !v)} className="relative flex items-center rounded-lg p-0.5 transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-teal-300" aria-label={`Needs attention: ${visibleAttentionItems.length}`}>
-                <Bell size={19} style={{ color: visibleAttentionItems.length ? C.accentSoft : "rgba(138,207,206,0.6)", flexShrink: 0 }} />
-                {visibleAttentionItems.length > 0 && (
-                  <span className="absolute -right-1 -top-1 grid place-items-center rounded-full px-1" style={{ height: 16, minWidth: 16, background: C.alert, color: "#fff", fontFamily: "var(--font-data)", fontSize: 10, fontWeight: 700, lineHeight: 1 }}>{visibleAttentionItems.length > 9 ? "9+" : visibleAttentionItems.length}</span>
+              <button onClick={() => setShowAlerts((v) => !v)} className="relative flex items-center rounded-lg p-0.5 transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-teal-300" aria-label={`Needs attention: ${attentionItems.length}`}>
+                <Bell size={19} style={{ color: attentionItems.length ? C.accentSoft : "rgba(138,207,206,0.6)", flexShrink: 0 }} />
+                {attentionItems.length > 0 && (
+                  <span className="absolute -right-1 -top-1 grid place-items-center rounded-full px-1" style={{ height: 16, minWidth: 16, background: C.alert, color: "#fff", fontFamily: "var(--font-data)", fontSize: 10, fontWeight: 700, lineHeight: 1 }}>{attentionItems.length > 9 ? "9+" : attentionItems.length}</span>
                 )}
               </button>
               {showAlerts && (
@@ -4096,21 +4057,18 @@ input::placeholder,textarea::placeholder{color:#4A5D63!important;opacity:1!impor
                       <AlertTriangle size={13} style={{ color: C.accent }} />
                       <span className="uppercase" style={{ color: C.accent, fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}>Needs attention</span>
                     </div>
-                    {visibleAttentionItems.length === 0 ? (
+                    {attentionItems.length === 0 ? (
                       <div className="px-3 py-6 text-center">
                         <CheckCircle2 size={20} className="mx-auto mb-1.5" style={{ color: C.accent }} />
                         <p className="text-sm text-slate-500">All good. Nothing needs a look right now.</p>
                       </div>
                     ) : (
                       <ul className="max-h-80 overflow-y-auto py-1" style={{ overscrollBehaviorY: "none", WebkitOverflowScrolling: "touch", touchAction: "manipulation" }}>
-                        {visibleAttentionItems.map((a, i) => (
-                          <li key={`${a.key}-${i}`} className="flex items-start">
-                            <button onClick={() => { setShowAlerts(false); a.backup ? go("backup") : a.lineCare ? go("lines") : (go("cellar"), setOpenId(a.id)); }} className="flex min-w-0 flex-1 items-start gap-2 px-3 py-2 text-left text-sm transition hover:bg-slate-50 focus:outline-none" style={{ color: a.warn ? C.alert : C.inkSoft }}>
+                        {attentionItems.map((a, i) => (
+                          <li key={`${a.id}-${i}`}>
+                            <button onClick={() => { setShowAlerts(false); a.backup ? go("backup") : a.lineCare ? go("lines") : (go("cellar"), setOpenId(a.id)); }} className="flex w-full items-start gap-2 px-3 py-2 text-left text-sm transition hover:bg-slate-50 focus:outline-none" style={{ color: a.warn ? C.alert : C.inkSoft }}>
                               <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: a.warn ? C.alert : C.accent }} />
                               <span className="min-w-0 flex-1">{a.text}</span>
-                            </button>
-                            <button onClick={(e) => { e.stopPropagation(); dismissAlert(a.key); }} className="mr-1 mt-1 shrink-0 rounded-md p-1.5 text-slate-300 transition hover:bg-slate-100 hover:text-slate-500 focus:outline-none focus:ring-2 focus:ring-teal-300" aria-label="Dismiss">
-                              <X size={13} />
                             </button>
                           </li>
                         ))}
